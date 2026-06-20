@@ -1,0 +1,130 @@
+import { NextResponse } from "next/server";
+import connectToDatabase from "@/lib/db";
+import { Problem } from "@/models/Problem";
+import { Submission } from "@/models/Submission";
+import { Bookmark } from "@/models/Bookmark";
+
+export async function GET() {
+    try {
+        await connectToDatabase();
+
+        // ── Problem stats ──────────────────────────────────────────────────────
+        const [totalProblems, easyCount, mediumCount, hardCount, aiCount, manualCount] =
+            await Promise.all([
+                Problem.countDocuments(),
+                Problem.countDocuments({ difficulty: "Easy" }),
+                Problem.countDocuments({ difficulty: "Medium" }),
+                Problem.countDocuments({ difficulty: "Hard" }),
+                Problem.countDocuments({ createdByAI: true }),
+                Problem.countDocuments({ createdByAI: false }),
+            ]);
+
+        // ── Submission stats ───────────────────────────────────────────────────
+        const allSubmissions = await Submission.find().sort({ createdAt: -1 }).lean();
+        const totalSubmissions = allSubmissions.length;
+
+        const acceptedSlugs = new Set(
+            allSubmissions.filter((s: any) => s.status === "Accepted").map((s: any) => s.problemSlug)
+        );
+        const attemptedSlugs = new Set(
+            allSubmissions
+                .filter((s: any) => s.status !== "Accepted")
+                .map((s: any) => s.problemSlug)
+                .filter((slug: string) => !acceptedSlugs.has(slug))
+        );
+
+        const solvedCount = acceptedSlugs.size;
+        const attemptedCount = attemptedSlugs.size;
+
+        // Solve breakdown by difficulty
+        const solvedProblems = await Problem.find({ slug: { $in: Array.from(acceptedSlugs) } })
+            .select("difficulty")
+            .lean();
+        const solvedEasy = solvedProblems.filter((p: any) => p.difficulty === "Easy").length;
+        const solvedMedium = solvedProblems.filter((p: any) => p.difficulty === "Medium").length;
+        const solvedHard = solvedProblems.filter((p: any) => p.difficulty === "Hard").length;
+
+        // Acceptance rate
+        const acceptedCount = allSubmissions.filter((s: any) => s.status === "Accepted").length;
+        const acceptanceRate =
+            totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
+
+        // ── Bookmarks ──────────────────────────────────────────────────────────
+        const bookmarkCount = await Bookmark.countDocuments();
+
+        // ── Activity: submissions per day (last 30 days) ───────────────────────
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const recentSubmissions = allSubmissions.filter(
+            (s: any) => new Date(s.createdAt) >= thirtyDaysAgo
+        );
+
+        // Build a map: "YYYY-MM-DD" -> count
+        const activityMap: Record<string, number> = {};
+        for (const sub of recentSubmissions) {
+            const day = new Date((sub as any).createdAt).toISOString().split("T")[0];
+            activityMap[day] = (activityMap[day] ?? 0) + 1;
+        }
+
+        // Fill all 30 days so the chart has no gaps
+        const activityData: { date: string; count: number }[] = [];
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().split("T")[0];
+            activityData.push({ date: key, count: activityMap[key] ?? 0 });
+        }
+
+        // ── Recent submissions (for log) ──────────────────────────────────────
+        const recentLog = allSubmissions.slice(0, 20).map((s: any) => ({
+            problemSlug: s.problemSlug,
+            status: s.status,
+            executionTime: s.executionTime,
+            createdAt: s.createdAt,
+        }));
+
+        // ── Streak ────────────────────────────────────────────────────────────
+        let streak = 0;
+        const today = new Date().toISOString().split("T")[0];
+        for (let i = 0; i < 365; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().split("T")[0];
+            if (activityMap[key] || (i === 0 && activityMap[today])) {
+                streak++;
+            } else if (i > 0) {
+                break;
+            }
+        }
+
+        return NextResponse.json({
+            problems: {
+                total: totalProblems,
+                easy: easyCount,
+                medium: mediumCount,
+                hard: hardCount,
+                createdByAI: aiCount,
+                createdManually: manualCount,
+            },
+            submissions: {
+                total: totalSubmissions,
+                accepted: acceptedCount,
+                acceptanceRate,
+            },
+            solved: {
+                total: solvedCount,
+                easy: solvedEasy,
+                medium: solvedMedium,
+                hard: solvedHard,
+            },
+            attempted: attemptedCount,
+            bookmarks: bookmarkCount,
+            streak,
+            activityData,
+            recentLog,
+        });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

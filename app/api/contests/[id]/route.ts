@@ -1,0 +1,91 @@
+import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import connectToDatabase from "@/lib/db";
+import { Contest } from "@/models/Contest";
+
+// GET /api/contests/:id
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const { id } = await params;
+        await connectToDatabase();
+        const contest = await Contest.findById(id)
+            .populate("problems", "title slug difficulty tags")
+            .lean();
+        if (!contest) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        return NextResponse.json(contest);
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+// POST /api/contests/:id/join  — handled via action query param
+// POST /api/contests/:id  ?action=join | leave
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const { userId } = await auth();
+        if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { id } = await params;
+        const { searchParams } = new URL(req.url);
+        const action = searchParams.get("action");
+
+        await connectToDatabase();
+        const contest = await Contest.findById(id);
+        if (!contest) return NextResponse.json({ error: "Contest not found" }, { status: 404 });
+
+        const now = new Date();
+        if (action === "join") {
+            if (now > contest.endTime) {
+                return NextResponse.json({ error: "Contest has ended" }, { status: 400 });
+            }
+            const alreadyIn = contest.participants.some((p: any) => p.userId === userId);
+            if (alreadyIn) {
+                return NextResponse.json({ success: true, message: "Already joined" });
+            }
+            if (contest.participants.length >= contest.maxParticipants) {
+                return NextResponse.json({ error: "Contest is full" }, { status: 400 });
+            }
+            const user = await currentUser();
+            contest.participants.push({
+                userId,
+                userName: user?.fullName || user?.username || "Anonymous",
+                userImageUrl: user?.imageUrl || "",
+                score: 0,
+                solvedProblems: [],
+                joinedAt: new Date(),
+            });
+            await contest.save();
+            return NextResponse.json({ success: true });
+        }
+
+        if (action === "leave") {
+            contest.participants = contest.participants.filter((p: any) => p.userId !== userId);
+            await contest.save();
+            return NextResponse.json({ success: true });
+        }
+
+        return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    } catch (error: any) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
+
+// DELETE /api/contests/:id  — only creator can delete
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const { userId } = await auth();
+        if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { id } = await params;
+        await connectToDatabase();
+        const contest = await Contest.findById(id);
+        if (!contest) return NextResponse.json({ error: "Not found" }, { status: 404 });
+        if (contest.createdBy !== userId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        await Contest.findByIdAndDelete(id);
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+}
