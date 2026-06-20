@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 /**
- * Proxy to the DataWeave compiler backend at localhost:4000.
+ * Proxy to the DataWeave compiler backend at https://dwlbackend.onrender.com.
  *
  * Accepts either of two shapes from the frontend:
  *   A) { script: string, inputs: Array<{ name: string, value: any }> }   ← already correct
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
         // ── Forward to backend ─────────────────────────────────────────────────
         let response: Response;
         try {
-            response = await fetch("http://localhost:4000/api/transform", {
+            response = await fetch("https://dwlbackend.onrender.com/api/transform", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(backendBody),
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
                 {
                     success: false,
                     output:
-                        `Connection error: Could not reach the DataWeave compiler at localhost:4000.\n` +
+                        `Connection error: Could not reach the DataWeave compiler at https://dwlbackend.onrender.com.\n` +
                         `Make sure your Docker container is running.\n\n${networkErr.message}`,
                     time: "0ms",
                 },

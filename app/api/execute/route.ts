@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: false,
         output:
-          `Connection error: Could not reach the DataWeave compiler at localhost:4000.\n` +
+          `Connection error: Could not reach the DataWeave compiler at https://dwlbackend.onrender.com.\n` +
           `Make sure your Docker container is running.\n\n${networkErr.message}`,
         time: "0ms",
       });
