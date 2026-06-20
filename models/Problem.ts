@@ -26,6 +26,7 @@ const ProblemSchema = new mongoose.Schema({
   solution: String,
   hints: [{ type: String }],
   createdByAI: { type: Boolean, default: false },
+  createdBy: { type: String, default: "" },       // Clerk userId of creator
   createdAt: { type: Date, default: Date.now },
 });
 

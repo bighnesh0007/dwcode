@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
     Trophy, Zap, Star, BookOpen, BarChart2, Flame,
     CheckCircle2, Code2, Cpu, Target, Award, TrendingUp,
-    Medal,
+    Medal, Coins,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -253,16 +253,21 @@ export default function ProfilePage() {
     const [error, setError] = useState<string | null>(null);
     const [rank, setRank] = useState<number | null>(null);
     const [score, setScore] = useState<number>(0);
+    const [coins, setCoins] = useState<{ balance: number; transactions: any[] }>({ balance: 0, transactions: [] });
 
     useEffect(() => {
         fetch("/api/profile")
             .then((r) => r.json())
-            .then((d) => {
-                if (d.error) throw new Error(d.error);
-                setData(d);
-            })
+            .then((d) => { if (d.error) throw new Error(d.error); setData(d); })
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));
+    }, []);
+
+    useEffect(() => {
+        fetch("/api/coins")
+            .then((r) => r.json())
+            .then((d) => { if (typeof d.balance === "number") setCoins(d); })
+            .catch(() => { });
     }, []);
 
     // Fetch leaderboard to get rank
@@ -273,10 +278,7 @@ export default function ProfilePage() {
             .then((d) => {
                 if (d.leaderboard) {
                     const idx = d.leaderboard.findIndex((r: any) => r.userId === user.id);
-                    if (idx !== -1) {
-                        setRank(idx + 1);
-                        setScore(d.leaderboard[idx].score);
-                    }
+                    if (idx !== -1) { setRank(idx + 1); setScore(d.leaderboard[idx].score); }
                 }
             })
             .catch(() => { });
@@ -366,7 +368,7 @@ export default function ProfilePage() {
             </div>
 
             {/* ── Top stats ── */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <StatCard
                     icon={<Trophy className="w-4 h-4" />}
                     label="Problems Solved"
@@ -394,6 +396,13 @@ export default function ProfilePage() {
                     value={data.bookmarks}
                     sub="saved for revision"
                     color="text-yellow-400"
+                />
+                <StatCard
+                    icon={<Coins className="w-4 h-4" />}
+                    label="Coins"
+                    value={coins.balance}
+                    sub="earned from activity"
+                    color="text-yellow-500"
                 />
             </div>
 
@@ -505,6 +514,40 @@ export default function ProfilePage() {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* ── Coins History ── */}
+            <Card>
+                <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <Coins className="w-4 h-4 text-yellow-500" /> Coins
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                        Balance: <span className="font-bold text-yellow-500">{coins.balance}</span> coins · Last 20 transactions
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {coins.transactions.length === 0 ? (
+                        <p className="text-sm text-muted-foreground italic">No coin transactions yet. Start solving problems!</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {coins.transactions.map((t: any, i: number) => (
+                                <div key={i} className="flex items-center justify-between gap-3 py-1.5 px-3 rounded-md bg-muted/20 hover:bg-muted/30 transition-colors">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${t.amount > 0 ? "bg-yellow-500" : "bg-red-500"}`} />
+                                        <span className="text-sm truncate">{t.description || t.type}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                                        <span className="text-muted-foreground">{new Date(t.createdAt).toLocaleDateString()}</span>
+                                        <span className={`font-bold ${t.amount > 0 ? "text-yellow-500" : "text-red-500"}`}>
+                                            {t.amount > 0 ? "+" : ""}{t.amount}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </CardContent>

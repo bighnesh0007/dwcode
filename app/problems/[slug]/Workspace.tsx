@@ -103,7 +103,7 @@ export default function Workspace({ problem }: { problem: any }) {
     });
   }, [problem.slug]);
 
-  // --- Run ---
+  // --- Run (custom input only, no submission recorded) ---
   const handleRun = async () => {
     setIsRunning(true);
     setOutputStatus("idle");
@@ -115,11 +115,99 @@ export default function Workspace({ problem }: { problem: any }) {
         body: JSON.stringify({ code, input: customInput }),
       });
       const data = await res.json();
-      const status = data.success ? "success" : "error";
-      setOutputStatus(status);
+      setOutputStatus(data.success ? "success" : "error");
       setOutput(data.success ? `⏱ ${data.time}\n\n${data.output}` : `✗ Error:\n${data.output}`);
+    } catch (err: any) {
+      setOutputStatus("error");
+      setOutput(`✗ Error: ${err.message}`);
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
-      // Save submission
+  // --- Submit (test-case comparison → real status) ---
+  const handleSubmit = async () => {
+    setIsRunning(true);
+    setOutputStatus("idle");
+    setActiveTab("output");
+    setOutput("⏳ Evaluating test cases…");
+
+    try {
+      // 1. Run against custom input for display
+      const runRes = await fetch("/api/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, input: customInput }),
+      });
+      const runData = await runRes.json();
+
+      // 2. Determine actual status by checking test cases
+      const testCases: { input: string; expectedOutput: string }[] =
+        problem.testCases?.length ? problem.testCases
+          : problem.examples?.length ? [{ input: problem.examples[0].input, expectedOutput: problem.examples[0].output }]
+            : [];
+
+      let finalStatus: "Accepted" | "Attempted" | "Error" = "Attempted";
+      let testResultSummary = "";
+
+      if (!runData.success) {
+        finalStatus = "Error";
+        testResultSummary = `✗ Compilation Error:\n${runData.output}`;
+      } else if (testCases.length === 0) {
+        // No test cases — can't verify, mark Attempted
+        finalStatus = "Attempted";
+        testResultSummary = `⚠ No test cases defined. Cannot verify correctness.\n\n${runData.output}`;
+      } else {
+        // Run each test case
+        let allPassed = true;
+        const lines: string[] = [];
+
+        for (let i = 0; i < testCases.length; i++) {
+          const tc = testCases[i];
+          const tcRes = await fetch("/api/execute", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code, input: tc.input }),
+          });
+          const tcData = await tcRes.json();
+
+          if (!tcData.success) {
+            allPassed = false;
+            finalStatus = "Error";
+            lines.push(`Test ${i + 1}: ✗ Error — ${tcData.output}`);
+            break;
+          }
+
+          const normalize = (s: string) => {
+            try {
+              // Try to normalise JSON so whitespace differences don't matter
+              return JSON.stringify(JSON.parse(s.trim()));
+            } catch {
+              return s.trim();
+            }
+          };
+
+          const actual = normalize(tcData.output);
+          const expected = normalize(tc.expectedOutput);
+          const passed = actual === expected;
+
+          if (!passed) allPassed = false;
+          lines.push(
+            `Test ${i + 1}: ${passed ? "✓ Passed" : "✗ Failed"}\n  Expected: ${tc.expectedOutput.slice(0, 120)}\n  Got:      ${tcData.output.slice(0, 120)}`
+          );
+        }
+
+        if (finalStatus !== "Error") {
+          finalStatus = allPassed ? "Accepted" : "Attempted";
+        }
+        testResultSummary = lines.join("\n\n");
+      }
+
+      setOutputStatus(finalStatus === "Accepted" ? "success" : "error");
+      const statusEmoji = finalStatus === "Accepted" ? "✅ Accepted" : finalStatus === "Error" ? "✗ Error" : "✗ Wrong Answer";
+      setOutput(`${statusEmoji}\n\n${testResultSummary}`);
+
+      // 3. Save submission with correct status
       await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,13 +216,13 @@ export default function Workspace({ problem }: { problem: any }) {
           problemSlug: problem.slug,
           code,
           input: customInput,
-          output: data.output,
-          status: data.success ? "Accepted" : "Attempted",
-          executionTime: data.time,
+          output: runData.output || "",
+          status: finalStatus,
+          executionTime: runData.time || "0ms",
         }),
       });
 
-      // Refresh submissions list
+      // Refresh history
       fetch("/api/submissions").then(r => r.json()).then((d: any[]) => {
         if (Array.isArray(d)) {
           setSubmissions(d.filter(s => s.problemSlug === problem.slug).slice(0, 5));
@@ -147,8 +235,6 @@ export default function Workspace({ problem }: { problem: any }) {
       setIsRunning(false);
     }
   };
-
-  const handleSubmit = () => handleRun();
 
   const outputClass = outputStatus === "success"
     ? "text-green-400"

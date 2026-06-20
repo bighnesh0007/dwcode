@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, Trash2, Pencil, ChevronDown, ChevronUp, Check, X } from "lucide-react";
+import { Sparkles, Plus, Trash2, Pencil, ChevronDown, ChevronUp, Check, X, Users, ShieldOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 const emptyManual = {
@@ -23,6 +24,39 @@ const emptyManual = {
 };
 
 export default function AdminPage() {
+  const { isSignedIn } = useAuth();
+  const [adminCheck, setAdminCheck] = useState<"loading" | "allowed" | "forbidden">("loading");
+
+  useEffect(() => {
+    if (!isSignedIn) { setAdminCheck("forbidden"); return; }
+    fetch("/api/admin/users")
+      .then(r => { setAdminCheck(r.status === 403 ? "forbidden" : "allowed"); })
+      .catch(() => setAdminCheck("forbidden"));
+  }, [isSignedIn]);
+
+  if (adminCheck === "loading") {
+    return (
+      <div className="flex items-center justify-center py-32 gap-2 text-muted-foreground">
+        <Loader2 className="w-5 h-5 animate-spin" /> Checking access…
+      </div>
+    );
+  }
+
+  if (adminCheck === "forbidden") {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 gap-4 text-muted-foreground">
+        <ShieldOff className="w-10 h-10 opacity-30" />
+        <p className="text-lg font-semibold">Access Denied</p>
+        <p className="text-sm">Only admins can access this page.</p>
+        <Link href="/"><Button variant="outline">Go Home</Button></Link>
+      </div>
+    );
+  }
+
+  return <AdminPageContent />;
+}
+
+function AdminPageContent() {
   // AI Generate
   const [isGenerating, setIsGenerating] = useState(false);
   const [difficulty, setDifficulty] = useState("Medium");
@@ -152,9 +186,16 @@ export default function AdminPage() {
 
   return (
     <div className="container max-w-screen-md mx-auto py-10 px-4 space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
-        <p className="text-muted-foreground mt-1 text-sm">Manage problems, generate with AI, or create your own.</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Manage problems, generate with AI, or create your own.</p>
+        </div>
+        <Link href="/admin/users">
+          <Button variant="outline" size="sm" className="gap-2">
+            <Users className="w-4 h-4" /> Manage Users
+          </Button>
+        </Link>
       </div>
 
       {/* AI Generate */}

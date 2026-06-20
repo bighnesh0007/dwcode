@@ -42,6 +42,13 @@ export async function POST(req: Request) {
             content: content.trim(),
         });
         await comment.save();
+
+        // Award 1 coin for commenting
+        try {
+            const { awardCoins } = await import("@/lib/coins");
+            await awardCoins(userId, 1, "comment", "Posted a comment");
+        } catch { /* ignore */ }
+
         return NextResponse.json({ success: true, comment });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
