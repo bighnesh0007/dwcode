@@ -68,7 +68,7 @@ export default async function Home() {
           <Link href="/problems" className={cn(buttonVariants({ size: "sm" }))}>
             View All Problems
           </Link>
-          <Link href="/admin" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
+          <Link href="/create" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
             + Add Problem
           </Link>
         </div>
