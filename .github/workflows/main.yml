@@ -3,11 +3,12 @@ name: Next.js CI/CD
 on:
   push:
     branches:
-      - main
+      - master
       - develop
+
   pull_request:
     branches:
-      - main
+      - master
       - develop
 
 jobs:
@@ -26,7 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: "npm"
+          cache: npm
 
       - name: Install Dependencies
         run: npm ci
