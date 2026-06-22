@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Problem } from "@/models/Problem";
 import { Submission } from "@/models/Submission";
@@ -6,6 +7,11 @@ import { Bookmark } from "@/models/Bookmark";
 
 export async function GET() {
     try {
+        const { userId } = await auth();
+        if (!userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         await connectToDatabase();
 
         // ── Problem stats ──────────────────────────────────────────────────────
@@ -20,7 +26,7 @@ export async function GET() {
             ]);
 
         // ── Submission stats ───────────────────────────────────────────────────
-        const allSubmissions = await Submission.find().sort({ createdAt: -1 }).lean();
+        const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
         const totalSubmissions = allSubmissions.length;
 
         const acceptedSlugs = new Set(
@@ -50,7 +56,7 @@ export async function GET() {
             totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
 
         // ── Bookmarks ──────────────────────────────────────────────────────────
-        const bookmarkCount = await Bookmark.countDocuments();
+        const bookmarkCount = await Bookmark.countDocuments({ userId });
 
         // ── Activity: submissions per day (last 30 days) ───────────────────────
         const thirtyDaysAgo = new Date();

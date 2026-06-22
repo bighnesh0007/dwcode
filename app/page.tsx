@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
+import { GuestMigration } from "@/components/GuestMigration";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +12,8 @@ import { Bookmark } from "@/models/Bookmark";
 import { Code2, Zap, Trophy, BookOpen, Star, Shuffle, BarChart2 } from "lucide-react";
 
 export default async function Home() {
+  const { userId } = await auth();
+
   let total = 0, easy = 0, medium = 0, hard = 0;
   let solved = 0, attempted = 0, bookmarked = 0;
   let recentProblems: any[] = [];
@@ -24,23 +28,26 @@ export default async function Home() {
       Problem.countDocuments({ difficulty: "Hard" }),
     ]);
 
-    // Solved = any problem that has an Accepted submission
-    const acceptedSlugs = await Submission.distinct("problemSlug", { status: "Accepted" });
-    const attemptedSlugs = await Submission.distinct("problemSlug", { status: { $ne: "Accepted" } });
-    solved = acceptedSlugs.length;
-    attempted = attemptedSlugs.filter((s: string) => !acceptedSlugs.includes(s)).length;
+    if (userId) {
+      // Solved = any problem that has an Accepted submission
+      const acceptedSlugs = await Submission.distinct("problemSlug", { userId, status: "Accepted" });
+      const attemptedSlugs = await Submission.distinct("problemSlug", { userId, status: { $ne: "Accepted" } });
+      solved = acceptedSlugs.length;
+      attempted = attemptedSlugs.filter((s: string) => !acceptedSlugs.includes(s)).length;
 
-    bookmarked = await Bookmark.countDocuments();
+      bookmarked = await Bookmark.countDocuments({ userId });
 
-    const recentDocs = await Problem.find().sort({ createdAt: -1 }).limit(4).lean();
-    recentProblems = JSON.parse(JSON.stringify(recentDocs));
+      if (bookmarked > 0) {
+        const bmarks = await Bookmark.find({ userId }).lean();
+        const bIds = bmarks.map((b: any) => b.problemId);
+        const bDocs = await Problem.find({ _id: { $in: bIds } }).limit(3).lean();
+        bookmarkedProblems = JSON.parse(JSON.stringify(bDocs));
+      }
 
-    if (bookmarked > 0) {
-      const bmarks = await Bookmark.find().lean();
-      const bIds = bmarks.map((b: any) => b.problemId);
-      const bDocs = await Problem.find({ _id: { $in: bIds } }).limit(3).lean();
-      bookmarkedProblems = JSON.parse(JSON.stringify(bDocs));
+      const recentDocs = await Problem.find({ createdBy: userId }).sort({ createdAt: -1 }).limit(4).lean();
+      recentProblems = JSON.parse(JSON.stringify(recentDocs));
     }
+
   } catch (e) {
     console.error("Dashboard DB error:", e);
   }
@@ -54,6 +61,7 @@ export default async function Home() {
 
   return (
     <div className="container max-w-screen-xl mx-auto py-10 px-4 space-y-8">
+      {userId && <GuestMigration userId={userId} />}
       {/* Hero */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>

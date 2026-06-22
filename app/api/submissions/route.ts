@@ -7,8 +7,12 @@ import { awardCoins } from "@/lib/coins";
 
 export async function GET() {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json([]);
+    }
     await connectToDatabase();
-    const submissions = await Submission.find().sort({ createdAt: -1 }).lean();
+    const submissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
     return NextResponse.json(submissions);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

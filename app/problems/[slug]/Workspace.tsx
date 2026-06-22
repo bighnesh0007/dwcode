@@ -14,7 +14,7 @@ export default function Workspace({ problem }: { problem: any }) {
   const { resolvedTheme } = useTheme();
   const editorTheme = resolvedTheme === "light" ? "vs-light" : "vs-dark";
 
-  const [code, setCode] = useState(problem.starterCode || "%dw 2.0\noutput application/json\n---\npayload");
+  const [code, setCode] = useState(problem.starterCode || "%dw 2.0\noutput application/json\n---\n");
   const [customInput, setCustomInput] = useState(problem.examples?.[0]?.input || "{}");
   const [output, setOutput] = useState("");
   const [outputStatus, setOutputStatus] = useState<"idle" | "success" | "error">("idle");
@@ -31,6 +31,9 @@ export default function Workspace({ problem }: { problem: any }) {
 
   // Solution reveal
   const [showSolution, setShowSolution] = useState(false);
+  // Once the solution is viewed, we track it for the lifetime of this session.
+  // Hiding it again does NOT reset this flag — the user already saw the answer.
+  const solutionWasViewed = useRef(false);
 
   // Timer
   const [seconds, setSeconds] = useState(0);
@@ -132,6 +135,26 @@ export default function Workspace({ problem }: { problem: any }) {
     setActiveTab("output");
     setOutput("⏳ Evaluating test cases…");
 
+    // ── Solution-copy guard ──────────────────────────────────────────────
+    // If the user revealed the solution OR their current code is identical
+    // to the solution, we refuse to count this as a genuine solve.
+    const normalizeCode = (s: string) => s.replace(/\s+/g, " ").trim();
+    const codeMatchesSolution =
+      problem.solution &&
+      normalizeCode(code) === normalizeCode(problem.solution);
+
+    if (solutionWasViewed.current || codeMatchesSolution) {
+      setIsRunning(false);
+      setOutputStatus("error");
+      setOutput(
+        "⚠ Submission blocked\n\n" +
+        "You viewed the solution for this problem, so this submission won't be counted as solved.\n\n" +
+        "Close this problem, reload the page, and solve it without peeking to earn credit."
+      );
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────
+
     try {
       // 1. Run against custom input for display
       const runRes = await fetch("/api/execute", {
@@ -221,6 +244,20 @@ export default function Workspace({ problem }: { problem: any }) {
           executionTime: runData.time || "0ms",
         }),
       });
+
+      // 4. Persist accepted solves to localStorage for guests
+      if (finalStatus === "Accepted") {
+        try {
+          const raw = localStorage.getItem("dwcode_guest_progress");
+          const existing: string[] = raw ? JSON.parse(raw) : [];
+          if (!existing.includes(problem.slug)) {
+            existing.push(problem.slug);
+            localStorage.setItem("dwcode_guest_progress", JSON.stringify(existing));
+          }
+        } catch {
+          // localStorage unavailable (private mode, SSR guard) — fail silently
+        }
+      }
 
       // Refresh history
       fetch("/api/submissions").then(r => r.json()).then((d: any[]) => {
@@ -335,10 +372,25 @@ export default function Workspace({ problem }: { problem: any }) {
                     variant="outline"
                     size="sm"
                     className="text-xs"
-                    onClick={() => setShowSolution(!showSolution)}
+                    onClick={() => {
+                      const next = !showSolution;
+                      setShowSolution(next);
+                      // Mark solution as viewed the moment user opens it
+                      if (next) solutionWasViewed.current = true;
+                    }}
                   >
                     {showSolution ? <><EyeOff className="w-3.5 h-3.5 mr-1.5" /> Hide Solution</> : <><Eye className="w-3.5 h-3.5 mr-1.5" /> Reveal Solution</>}
                   </Button>
+                  {!solutionWasViewed.current && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ⚠ Revealing the solution will disable submission credit for this session.
+                    </p>
+                  )}
+                  {solutionWasViewed.current && (
+                    <p className="text-xs text-yellow-500 mt-2">
+                      Solution viewed — submissions are disabled for this session.
+                    </p>
+                  )}
                   {showSolution && (
                     <div className="mt-3 bg-muted/60 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border border-border">
                       {problem.solution}
@@ -410,7 +462,7 @@ export default function Workspace({ problem }: { problem: any }) {
                       {timerRunning ? <PauseCircle className="w-3 h-3" /> : <PlayCircle className="w-3 h-3" />}
                     </button>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setCode(problem.starterCode || "")}>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setCode(problem.starterCode || "%dw 2.0\noutput application/json\n---\n")}>
                     <RotateCcw className="w-3 h-3 mr-1" /> Reset
                   </Button>
                 </div>

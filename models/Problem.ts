@@ -20,7 +20,7 @@ const ProblemSchema = new mongoose.Schema({
   description: { type: String, required: true },
   examples: [ExampleSchema],
   constraints: [{ type: String }],
-  starterCode: { type: String, default: '%dw 2.0\noutput application/json\n---\npayload' },
+  starterCode: { type: String, default: '%dw 2.0\noutput application/json\n---\n' },
   testCases: [TestCaseSchema],
   hiddenTestCases: [TestCaseSchema],
   solution: String,
