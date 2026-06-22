@@ -4,6 +4,7 @@ import connectToDatabase from "@/lib/db";
 import { Problem } from "@/models/Problem";
 import { Submission } from "@/models/Submission";
 import { Bookmark } from "@/models/Bookmark";
+import { GitHubIntegration } from "@/models/GitHubIntegration";
 
 export async function GET() {
     try {
@@ -104,7 +105,12 @@ export async function GET() {
             }
         }
 
+        // ── GitHub Integration ────────────────────────────────────────────────
+        const githubIntegration = await GitHubIntegration.findOne({ userId }).lean();
+
         return NextResponse.json({
+            githubConnected: !!githubIntegration,
+            githubUsername: githubIntegration ? (githubIntegration as any).githubUsername : null,
             problems: {
                 total: totalProblems,
                 easy: easyCount,

@@ -4,6 +4,7 @@ import connectToDatabase from "@/lib/db";
 import { Submission } from "@/models/Submission";
 import { Problem } from "@/models/Problem";
 import { awardCoins } from "@/lib/coins";
+import { pushSolutionToGithub } from "@/lib/github";
 
 export async function GET() {
   try {
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
     // Award coins for accepted submissions
     if (userId && data.status === "Accepted") {
       try {
-        const problem = await Problem.findById(data.problemId).select("difficulty slug").lean() as any;
+        const problem = await Problem.findById(data.problemId).select("title difficulty slug").lean() as any;
         if (problem) {
           // Check if this is the first solve
           const prevAccepted = await Submission.countDocuments({
@@ -63,6 +64,9 @@ export async function POST(req: Request) {
           const diffCoins: Record<string, number> = { Easy: 5, Medium: 10, Hard: 20 };
           const bonus = diffCoins[problem.difficulty] ?? 5;
           await awardCoins(userId, bonus, "difficulty_bonus", `${problem.difficulty} problem solved`);
+
+          // Push to github in background
+          pushSolutionToGithub(userId, problem, data.code).catch(e => console.error("GitHub push error:", e));
         }
       } catch (coinErr) {
         console.error("[coins] award failed:", coinErr);
