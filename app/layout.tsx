@@ -1,5 +1,6 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -17,7 +18,17 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "DWCode",
-  description: "DataWeave Practice Platform",
+  description: "LeetCode for DataWeave. Practice DataWeave coding questions, challenges, transformations, arrays, objects, functions, MuleSoft interview preparation and more.",
+  keywords: [
+    "dwcode",
+    "dwlcode",
+    "dataweave coding platform",
+    "dataweave practice questions",
+    "dataweave leetcode",
+    "mulesoft coding challenges",
+    "dataweave playground",
+    "dataweave interview questions"
+  ]
 };
 
 export default function RootLayout({
@@ -42,6 +53,7 @@ export default function RootLayout({
             <Navbar />
             <main className="flex-1 flex flex-col">{children}</main>
           </ThemeProvider>
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
