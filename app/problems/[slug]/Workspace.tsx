@@ -21,6 +21,7 @@ export default function Workspace({ problem }: { problem: any }) {
   const [isRunning, setIsRunning] = useState(false);
   const [activeTab, setActiveTab] = useState("input");
   const [activeDescTab, setActiveDescTab] = useState("description");
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
 
   // Bookmark
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -42,6 +43,14 @@ export default function Workspace({ problem }: { problem: any }) {
 
   // Submissions
   const [submissions, setSubmissions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const updateLayout = () => setIsMobileLayout(media.matches);
+    queueMicrotask(updateLayout);
+    media.addEventListener("change", updateLayout);
+    return () => media.removeEventListener("change", updateLayout);
+  }, []);
 
   // --- Timer ---
   useEffect(() => {
@@ -280,7 +289,10 @@ export default function Workspace({ problem }: { problem: any }) {
       : "text-muted-foreground";
 
   return (
-    <ResizablePanelGroup orientation="horizontal" className="flex-1 w-full border-t">
+    <ResizablePanelGroup
+      orientation={isMobileLayout ? "vertical" : "horizontal"}
+      className="flex-1 w-full border-t"
+    >
       {/* LEFT: Description Panel */}
       <ResizablePanel defaultSize={38} minSize={25}>
         <div className="h-full flex flex-col bg-card">
@@ -315,7 +327,7 @@ export default function Workspace({ problem }: { problem: any }) {
 
           {/* Tabs: Description / Notes / Submissions */}
           <Tabs value={activeDescTab} onValueChange={setActiveDescTab} className="flex-1 flex flex-col min-h-0">
-            <TabsList className="bg-transparent border-b rounded-none justify-start px-4 h-10 gap-2 flex-shrink-0">
+            <TabsList className="h-10 flex-shrink-0 justify-start gap-1 overflow-x-auto rounded-none border-b bg-transparent px-2 sm:gap-2 sm:px-4">
               <TabsTrigger value="description" className="text-xs rounded-sm data-[state=active]:bg-muted">
                 Description
               </TabsTrigger>
@@ -446,7 +458,7 @@ export default function Workspace({ problem }: { problem: any }) {
           <ResizablePanel defaultSize={65} minSize={30}>
             <div className="h-full flex flex-col">
               {/* Editor toolbar */}
-              <div className="h-10 border-b flex items-center px-4 justify-between bg-muted/30 flex-shrink-0 gap-4">
+              <div className="flex min-h-10 flex-shrink-0 flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-2 py-1 sm:px-4">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-muted-foreground">DataWeave 2.0</span>
                   {isRunning && (

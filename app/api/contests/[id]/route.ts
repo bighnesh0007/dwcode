@@ -6,13 +6,32 @@ import { Contest } from "@/models/Contest";
 // GET /api/contests/:id
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { userId } = await auth();
         const { id } = await params;
         await connectToDatabase();
         const contest = await Contest.findById(id)
             .populate("problems", "title slug difficulty tags")
             .lean();
         if (!contest) return NextResponse.json({ error: "Not found" }, { status: 404 });
-        return NextResponse.json(contest);
+        const isCreator = contest.createdBy === userId;
+        const isParticipant = Boolean(
+            userId && contest.participants?.some((participant: any) => participant.userId === userId)
+        );
+        if (!contest.isPublic && !isCreator && !isParticipant) {
+            return NextResponse.json({ error: "Invite required" }, { status: 403 });
+        }
+        return NextResponse.json({
+            ...contest,
+            status:
+                new Date() < new Date(contest.startTime)
+                    ? "upcoming"
+                    : new Date() > new Date(contest.endTime)
+                      ? "ended"
+                      : "active",
+            inviteCode: isCreator ? contest.inviteCode : undefined,
+            isCreator,
+            isParticipant,
+        });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -35,6 +54,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
         const now = new Date();
         if (action === "join") {
+            if (!contest.isPublic) {
+                return NextResponse.json(
+                    { error: "Join this private contest with its invite key." },
+                    { status: 403 }
+                );
+            }
             if (now > contest.endTime) {
                 return NextResponse.json({ error: "Contest has ended" }, { status: 400 });
             }

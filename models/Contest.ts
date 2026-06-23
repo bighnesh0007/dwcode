@@ -31,7 +31,7 @@ const ContestSchema = new mongoose.Schema({
     isPublic: { type: Boolean, default: true },
     maxParticipants: { type: Number, default: 100 },
     participants: [ParticipantSchema],
-    inviteCode: { type: String, unique: true, sparse: true },
+    inviteCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
     createdAt: { type: Date, default: Date.now },
 });
 

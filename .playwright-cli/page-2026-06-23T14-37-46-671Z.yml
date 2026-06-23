@@ -1,0 +1,152 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - link "DWCode" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img [ref=e6]
+          - generic [ref=e10]: DWCode
+        - navigation [ref=e11]:
+          - link "Problems" [ref=e12] [cursor=pointer]:
+            - /url: /problems
+          - link "Playground" [ref=e13] [cursor=pointer]:
+            - /url: /playground
+            - img [ref=e14]
+            - text: Playground
+          - link "Leaderboard" [ref=e16] [cursor=pointer]:
+            - /url: /leaderboard
+            - img [ref=e17]
+            - text: Leaderboard
+          - link "Blog" [ref=e23] [cursor=pointer]:
+            - /url: /blog
+            - img [ref=e24]
+            - text: Blog
+          - link "Contests" [ref=e26] [cursor=pointer]:
+            - /url: /contests
+      - generic [ref=e27]:
+        - generic [ref=e29]:
+          - img [ref=e30]
+          - searchbox "Search questions..." [ref=e33]
+        - navigation [ref=e34]:
+          - link "Create" [ref=e35] [cursor=pointer]:
+            - /url: /create
+            - button "Create" [ref=e36]:
+              - img
+              - text: Create
+          - link "Store" [ref=e37] [cursor=pointer]:
+            - /url: /store
+            - button "Store" [ref=e38]:
+              - img
+              - text: Store
+          - link "Admin" [ref=e39] [cursor=pointer]:
+            - /url: /admin
+            - button "Admin" [ref=e40]
+          - button "Toggle theme" [ref=e41]:
+            - img
+            - generic [ref=e42]: Toggle theme
+          - button "Sign In" [ref=e43]
+          - button "Sign Up" [ref=e44]
+  - main [ref=e45]:
+    - generic [ref=e46]:
+      - generic [ref=e47]:
+        - img [ref=e48]
+        - generic [ref=e50]: DataWeave Playground
+        - generic [ref=e51]: Write, run, and compare
+        - generic [ref=e52]:
+          - button "Use vertical layout" [ref=e53]:
+            - img
+          - button "Export" [ref=e54]:
+            - button "Export" [ref=e55]:
+              - img
+              - text: Export
+          - button "Share" [ref=e56]:
+            - img
+            - text: Share
+          - button "Reset" [ref=e57]:
+            - img
+            - text: Reset
+          - button "Run" [ref=e58]:
+            - img
+            - text: Run
+      - generic [ref=e60]:
+        - generic [ref=e63]:
+          - tablist [ref=e65]:
+            - tab "Files" [selected] [ref=e66]
+            - tab "Tests" [ref=e67]
+          - tabpanel "Files" [ref=e68]:
+            - generic [ref=e69]:
+              - generic [ref=e71]:
+                - generic [ref=e72]:
+                  - generic [ref=e73]: Inputs
+                  - button "Add input file" [ref=e74]:
+                    - img
+                - generic [ref=e75]:
+                  - generic [ref=e76]:
+                    - button "payload.json" [ref=e77]:
+                      - img [ref=e78]
+                      - textbox [ref=e83]: payload.json
+                    - button "Remove file" [ref=e84]:
+                      - img
+                  - generic [ref=e85]:
+                    - button "vars.json" [ref=e86]:
+                      - img [ref=e87]
+                      - textbox [ref=e92]: vars.json
+                    - button "Remove file" [ref=e93]:
+                      - img
+                  - generic [ref=e94]:
+                    - button "attributes.json" [ref=e95]:
+                      - img [ref=e96]
+                      - textbox [ref=e101]: attributes.json
+                    - button "Remove file" [ref=e102]:
+                      - img
+              - code [ref=e106]:
+                - generic [ref=e107]:
+                  - textbox "Editor content" [ref=e108]
+                  - textbox [ref=e109]
+                  - generic [ref=e111]:
+                    - generic [ref=e114]: "1"
+                    - generic [ref=e116]: "2"
+                    - generic [ref=e120]: "3"
+                    - generic [ref=e124]: "4"
+                  - generic [ref=e141]:
+                    - generic [ref=e143]: "["
+                    - generic [ref=e145]: "{ \"id\": 1,"
+                    - generic [ref=e147]: "\"name\":"
+                    - generic [ref=e149]: "\"alice\" },"
+                    - generic [ref=e151]: "{ \"id\": 2,"
+                    - generic [ref=e153]: "\"name\":"
+                    - generic [ref=e155]: "\"bob\" }"
+                    - generic [ref=e157]: "]"
+        - separator [ref=e159]
+        - generic [ref=e163]:
+          - generic [ref=e164]:
+            - generic [ref=e165]: DataWeave Script
+            - generic [ref=e166]: DWL
+          - code [ref=e170]:
+            - generic [ref=e171]:
+              - textbox "Editor content" [ref=e172]
+              - textbox [ref=e173]
+              - generic [ref=e175]:
+                - generic [ref=e178]: "1"
+                - generic [ref=e180]: "2"
+                - generic [ref=e182]: "3"
+                - generic [ref=e184]: "4"
+                - generic [ref=e186]: "5"
+                - generic [ref=e188]: "6"
+                - generic [ref=e190]: "7"
+              - generic [ref=e202]:
+                - generic [ref=e204]: "%dw 2.0"
+                - generic [ref=e206]: output application/json
+                - generic [ref=e208]: "---"
+                - generic [ref=e210]: "payload map (item) -> {"
+                - generic [ref=e212]: "id: item.id,"
+                - generic [ref=e214]: "name: upper(item.name)"
+                - generic [ref=e216]: "}"
+        - separator [ref=e218]
+        - generic [ref=e222]:
+          - generic [ref=e224]: Output
+          - paragraph [ref=e226]: Click Run to see output here.
+  - alert [ref=e227]
+  - generic [ref=e228]:
+    - alert
+    - alert

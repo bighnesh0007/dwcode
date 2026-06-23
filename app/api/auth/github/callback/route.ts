@@ -6,9 +6,26 @@ import { GitHubIntegration } from "@/models/GitHubIntegration";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
+  const cookieHeader = req.headers.get("cookie") || "";
+  const cookies = Object.fromEntries(
+    cookieHeader.split(";").map((part) => {
+      const [key, ...value] = part.trim().split("=");
+      return [key, decodeURIComponent(value.join("="))];
+    })
+  );
+  const expectedState = cookies.github_oauth_state;
+  const returnTo =
+    cookies.github_oauth_return_to?.startsWith("/") &&
+    !cookies.github_oauth_return_to.startsWith("//")
+      ? cookies.github_oauth_return_to
+      : "/profile";
   
   if (!code) {
     return NextResponse.redirect(new URL("/profile?error=missing_code", req.url));
+  }
+  if (!state || !expectedState || state !== expectedState) {
+    return NextResponse.redirect(new URL("/profile?error=invalid_oauth_state", req.url));
   }
 
   const { userId } = await auth();
@@ -75,7 +92,12 @@ export async function GET(req: Request) {
       { upsert: true, new: true }
     );
 
-    return NextResponse.redirect(new URL("/profile?github_connected=true", req.url));
+    const destination = new URL(returnTo, req.url);
+    destination.searchParams.set("github", "connected");
+    const response = NextResponse.redirect(destination);
+    response.cookies.delete("github_oauth_state");
+    response.cookies.delete("github_oauth_return_to");
+    return response;
   } catch (error) {
     console.error("Error connecting GitHub:", error);
     return NextResponse.redirect(new URL("/profile?error=internal_error", req.url));

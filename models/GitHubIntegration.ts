@@ -5,6 +5,9 @@ const GitHubIntegrationSchema = new mongoose.Schema({
   githubId: { type: String, required: true },
   githubUsername: { type: String, required: true },
   accessToken: { type: String, required: true },
+  repoName: { type: String, default: "dwcode-workspace" },
+  repoPrivate: { type: Boolean, default: false },
+  defaultBranch: { type: String, default: "main" },
 }, {
   timestamps: true
 });

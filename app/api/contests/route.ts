@@ -2,9 +2,10 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Contest } from "@/models/Contest";
+import { randomBytes } from "node:crypto";
 
 function generateInviteCode() {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+    return randomBytes(5).toString("base64url").slice(0, 8).toUpperCase();
 }
 
 function computeStatus(startTime: Date, endTime: Date) {
@@ -17,17 +18,31 @@ function computeStatus(startTime: Date, endTime: Date) {
 // GET /api/contests  — list all contests
 export async function GET() {
     try {
+        const { userId } = await auth();
         await connectToDatabase();
-        const contests = await Contest.find()
+        const visibility = userId
+            ? {
+                $or: [
+                    { isPublic: true },
+                    { createdBy: userId },
+                    { "participants.userId": userId },
+                ],
+            }
+            : { isPublic: true };
+        const contests = await Contest.find(visibility)
             .sort({ startTime: -1 })
             .populate("problems", "title slug difficulty")
             .lean();
 
-        // Recompute status dynamically
         const enriched = contests.map((c: any) => ({
             ...c,
             status: computeStatus(new Date(c.startTime), new Date(c.endTime)),
             participantCount: c.participants?.length ?? 0,
+            isParticipant: Boolean(
+                userId && c.participants?.some((participant: any) => participant.userId === userId)
+            ),
+            inviteCode: c.createdBy === userId ? c.inviteCode : undefined,
+            participants: undefined,
         }));
 
         return NextResponse.json(enriched);
@@ -43,8 +58,47 @@ export async function POST(req: Request) {
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        const user = await currentUser();
         const data = await req.json();
+        if (data.action === "joinByCode") {
+            const inviteCode =
+                typeof data.inviteCode === "string"
+                    ? data.inviteCode.trim().toUpperCase()
+                    : "";
+
+            if (!inviteCode) {
+                return NextResponse.json({ error: "Enter an invite key." }, { status: 400 });
+            }
+
+            await connectToDatabase();
+            const contest = await Contest.findOne({ inviteCode });
+            if (!contest || contest.isPublic) {
+                return NextResponse.json({ error: "Invalid invite key." }, { status: 404 });
+            }
+            if (new Date() > contest.endTime) {
+                return NextResponse.json({ error: "This contest has ended." }, { status: 400 });
+            }
+            if (contest.participants.some((participant: any) => participant.userId === userId)) {
+                return NextResponse.json({ success: true, contestId: contest.id });
+            }
+            if (contest.participants.length >= contest.maxParticipants) {
+                return NextResponse.json({ error: "This contest is full." }, { status: 409 });
+            }
+
+            const user = await currentUser();
+            contest.participants.push({
+                userId,
+                userName: user?.fullName || user?.username || "Anonymous",
+                userImageUrl: user?.imageUrl || "",
+                score: 0,
+                solvedProblems: [],
+                joinedAt: new Date(),
+            });
+            await contest.save();
+
+            return NextResponse.json({ success: true, contestId: contest.id });
+        }
+
+        const user = await currentUser();
         const { title, description, problemIds, startTime, duration, isPublic, maxParticipants } = data;
 
         if (!title || !startTime || !duration || !problemIds?.length) {
@@ -64,6 +118,7 @@ export async function POST(req: Request) {
         const problems = await Problem.find({ _id: { $in: problemIds } }).select("slug").lean();
         const problemSlugs = (problems as any[]).map((p) => p.slug);
 
+        const isPrivate = isPublic === false;
         const contest = new Contest({
             title,
             description: description || "",
@@ -75,9 +130,9 @@ export async function POST(req: Request) {
             endTime: end,
             duration,
             status: computeStatus(start, end),
-            isPublic: isPublic !== false,
+            isPublic: !isPrivate,
             maxParticipants: maxParticipants || 100,
-            inviteCode: generateInviteCode(),
+            inviteCode: isPrivate ? generateInviteCode() : undefined,
             participants: [],
         });
 

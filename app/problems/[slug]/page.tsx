@@ -17,7 +17,7 @@ export default async function ProblemPage({ params }: { params: Promise<{ slug: 
   const problem = JSON.parse(JSON.stringify(problemDoc));
 
   return (
-    <div className="h-[calc(100vh-3.5rem)] flex flex-col">
+    <div className="flex h-[calc(100dvh-3.5rem)] min-h-[44rem] flex-col">
       <Workspace problem={problem} />
     </div>
   );

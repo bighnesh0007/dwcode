@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Trophy, Clock, Users, Plus, Calendar,
-    Lock, Globe, ChevronRight, Loader2, Check, X
+    Lock, Globe, ChevronRight, Loader2, Check, KeyRound
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ interface Contest {
     maxParticipants: number;
     problems: { title: string; slug: string; difficulty: string }[];
     inviteCode?: string;
+    isParticipant?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -65,11 +67,15 @@ function TimeLeft({ endTime, status }: { endTime: string; status: string }) {
 }
 
 export default function ContestsPage() {
+    const router = useRouter();
     const { user, isSignedIn } = useUser();
     const [contests, setContests] = useState<Contest[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
+    const [inviteKey, setInviteKey] = useState("");
+    const [joiningPrivate, setJoiningPrivate] = useState(false);
+    const [joinMessage, setJoinMessage] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "active" | "ended">("all");
 
     // Create form state
@@ -159,6 +165,29 @@ export default function ContestsPage() {
         }
     };
 
+    const handleJoinPrivate = async () => {
+        if (!isSignedIn || !inviteKey.trim()) return;
+        setJoiningPrivate(true);
+        setJoinMessage(null);
+        try {
+            const res = await fetch("/api/contests", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "joinByCode",
+                    inviteCode: inviteKey,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Could not join contest.");
+            router.push(`/contests/${data.contestId}`);
+        } catch (error) {
+            setJoinMessage(error instanceof Error ? error.message : "Could not join contest.");
+        } finally {
+            setJoiningPrivate(false);
+        }
+    };
+
     const filtered = contests.filter(c =>
         activeTab === "all" ? true : c.status === activeTab
     );
@@ -199,6 +228,50 @@ export default function ContestsPage() {
                 )}
             </div>
 
+            <Card className="border-dashed">
+                <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <KeyRound className="h-5 w-5" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold">Join a private contest</p>
+                            <p className="text-xs text-muted-foreground">
+                                Paste the invite key shared by the contest creator.
+                            </p>
+                        </div>
+                    </div>
+                    {isSignedIn ? (
+                        <div className="flex w-full flex-col gap-2 sm:w-auto">
+                            <div className="flex gap-2">
+                                <Input
+                                    value={inviteKey}
+                                    onChange={(event) => setInviteKey(event.target.value.toUpperCase())}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") handleJoinPrivate();
+                                    }}
+                                    placeholder="PRIVATE KEY"
+                                    className="font-mono uppercase sm:w-52"
+                                    maxLength={12}
+                                />
+                                <Button
+                                    onClick={handleJoinPrivate}
+                                    disabled={joiningPrivate || !inviteKey.trim()}
+                                >
+                                    {joiningPrivate && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+                                    Join
+                                </Button>
+                            </div>
+                            {joinMessage && <p className="text-xs text-red-500">{joinMessage}</p>}
+                        </div>
+                    ) : (
+                        <SignInButton mode="modal">
+                            <Button variant="outline">Sign in to use a key</Button>
+                        </SignInButton>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Create form */}
             {showCreate && (
                 <Card className="border-primary/30">
@@ -236,6 +309,38 @@ export default function ContestsPage() {
                                 <Input type="number" min={2} max={500} value={form.maxParticipants}
                                     onChange={e => setForm(f => ({ ...f, maxParticipants: e.target.value }))} />
                             </div>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                onClick={() => setForm((current) => ({ ...current, isPublic: true }))}
+                                className={cn(
+                                    "rounded-lg border p-3 text-left transition-colors",
+                                    form.isPublic ? "border-primary bg-primary/5" : "hover:bg-muted/40"
+                                )}
+                            >
+                                <span className="flex items-center gap-2 text-sm font-semibold">
+                                    <Globe className="h-4 w-4" /> Public contest
+                                </span>
+                                <span className="mt-1 block text-xs text-muted-foreground">
+                                    Visible to everyone and open for direct joining.
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setForm((current) => ({ ...current, isPublic: false }))}
+                                className={cn(
+                                    "rounded-lg border p-3 text-left transition-colors",
+                                    !form.isPublic ? "border-primary bg-primary/5" : "hover:bg-muted/40"
+                                )}
+                            >
+                                <span className="flex items-center gap-2 text-sm font-semibold">
+                                    <Lock className="h-4 w-4" /> Private contest
+                                </span>
+                                <span className="mt-1 block text-xs text-muted-foreground">
+                                    Hidden from discovery. People join with a generated key.
+                                </span>
+                            </button>
                         </div>
                         <div className="space-y-1.5">
                             <label className="text-sm font-medium">Description <span className="text-muted-foreground font-normal">(optional)</span></label>
@@ -325,7 +430,7 @@ export default function ContestsPage() {
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {filtered.map(c => {
                         const cfg = STATUS_CONFIG[c.status] ?? STATUS_CONFIG.ended;
-                        const isParticipant = false; // would need userId check client-side
+                        const isParticipant = c.isParticipant;
                         return (
                             <Card key={c._id} className={cn(
                                 "relative overflow-hidden transition-shadow hover:shadow-md",
@@ -405,7 +510,7 @@ export default function ContestsPage() {
                                                 View <ChevronRight className="w-3.5 h-3.5" />
                                             </Button>
                                         </Link>
-                                        {c.status !== "ended" && isSignedIn && (
+                                        {c.status !== "ended" && isSignedIn && c.isPublic && !isParticipant && (
                                             <Button
                                                 size="sm"
                                                 className="h-8 text-xs gap-1"
@@ -417,6 +522,11 @@ export default function ContestsPage() {
                                                     : <Check className="w-3 h-3" />}
                                                 Join
                                             </Button>
+                                        )}
+                                        {isParticipant && (
+                                            <Badge className="h-8 border-green-500/30 bg-green-500/10 px-3 text-green-500">
+                                                Joined
+                                            </Badge>
                                         )}
                                     </div>
                                 </CardContent>

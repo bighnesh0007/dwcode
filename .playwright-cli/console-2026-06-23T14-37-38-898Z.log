@@ -1,0 +1,20 @@
+[    6140ms] Error: Minified React error #418; visit https://react.dev/errors/418?args[]=HTML&args[]= for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at rY (http://localhost:8000/_next/static/chunks/3jh1u-s3k0bkk.js:1:40199)
+    at iu (http://localhost:8000/_next/static/chunks/3jh1u-s3k0bkk.js:1:91240)
+    at sd (http://localhost:8000/_next/static/chunks/3jh1u-s3k0bkk.js:1:131930)
+    at http://localhost:8000/_next/static/chunks/3jh1u-s3k0bkk.js:1:126816
+    at se (http://localhost:8000/_next/static/chunks/3jh1u-s3k0bkk.js:1:126917)
+    at sH (http://localhost:8000/_next/static/chunks/3jh1u-s3k0bkk.js:1:153481)
+    at MessagePort._ (http://localhost:8000/_next/static/chunks/3jh1u-s3k0bkk.js:1:1646)
+[    6260ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8000/_vercel/speed-insights/script.js:0
+[    6261ms] [LOG] [Vercel Speed Insights] Failed to load script from /_vercel/speed-insights/script.js. Please check if any content blockers are enabled and try again. @ http://localhost:8000/_next/static/chunks/3m2xr_6eliq73.js:8
+[    6302ms] [WARNING] Duplicate definition of module 'vs/editor/editor.main' @ https://cdn.jsdelivr.net/npm/monaco-editor@0.55.1/min/vs/loader.js:973
+[   21273ms] [ERROR] e: Clerk: Failed to load Clerk UI
+
+(code="failed_to_load_clerk_ui")
+
+
+    at i (http://localhost:8000/_next/static/chunks/20ncmjcalqa3i.js:1:4237)
+    at R (http://localhost:8000/_next/static/chunks/20ncmjcalqa3i.js:1:4596)
+    at e.getClerkUIEntryChunk (http://localhost:8000/_next/static/chunks/20ncmjcalqa3i.js:2:34050)
+    at e.getEntryChunks (http://localhost:8000/_next/static/chunks/20ncmjcalqa3i.js:2:33080) @ http://localhost:8000/_next/static/chunks/20ncmjcalqa3i.js:1
