@@ -248,7 +248,11 @@ export async function pushSolutionToGithub(userId: string, problem: any, code: s
 
     // 1. Ensure Repo Exists
     const repoRes = await fetch(`https://api.github.com/repos/${username}/${REPO_NAME}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      }
     });
 
     if (repoRes.status === 404) {
@@ -257,7 +261,8 @@ export async function pushSolutionToGithub(userId: string, problem: any, code: s
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          Accept: "application/vnd.github.v3+json",
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
         },
         body: JSON.stringify({
           name: REPO_NAME,
@@ -281,7 +286,11 @@ export async function pushSolutionToGithub(userId: string, problem: any, code: s
 
     // 3. Check if file exists to get SHA
     const fileRes = await fetch(`https://api.github.com/repos/${username}/${REPO_NAME}/contents/${filePath}`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      }
     });
     
     let sha = undefined;
@@ -296,6 +305,8 @@ export async function pushSolutionToGithub(userId: string, problem: any, code: s
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
       body: JSON.stringify({
         message: `Solved: ${problem.title || problem.slug} (#${problem.difficulty})`,
@@ -342,7 +353,11 @@ async function updateReadme(userId: string, token: string, username: string) {
     const base64Content = Buffer.from(readmeContent).toString("base64");
     
     const fileRes = await fetch(`https://api.github.com/repos/${username}/${REPO_NAME}/contents/README.md`, {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      }
     });
     
     let sha = undefined;
@@ -356,6 +371,8 @@ async function updateReadme(userId: string, token: string, username: string) {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
       body: JSON.stringify({
         message: `Update stats in README.md`,
