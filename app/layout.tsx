@@ -52,6 +52,17 @@ export default function RootLayout({
           >
             <Navbar />
             <main className="flex-1 flex flex-col">{children}</main>
+            <footer className="border-t py-4 text-center text-xs text-muted-foreground">
+              Licensed under the{" "}
+              <a
+                href="https://www.apache.org/licenses/LICENSE-2.0"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-foreground transition-colors"
+              >
+                Apache License 2.0
+              </a>
+            </footer>
           </ThemeProvider>
           <SpeedInsights />
         </body>
