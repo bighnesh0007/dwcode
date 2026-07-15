@@ -9,6 +9,7 @@ import { Play, Send, RotateCcw, Star, Eye, EyeOff, Timer, PauseCircle, PlayCircl
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { Comments } from "@/components/Comments";
+import { renderMarkdown } from "@/lib/markdown";
 
 export default function Workspace({ problem }: { problem: any }) {
   const { resolvedTheme } = useTheme();
@@ -343,9 +344,10 @@ export default function Workspace({ problem }: { problem: any }) {
             </TabsList>
 
             <TabsContent value="description" className="flex-1 overflow-y-auto px-5 py-4 mt-0 space-y-5">
-              <div className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
-                {problem.description}
-              </div>
+              <div
+                className="text-sm leading-relaxed text-foreground/90"
+                dangerouslySetInnerHTML={{ __html: `<p class='mb-3'>${renderMarkdown(problem.description)}</p>` }}
+              />
 
               {problem.examples?.length > 0 && (
                 <div className="space-y-4">
