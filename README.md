@@ -1,35 +1,41 @@
 <div align="center">
 
-# 🧩 DWCode
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:061A3A,50:00A0DF,100:00C9D6&height=220&section=header&text=DWCode&fontSize=80&fontColor=ffffff&fontAlignY=38&desc=The%20DataWeave%20Practice%20Arena%20for%20MuleSoft&descAlignY=60&descSize=20" width="100%" alt="DWCode banner"/>
 
-### _Where DataWeave developers come to level up._
+<a href="https://readme-typing-svg.demolab.com">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=24&pause=1000&color=00A0DF&center=true&vCenter=true&width=700&lines=Where+DataWeave+developers+level+up.;Solve.+Compete.+Climb+the+leaderboard.;Live+%25dw+2.0+compiler+in+your+browser.;Open+source+%E2%80%94+our+gift+to+the+Muleys." alt="Typing SVG"/>
+</a>
 
-**The first LeetCode-style arena built exclusively for MuleSoft DataWeave.**
+<br/><br/>
+
+**A LeetCode-style coding platform built exclusively for MuleSoft DataWeave developers.**
+
+Practice data transformations, compete in timed contests, and sharpen your skills with AI-generated problems — all in a browser-based Monaco editor connected to a live DataWeave 2.0 compiler.
 
 Stop practicing transformations in a scratch Anypoint project you'll never open again.
 Solve real problems. Race the clock. Climb the leaderboard. Let AI throw new challenges at you until `%dw 2.0` feels like a second language.
-
-_All in a browser-based Monaco editor wired straight into a live DataWeave 2.0 compiler._
 
 <br/>
 
 ### 🎬 [**▶ Watch the 2-minute Demo**](https://drive.google.com/file/d/1fK-xpvf82gxItmtEjhcHu2E9O9FS8vcX/view?usp=drive_link)
 
-_See a problem go from blank editor → green checkmarks in real time._
-
 <br/>
 
-[![Next.js](https://img.shields.io/badge/Next.js-16.2.9-black?logo=next.js)](https://nextjs.org)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://www.typescriptlang.org)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb)](https://www.mongodb.com)
-[![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk)](https://clerk.com)
-[![Gemini](https://img.shields.io/badge/AI-Gemini_2.5_Flash-4285F4?logo=google)](https://ai.google.dev)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker)](https://www.docker.com)
+![Next.js](https://img.shields.io/badge/Next.js_16-061A3A?style=for-the-badge&logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React_19-00A0DF?style=for-the-badge&logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript_5-00A0DF?style=for-the-badge&logo=typescript&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-00C9D6?style=for-the-badge&logo=mongodb&logoColor=white)
+![Clerk](https://img.shields.io/badge/Clerk_Auth-8B5CF6?style=for-the-badge&logo=clerk&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-00A0DF?style=for-the-badge&logo=google&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-00C9D6?style=for-the-badge&logo=docker&logoColor=white)
+
+![Open Source](https://img.shields.io/badge/OPEN_SOURCE-💜_our_gift_to_the_community-8B5CF6?style=for-the-badge)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-00A0DF?style=for-the-badge)
+![Made for Muleys](https://img.shields.io/badge/🐴_Made_for-Muleys-061A3A?style=for-the-badge)
 
 </div>
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🌍 Why DWCode Exists
 
@@ -39,65 +45,65 @@ DataWeave is a language. Languages get sharp with **reps**, not tutorials.
 
 DWCode is the dojo. It gives you an endless supply of curated and AI-generated transformation puzzles, a real compiler to check your work against hidden test cases, and a scoreboard that turns "I should practice more" into "I'm rank #3 and I'm not stopping."
 
-> **Built by the community, for the community.** 💙
+> **Built by the community, for the community.** 💜
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## ✨ Features
 
 ### 🏋️ Problem Workspace — _your training ground_
 The main event. A clean split-pane battle station:
 
-- **Problem description** | **Monaco editor** | **Console** — everything in one view, zero context-switching
-- Hit **Run** against your own custom JSON input, or smash **Submit** to face every test case at once
+- **Split-pane layout**: Problem description | Monaco editor | Console — everything in one view, zero context-switching
+- **Run** code against custom JSON input, or click **Submit** to evaluate all test cases at once
 - Real-time **pass/fail feedback** with per-test-case diff output — see exactly where your output drifted
-- A built-in **countdown timer** that recreates interview pressure (or just keeps you honest)
-- **Bookmark** any problem to revisit when it stops haunting you
-- **Reveal Solution** toggle with optional hints — for when you've earned it, or when you're stuck enough to peek
+- Built-in **countdown timer** to simulate interview pressure (or just keep you honest)
+- **Bookmark** any problem for later revision
+- **Reveal Solution** toggle with optional hints
 - **My Notes** tab — auto-saved, per-problem markdown notes so future-you remembers the trick
-- **Discussion** tab — a comment thread per problem to argue about the "right" way to do it
+- **Discussion** tab — comment thread per problem
 
 ### 🤖 AI Problem Generator — _the endless boss fight_
 Never run out of problems again.
 
-- One-click generation via **Google Gemini 2.5 Flash**
-- Dial in **difficulty** (Easy / Medium / Hard), **category**, and an optional **topic**
-- Get back a *complete* problem: description, examples, constraints, starter code, visible test cases, hidden test cases, hints, and a reference solution
-- Saved to the database instantly and live in your problem list before you can say _"lazy evaluation"_
+- **One-click generation** via Google Gemini 2.5 Flash
+- Configure **difficulty** (Easy / Medium / Hard), **category**, and an optional **topic**
+- Returns a *full* problem: description, examples, constraints, starter code, test cases, hidden test cases, hints, and a reference solution
+- Problems are saved immediately to the database and appear in the problem list
 
 ### 🏆 Contests — _prove it under pressure_
-- Spin up time-boxed contests from any subset of problems
-- **Public** for the whole arena, or **invite-code-only** for your team's private showdown
-- Status computes itself: `upcoming` → `active` → `ended`
-- Weighted scoring rewards ambition — **Hard ×5, Medium ×3, Easy ×1**
+- Create time-boxed contests with any subset of problems
+- **Public** or **invite-code-only** visibility
+- Auto-computed status: `upcoming` → `active` → `ended`
+- Participant scoring: **Hard ×5, Medium ×3, Easy ×1**
 
 ### 📊 Leaderboard — _the wall of legends_
-- Global ranking by weighted score across every accepted submission
+- Global ranking based on weighted score across all accepted submissions
 - Per-user breakdown: Easy / Medium / Hard solved, acceptance rate, total submissions
-- **Live aggregation** — no cron jobs, no manual sync, always current
+- **Live aggregation** — no manual sync required
 
 ### 🛝 Free Playground — _no rules, just DataWeave_
-- A standalone editor with zero problem constraints — bring your own chaos
-- Three panels: **Input payload** | **DataWeave script** | **Output**
-- Instant execution, copy-to-clipboard, one-click reset, and execution time so you can flex your optimizations
+- Standalone editor with no problem constraints — bring your own chaos
+- Three-panel layout: **Input payload** | **DataWeave script** | **Output**
+- Instant execution, copy-to-clipboard, reset, and execution time display
 
 ### ✍️ Blog — _the community's brain_
-- Full CRUD community blog
-- Write with a rich text editor; published posts go public for everyone to learn from
+- Community blog with full CRUD
+- Write posts using a rich text editor; published posts are publicly visible
 
 ### 👤 User Profiles — _your story so far_
-- Progress overview: total solved, breakdown by difficulty, your bookmarks
-- Full submission history and personal stats
+- Progress overview: total solved, by difficulty, bookmarks
+- Submission history and personal stats
 
 ### 🪙 Coins System — _because winning should feel good_
-- A gamification layer: earn coins for accepted solutions
-- Full transaction history right in your profile
+- Gamification layer: earn coins for accepted solutions
+- Transaction history visible in user profile
 
 ### 🔐 Admin Panel — _mission control_
 - Role management and user administration via dedicated `/admin` routes
-- Locked down with Clerk authentication and custom role checks
+- Protected by Clerk authentication and custom role checks
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🏗 Tech Stack
 
@@ -117,7 +123,7 @@ Every piece was chosen to keep the loop tight: **write DataWeave → run against
 | Containerisation | Docker Compose |
 | Font | Geist (via `next/font`) |
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🚀 Getting Started
 
@@ -126,7 +132,7 @@ Every piece was chosen to keep the loop tight: **write DataWeave → run against
 ### Prerequisites
 
 - **Node.js** ≥ 18
-- **Docker** (for MongoDB and the optional DataWeave compiler backend)
+- **Docker** (for MongoDB and optional DataWeave compiler backend)
 - A **Clerk** account — [clerk.com](https://clerk.com)
 - A **Google Gemini** API key — [ai.google.dev](https://ai.google.dev)
 
@@ -184,7 +190,7 @@ npm run dev
 
 The app starts on **[http://localhost:8000](http://localhost:8000)** — open it, pick a problem, and start transforming. 🎉
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 📂 Project Structure
 
@@ -221,7 +227,7 @@ dwcode/
 └── Dockerfile                  # App Dockerfile
 ```
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🔑 Key API Routes
 
@@ -239,7 +245,7 @@ dwcode/
 | `GET/POST` | `/api/blog` | Blog post management |
 | `GET/POST` | `/api/comments` | Problem discussion |
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🐳 Docker
 
@@ -256,7 +262,7 @@ docker build -t dwcode .
 docker run -p 8000:8000 --env-file .env.local dwcode
 ```
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🗺 Roadmap Ideas
 
@@ -269,7 +275,41 @@ _Want to help shape where DWCode goes next? These are open for the taking:_
 
 _Have an idea? Open an issue and let's talk._
 
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
+
+## 🎁 Our Gift to the MuleSoft Community
+
+> **DWCode is open source — because the best integrations are the ones we build together.** 🐴💜
+
+We didn't build DWCode to lock it away behind a paywall. We built it because we *are* the MuleSoft community — and every Muley deserves a place to sharpen their DataWeave without spinning up yet another throwaway Mule app.
+
+So here it is. **Free. Open. Yours.** Fork it, self-host it, remix it, ship it. This is our contribution to the flow — now add yours.
+
+**Every Muley makes the mule stronger.** Here's how you can plug in:
+
+- 🧩 **Add a problem** — dreamt up a devious transformation? Drop it in and stump the leaderboard.
+- 🐛 **Squash a bug** — see something misbehaving? A PR is worth a thousand issues.
+- 📖 **Write a blog post** — teach a DataWeave pattern that took *you* three hours to crack.
+- ✨ **Build a feature** — the roadmap above is a menu, not a limit.
+- ⭐ **Star the repo** — the cheapest, kindest way to say "keep going."
+
+```dataweave
+%dw 2.0
+output application/json
+var community = payload.developers
 ---
+{
+  status: "open source, forever",
+  gift: "DWCode",
+  from: "us",
+  to: "the MuleSoft community",
+  yourMove: community map (dev) -> dev ++ { contributed: true }
+}
+```
+
+> _An API is only as good as the community that connects to it. Same goes for a practice platform._ 🔌
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🤝 Contributing
 
@@ -282,24 +322,34 @@ DWCode gets better every time a MuleSoft dev throws in a problem, fixes a bug, o
 
 Every contribution — a single test case or a whole new feature — makes the whole community sharper. 🙌
 
----
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 📄 License
 
 MIT — feel free to use, fork, and extend. Go build something great.
 
----
+<br/>
 
 <div align="center">
 
-### 🧩 DWCode
-
-**Practice like it's an interview. Compete like it's a sport. Master DataWeave.**
-
-🎬 [**Watch the Demo**](https://drive.google.com/file/d/1fK-xpvf82gxItmtEjhcHu2E9O9FS8vcX/view?usp=drive_link)
+```dataweave
+%dw 2.0
+output application/json
+---
+{
+  project: "DWCode",
+  builtWith: "💜",
+  gift: "open source, to the MuleSoft community",
+  from: "one Muley to every Muley",
+  message: "Keep weaving. Keep shipping. Keep leveling up.",
+  yourTurn: "fork it → improve it → give it back"
+}
+```
 
 <br/>
 
-_Built with ❤️ for the MuleSoft community._
+⭐ **If DWCode helped you level up, drop a star — it fuels the mission.** ⭐
 
 </div>
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00C9D6,50:00A0DF,100:061A3A&height=160&section=footer&text=Made%20with%20💜%20for%20the%20MuleSoft%20Community&fontSize=22&fontColor=ffffff&fontAlignY=70&desc=Our%20open-source%20gift%20—%20now%20go%20weave%20something%20legendary%20🕸️&descAlignY=88&descSize=14" width="100%" alt="DWCode footer"/>
