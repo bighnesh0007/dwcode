@@ -45,6 +45,9 @@ export default function Workspace({ problem }: { problem: any }) {
   // Submissions
   const [submissions, setSubmissions] = useState<any[]>([]);
 
+  // Discussion
+  const [commentCount, setCommentCount] = useState<number | null>(null);
+
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
     const updateLayout = () => setIsMobileLayout(media.matches);
@@ -340,6 +343,11 @@ export default function Workspace({ problem }: { problem: any }) {
               </TabsTrigger>
               <TabsTrigger value="comments" className="text-xs rounded-sm data-[state=active]:bg-muted">
                 Discussion
+                {commentCount !== null && commentCount > 0 && (
+                  <Badge variant="secondary" className="ml-1.5 text-[10px] py-0 px-1.5">
+                    {commentCount}
+                  </Badge>
+                )}
               </TabsTrigger>
             </TabsList>
 
@@ -444,8 +452,8 @@ export default function Workspace({ problem }: { problem: any }) {
               )}
             </TabsContent>
 
-            <TabsContent value="comments" className="flex-1 overflow-y-auto mt-0">
-              <Comments problemSlug={problem.slug} />
+            <TabsContent value="comments" keepMounted className="flex-1 overflow-y-auto mt-0">
+              <Comments problemSlug={problem.slug} onCountChange={setCommentCount} />
             </TabsContent>
           </Tabs>
         </div>
