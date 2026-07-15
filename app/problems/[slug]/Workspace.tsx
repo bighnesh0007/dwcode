@@ -145,14 +145,11 @@ export default function Workspace({ problem }: { problem: any }) {
     setOutput("⏳ Evaluating test cases…");
 
     // ── Solution-copy guard ──────────────────────────────────────────────
-    // If the user revealed the solution OR their current code is identical
-    // to the solution, we refuse to count this as a genuine solve.
-    const normalizeCode = (s: string) => s.replace(/\s+/g, " ").trim();
-    const codeMatchesSolution =
-      problem.solution &&
-      normalizeCode(code) === normalizeCode(problem.solution);
-
-    if (solutionWasViewed.current || codeMatchesSolution) {
+    // Only block credit when the user actually revealed the solution. We do
+    // NOT compare code against the stored solution: for many DataWeave
+    // problems there is a single idiomatic answer, so a legitimate solve
+    // naturally matches the canonical solution and would be falsely blocked.
+    if (solutionWasViewed.current) {
       setIsRunning(false);
       setOutputStatus("error");
       setOutput(
