@@ -16,6 +16,25 @@ interface Comment {
     createdAt: string;
 }
 
+// Escape HTML first — comments are untrusted user input — then apply a small
+// subset of markdown. Mirrors the blog renderer but is XSS-safe by construction.
+function renderMarkdown(md: string): string {
+    const esc = md
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    return esc
+        .replace(/```[\w]*\n([\s\S]*?)```/g, "<pre class='bg-muted rounded-md p-3 text-xs font-mono overflow-x-auto my-2'><code>$1</code></pre>")
+        .replace(/`([^`]+)`/g, "<code class='bg-muted px-1 py-0.5 rounded text-[13px] font-mono'>$1</code>")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        // Only allow http(s) links; the URL is already HTML-escaped above.
+        .replace(/\[(.+?)\]\((https?:\/\/[^\s)]+)\)/g, "<a href='$2' class='text-primary underline hover:no-underline' target='_blank' rel='noopener noreferrer'>$1</a>")
+        .replace(/^&gt; (.+)$/gm, "<blockquote class='border-l-2 border-primary/40 pl-3 italic text-muted-foreground my-1'>$1</blockquote>")
+        .replace(/^[-*] (.+)$/gm, "<li class='ml-4 list-disc'>$1</li>")
+        .replace(/\n/g, "<br/>");
+}
+
 export function Comments({ problemSlug }: { problemSlug: string }) {
     const { user, isSignedIn } = useUser();
     const [comments, setComments] = useState<Comment[]>([]);
@@ -102,7 +121,8 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
                         className="text-sm resize-none"
                     />
                     {error && <p className="text-xs text-red-500">{error}</p>}
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">Markdown supported</span>
                         <Button
                             size="sm"
                             className="h-7 text-xs"
@@ -160,7 +180,10 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
                                         </button>
                                     )}
                                 </div>
-                                <p className="text-sm text-foreground/90 mt-1 whitespace-pre-wrap leading-relaxed">{c.content}</p>
+                                <div
+                                    className="text-sm text-foreground/90 mt-1 leading-relaxed prose prose-sm dark:prose-invert max-w-none break-words"
+                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(c.content) }}
+                                />
                             </div>
                         </div>
                     ))}
