@@ -146,6 +146,11 @@
     @apply font-sans;
     scroll-behavior: smooth;
   }
+  /* Tailwind v4 Preflight drops the pointer cursor on buttons; restore it. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 @media (max-width: 640px) {
