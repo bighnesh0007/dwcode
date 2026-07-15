@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, MessageSquare, Loader2 } from "lucide-react";
+import { renderMarkdown } from "@/lib/markdown";
 
 interface Comment {
     _id: string;
@@ -102,7 +103,8 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
                         className="text-sm resize-none"
                     />
                     {error && <p className="text-xs text-red-500">{error}</p>}
-                    <div className="flex justify-end">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground">Markdown supported</span>
                         <Button
                             size="sm"
                             className="h-7 text-xs"
@@ -160,7 +162,10 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
                                         </button>
                                     )}
                                 </div>
-                                <p className="text-sm text-foreground/90 mt-1 whitespace-pre-wrap leading-relaxed">{c.content}</p>
+                                <div
+                                    className="text-sm text-foreground/90 mt-1 leading-relaxed prose prose-sm dark:prose-invert max-w-none break-words"
+                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(c.content) }}
+                                />
                             </div>
                         </div>
                     ))}
