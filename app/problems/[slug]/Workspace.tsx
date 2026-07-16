@@ -166,19 +166,31 @@ export default function Workspace({ problem }: { problem: any }) {
     // ────────────────────────────────────────────────────────────────────
 
     try {
-      // 1. Run against custom input for display
-      const runRes = await fetch("/api/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, input: customInput }),
-      });
-      const runData = await runRes.json();
-
-      // 2. Determine actual status by checking test cases
+      // Determine which test cases to check
       const testCases: { input: string; expectedOutput: string }[] =
         problem.testCases?.length ? problem.testCases
           : problem.examples?.length ? [{ input: problem.examples[0].input, expectedOutput: problem.examples[0].output }]
             : [];
+
+      // 1. Single batched request: custom input (index 0, for display) + every
+      // test case. This replaces the old 1 + N sequential /api/execute calls.
+      const batchRes = await fetch("/api/execute/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          inputs: [customInput, ...testCases.map((tc) => tc.input)],
+        }),
+      });
+
+      if (!batchRes.ok) {
+        const errBody = await batchRes.json().catch(() => ({}));
+        throw new Error(errBody.error || `Execution failed (HTTP ${batchRes.status})`);
+      }
+
+      const { results } = await batchRes.json();
+      const runData = results[0];            // custom-input run, for display + saved submission
+      const tcResults = results.slice(1);    // one per test case, same order
 
       let finalStatus: "Accepted" | "Attempted" | "Error" = "Attempted";
       let testResultSummary = "";
@@ -191,34 +203,29 @@ export default function Workspace({ problem }: { problem: any }) {
         finalStatus = "Attempted";
         testResultSummary = `⚠ No test cases defined. Cannot verify correctness.\n\n${runData.output}`;
       } else {
-        // Run each test case
+        // Compare each test-case result (already computed by the batch)
         let allPassed = true;
         const lines: string[] = [];
 
+        const normalize = (s: string) => {
+          try {
+            // Try to normalise JSON so whitespace differences don't matter
+            return JSON.stringify(JSON.parse(s.trim()));
+          } catch {
+            return s.trim();
+          }
+        };
+
         for (let i = 0; i < testCases.length; i++) {
           const tc = testCases[i];
-          const tcRes = await fetch("/api/execute", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code, input: tc.input }),
-          });
-          const tcData = await tcRes.json();
+          const tcData = tcResults[i];
 
-          if (!tcData.success) {
+          if (!tcData?.success) {
             allPassed = false;
             finalStatus = "Error";
-            lines.push(`Test ${i + 1}: ✗ Error — ${tcData.output}`);
+            lines.push(`Test ${i + 1}: ✗ Error — ${tcData?.output ?? "no result"}`);
             break;
           }
-
-          const normalize = (s: string) => {
-            try {
-              // Try to normalise JSON so whitespace differences don't matter
-              return JSON.stringify(JSON.parse(s.trim()));
-            } catch {
-              return s.trim();
-            }
-          };
 
           const actual = normalize(tcData.output);
           const expected = normalize(tc.expectedOutput);
