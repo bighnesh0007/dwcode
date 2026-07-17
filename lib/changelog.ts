@@ -31,6 +31,86 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "profile-public-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "feature",
+        title: "Public user profiles",
+        description:
+            "Every user now has a shareable public profile at /profile/[username] showing their solve breakdown by difficulty, a 30-day activity heatmap, acceptance rate, followers/following counts, and their last 10 submissions.",
+        tags: ["profile", "community"],
+    },
+    {
+        id: "profile-follow-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "feature",
+        title: "Follow / unfollow users",
+        description:
+            "Users can follow and unfollow each other directly from public profile pages. Follower and following counts update in real time.",
+        tags: ["profile", "community", "social"],
+    },
+    {
+        id: "profile-edit-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "feature",
+        title: "Edit profile — username & bio",
+        description:
+            "An \"Edit Profile\" dialog on the profile page lets users set a custom username (3–20 alphanumeric characters) and a short bio. Usernames are unique and case-insensitively validated.",
+        tags: ["profile", "ux"],
+    },
+    {
+        id: "profile-setup-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "feature",
+        title: "Automatic profile setup on first sign-in",
+        description:
+            "On first authenticated load, a default username is auto-generated from the user's email and a UserProfile record is created silently — no manual setup required.",
+        tags: ["profile", "onboarding"],
+    },
+    {
+        id: "charts-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "feature",
+        title: "Activity heatmap & progress rings",
+        description:
+            "New reusable chart components: a 30-day submission heatmap with intensity-based colouring, and SVG progress rings showing solve percentages per difficulty level.",
+        tags: ["profile", "ui", "charts"],
+    },
+    {
+        id: "hydration-fix-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "bugfix",
+        title: "Hydration error with DialogTrigger fixed",
+        description:
+            "A React hydration mismatch on the profile page caused by DialogTrigger with asChild was resolved by switching to the render prop pattern.",
+        tags: ["profile", "bugfix", "react"],
+    },
+    {
+        id: "shadcn-label-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "dx",
+        title: "Added missing shadcn Label component",
+        description:
+            "The Label UI component was missing from the component library. It has been added so form fields across the app render correctly.",
+        tags: ["ui", "dx"],
+    },
+    {
+        id: "dashboard-enhancements-001",
+        date: "2025-07-17",
+        status: "shipped",
+        category: "improvement",
+        title: "Home dashboard enhancements",
+        description:
+            "The home dashboard now shows username, follower/following counts, and a link to the user's public profile. The profile data fetch also auto-triggers setup if a username is missing.",
+        tags: ["dashboard", "profile", "ux"],
+    },
+    {
         id: "tour-001",
         date: "2025-07-17",
         status: "shipped",
