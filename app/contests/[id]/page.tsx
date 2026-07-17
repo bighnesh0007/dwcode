@@ -71,7 +71,7 @@ export default function ContestDetailPage() {
         try {
             const res = await fetch(`/api/contests/${id}?action=join`, { method: "POST" });
             const data = await res.json();
-            if (data.success) fetchContest();
+            if (data.success) await fetchContest();
         } finally {
             setJoining(false);
         }
@@ -83,14 +83,14 @@ export default function ContestDetailPage() {
         try {
             const res = await fetch(`/api/contests/${id}?action=leave`, { method: "POST" });
             const data = await res.json();
-            if (data.success) fetchContest();
+            if (data.success) await fetchContest();
         } finally {
             setJoining(false);
         }
     };
 
     const copyCode = () => {
-        navigator.clipboard.writeText(contest?.inviteCode || "");
+        void navigator.clipboard.writeText(contest?.inviteCode || "");
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };

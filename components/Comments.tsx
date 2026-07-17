@@ -52,7 +52,7 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
             const data = await res.json();
             if (data.success) {
                 setDraft("");
-                fetchComments();
+                await fetchComments();
             } else {
                 setError(data.error || "Failed to post comment");
             }

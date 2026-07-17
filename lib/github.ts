@@ -13,11 +13,11 @@ type GitHubFile = {
 
 type PlaygroundPublishInput = {
   script: string;
-  files: Array<{ name: string; content: string }>;
-  testCases?: Array<{
+  files: { name: string; content: string }[];
+  testCases?: {
     name: string;
     expectedOutput?: string;
-  }>;
+  }[];
   output?: string;
   message?: string;
 };
@@ -31,14 +31,14 @@ function slugify(value: string) {
 }
 
 async function githubFetch(token: string, path: string, init?: RequestInit) {
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  headers.set("Accept", "application/vnd.github+json");
+  headers.set("X-GitHub-Api-Version", "2022-11-28");
+
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...init?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -175,7 +175,7 @@ export async function publishPlaygroundToGitHub(
     integration.accessToken,
     integration.githubUsername,
     repoName,
-    Boolean(integration.repoPrivate)
+    integration.repoPrivate
   );
   const branch = integration.defaultBranch || repository.default_branch || "main";
   const now = new Date();

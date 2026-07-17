@@ -38,6 +38,11 @@ interface ProfileData {
     recentLog: { problemSlug: string; status: string; executionTime: string; createdAt: string }[];
 }
 
+interface LeaderboardEntry {
+    userId: string;
+    score: number;
+}
+
 // ─── Badge definitions ────────────────────────────────────────────────────────
 
 interface BadgeDef {
@@ -282,7 +287,7 @@ export default function ProfilePage() {
                 if (d.error) throw new Error(d.error);
                 if (!d.username) {
                     // Auto-setup profile if username is missing
-                    fetch("/api/profile/setup", { method: "POST" })
+                    return fetch("/api/profile/setup", { method: "POST" })
                         .then(res => res.json())
                         .then(setupData => {
                             setData({ ...d, username: setupData.profile?.username, bio: setupData.profile?.bio, followers: 0, following: 0 });
@@ -293,7 +298,7 @@ export default function ProfilePage() {
                     setEditBio(d.bio || "");
                 }
             })
-            .catch((e) => setError(e.message))
+            .catch((error: unknown) => setError(getErrorMessage(error)))
             .finally(() => setLoading(false));
     }, []);
 
@@ -309,7 +314,7 @@ export default function ProfilePage() {
         if (!user) return;
         fetch("/api/leaderboard")
             .then((r) => r.json())
-            .then((d) => {
+            .then((d: { leaderboard?: LeaderboardEntry[] }) => {
                 if (d.leaderboard) {
                     const idx = d.leaderboard.findIndex((row: { userId: string }) => row.userId === user.id);
                     if (idx !== -1) { setRank(idx + 1); setScore(d.leaderboard[idx].score); }
@@ -409,7 +414,7 @@ export default function ProfilePage() {
                             </Badge>
                             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-red-500 px-2" onClick={() => {
                                 if (confirm("Are you sure you want to disconnect your GitHub account?")) {
-                                    fetch('/api/auth/github/disconnect', { method: 'POST' }).then(() => window.location.reload());
+                                    void fetch('/api/auth/github/disconnect', { method: 'POST' }).then(() => window.location.reload());
                                 }
                             }}>
                                 Disconnect

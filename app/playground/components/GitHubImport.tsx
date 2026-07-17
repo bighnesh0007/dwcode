@@ -201,7 +201,7 @@ export function GitHubImport({ onImport, onClose }: GitHubImportProps) {
                                                     variant="ghost"
                                                     className="h-6 text-[10px] gap-1 shrink-0"
                                                     onClick={() => handleImportFile(path)}
-                                                    disabled={!!importing}
+                                                    disabled={Boolean(importing)}
                                                 >
                                                     {importing === path ? (
                                                         <Loader2 className="w-3 h-3 animate-spin" />

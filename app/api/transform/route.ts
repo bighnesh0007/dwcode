@@ -50,7 +50,12 @@ function normaliseInput(item: RawInput, index: number) {
     } else {
         // Non-JSON inputs: always send as raw string — do NOT parse
         if (typeof value !== "string") {
-            value = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "");
+            if (value == null) value = "";
+            else if (typeof value === "object") value = JSON.stringify(value, null, 2) ?? "";
+            else if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+                value = value.toString();
+            } else if (typeof value === "symbol") value = value.description ?? "";
+            else value = "";
         }
     }
 

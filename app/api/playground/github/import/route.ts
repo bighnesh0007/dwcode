@@ -139,8 +139,10 @@ export async function POST(req: Request) {
 
         const treeData: GitHubTree = await treeRes.json();
         const files: string[] = (treeData.tree ?? [])
-            .filter((item) => item.type === "blob" && item.path)
-            .map((item) => item.path as string)
+            .filter((item): item is GitHubTreeItem & { path: string } =>
+                item.type === "blob" && typeof item.path === "string"
+            )
+            .map((item) => item.path)
             .slice(0, 300);
 
         return NextResponse.json({ files, branch });

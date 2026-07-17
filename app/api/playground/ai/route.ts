@@ -108,6 +108,6 @@ export async function POST(req: Request) {
     }
 }
 
-export async function GET() {
+export function GET() {
     return NextResponse.json({ status: "alive" });
 }

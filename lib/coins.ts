@@ -42,7 +42,7 @@ export async function isAdmin(userId: string): Promise<boolean> {
         await connectToDatabase();
         const { UserRole } = await import("@/models/UserRole");
         const role = await UserRole.findOne({ userId, role: "admin" }).lean();
-        return !!role;
+        return Boolean(role);
     } catch {
         return false;
     }

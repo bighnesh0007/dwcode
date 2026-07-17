@@ -73,7 +73,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
 
   // --- Bookmark ---
   useEffect(() => {
-    fetch("/api/bookmarks").then(r => r.json()).then((data: BookmarkSummary[]) => {
+    void fetch("/api/bookmarks").then(r => r.json()).then((data: BookmarkSummary[]) => {
       if (Array.isArray(data)) {
         setIsBookmarked(data.some(b => b.problemId === problem._id));
       }
@@ -92,7 +92,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
 
   // --- Notes ---
   useEffect(() => {
-    fetch(`/api/notes?problemId=${problem._id}`).then(r => r.json()).then(data => {
+    void fetch(`/api/notes?problemId=${problem._id}`).then(r => r.json()).then(data => {
       setNote(data.content || "");
     });
   }, [problem._id]);
@@ -101,7 +101,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
     setNote(val);
     if (noteSaveTimeout.current) clearTimeout(noteSaveTimeout.current);
     noteSaveTimeout.current = setTimeout(() => {
-      fetch("/api/notes", {
+      void fetch("/api/notes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ problemId: problem._id, problemSlug: problem.slug, content: val }),
@@ -111,7 +111,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
 
   // --- Submissions ---
   useEffect(() => {
-    fetch("/api/submissions").then(r => r.json()).then((data: SubmissionSummary[]) => {
+    void fetch("/api/submissions").then(r => r.json()).then((data: SubmissionSummary[]) => {
       if (Array.isArray(data)) {
         setSubmissions(data.filter(s => s.problemSlug === problem.slug).slice(0, 5));
       }
@@ -269,7 +269,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
       }
 
       // Refresh history
-      fetch("/api/submissions").then(r => r.json()).then((d: SubmissionSummary[]) => {
+      await fetch("/api/submissions").then(r => r.json()).then((d: SubmissionSummary[]) => {
         if (Array.isArray(d)) {
           setSubmissions(d.filter(s => s.problemSlug === problem.slug).slice(0, 5));
         }

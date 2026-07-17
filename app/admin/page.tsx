@@ -151,7 +151,7 @@ function AdminPageContent() {
       if (data.success) {
         setAddMsg({ type: "success", text: `✓ Added: "${manual.title}"` });
         setManual(emptyManual);
-        if (showManage) fetchProblems();
+        if (showManage) await fetchProblems();
       } else {
         setAddMsg({ type: "error", text: `✗ ${data.error}` });
       }
@@ -187,7 +187,7 @@ function AdminPageContent() {
     const data = await res.json();
     if (data.success) {
       setEditingId(null);
-      fetchProblems();
+      await fetchProblems();
     }
   };
 
@@ -197,7 +197,7 @@ function AdminPageContent() {
     const data = await res.json();
     if (data.success) {
       setDeleteConfirm(null);
-      fetchProblems();
+      await fetchProblems();
     }
   };
 
@@ -355,7 +355,7 @@ function AdminPageContent() {
                       <Input value={editData.title} onChange={e => setEditData((data) => ({ ...data, title: e.target.value }))} placeholder="Title" />
                       <Textarea value={editData.description} onChange={e => setEditData((data) => ({ ...data, description: e.target.value }))} rows={3} placeholder="Description" />
                       <div className="grid grid-cols-2 gap-2">
-                        <Select value={editData.difficulty} onValueChange={value => value && setEditData((data) => ({ ...data, difficulty: value as Difficulty }))}>
+                        <Select value={editData.difficulty} onValueChange={value => value && setEditData((data) => ({ ...data, difficulty: value }))}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Easy">Easy</SelectItem>

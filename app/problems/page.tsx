@@ -46,7 +46,7 @@ function ProblemsList() {
         setLoading(false);
       }
     };
-    load();
+    void load();
   }, []);
 
   // Derive solved/attempted slugs from submissions

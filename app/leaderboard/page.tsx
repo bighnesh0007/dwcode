@@ -59,7 +59,7 @@ export default function LeaderboardPage() {
     const [filter, setFilter] = useState<"all" | "score" | "solved" | "acceptance">("all");
 
     useEffect(() => {
-        fetch("/api/leaderboard")
+        void fetch("/api/leaderboard")
             .then((r) => r.json())
             .then((d) => { if (!d.error) setData(d); })
             .finally(() => setLoading(false));

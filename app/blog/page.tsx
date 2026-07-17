@@ -50,9 +50,7 @@ function extractPreview(content: string, maxLen = 280): string {
  */
 function extractLinkedInUrl(content: string): string | null {
     // Match <iframe ... src="https://www.linkedin.com/embed/feed/update/..." ...>
-    const match = content.match(
-        /src=["'](https:\/\/www\.linkedin\.com\/embed\/feed\/update\/[^"']+)["']/i
-    );
+    const match = /src=["'](https:\/\/www\.linkedin\.com\/embed\/feed\/update\/[^"']+)["']/i.exec(content);
     if (!match) return null;
     // Convert embed URL → public post URL
     // e.g. https://www.linkedin.com/embed/feed/update/urn:li:activity:123
@@ -76,7 +74,7 @@ export default function BlogPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch("/api/blog")
+        void fetch("/api/blog")
             .then(r => r.json())
             .then(d => { if (Array.isArray(d)) setPosts(d); })
             .finally(() => setLoading(false));

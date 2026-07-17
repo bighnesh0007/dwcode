@@ -88,7 +88,7 @@ export default function ContestsPage() {
     };
 
     useEffect(() => {
-        fetch("/api/contests")
+        void fetch("/api/contests")
             .then((response) => response.json())
             .then((data) => { if (Array.isArray(data)) setContests(data); })
             .finally(() => setLoading(false));
@@ -96,7 +96,7 @@ export default function ContestsPage() {
 
     useEffect(() => {
         if (showCreate && allProblems.length === 0) {
-            fetch("/api/problems").then(r => r.json()).then(d => {
+            void fetch("/api/problems").then(r => r.json()).then(d => {
                 if (Array.isArray(d)) setAllProblems(d);
             });
         }
@@ -135,7 +135,7 @@ export default function ContestsPage() {
                 setShowCreate(false);
                 setForm({ title: "", description: "", duration: "60", startTime: "", isPublic: true, maxParticipants: "50" });
                 setSelectedProblems([]);
-                fetchContests();
+                await fetchContests();
             } else {
                 setCreateMsg({ type: "error", text: data.error || "Failed to create" });
             }
@@ -152,7 +152,7 @@ export default function ContestsPage() {
         try {
             const res = await fetch(`/api/contests/${id}?action=join`, { method: "POST" });
             const data = await res.json();
-            if (data.success) fetchContests();
+            if (data.success) await fetchContests();
         } finally {
             setJoiningId(null);
         }
@@ -241,7 +241,7 @@ export default function ContestsPage() {
                                     value={inviteKey}
                                     onChange={(event) => setInviteKey(event.target.value.toUpperCase())}
                                     onKeyDown={(event) => {
-                                        if (event.key === "Enter") handleJoinPrivate();
+                                        if (event.key === "Enter") void handleJoinPrivate();
                                     }}
                                     placeholder="PRIVATE KEY"
                                     className="font-mono uppercase sm:w-52"

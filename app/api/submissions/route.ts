@@ -69,7 +69,7 @@ export async function POST(req: Request) {
           await awardCoins(userId, bonus, "difficulty_bonus", `${problem.difficulty} problem solved`);
 
           // Push to github in background
-          pushSolutionToGithub(userId, problem, data.code).catch(e => console.error("GitHub push error:", e));
+          void pushSolutionToGithub(userId, problem, data.code).catch((error: unknown) => console.error("GitHub push error:", error));
         }
       } catch (coinErr) {
         console.error("[coins] award failed:", coinErr);

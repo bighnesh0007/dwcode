@@ -37,7 +37,7 @@ export default function BlogPostPage() {
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        fetch(`/api/blog/${slug}`)
+        void fetch(`/api/blog/${slug}`)
             .then(r => r.json())
             .then(d => { if (!d.error) setPost(d); })
             .finally(() => setLoading(false));

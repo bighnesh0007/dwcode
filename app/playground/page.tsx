@@ -217,8 +217,15 @@ export default function PlaygroundPage() {
             expectedOutput: tc.expectedOutput ?? "",
           }))
           : []);
+        setStatus("idle");
+        setOutput("");
+        setExecutionTime(null);
       })
-      .catch(() => { });
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setStatus("error");
+        setOutput(getErrorMessage(error, "Could not load shared snippet."));
+      });
     return () => {
       cancelled = true;
       clearTimeout(storageTimeout);

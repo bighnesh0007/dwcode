@@ -65,7 +65,7 @@ export async function GET() {
             const medium = solved.filter((s) => diffMap[s] === "Medium").length;
             const hard = solved.filter((s) => diffMap[s] === "Hard").length;
             // Score: hard=5, medium=3, easy=1
-            const score = hard * 5 + medium * 3 + easy * 1;
+            const score = hard * 5 + medium * 3 + easy;
             const acceptanceRate =
                 u.totalSubmissions > 0
                     ? Math.round((u.accepted / u.totalSubmissions) * 100)

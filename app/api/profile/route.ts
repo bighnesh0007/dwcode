@@ -114,7 +114,7 @@ export async function GET() {
         const userProfile = await UserProfile.findOne({ userId }).lean();
 
         return NextResponse.json({
-            githubConnected: !!githubIntegration,
+            githubConnected: Boolean(githubIntegration),
             githubUsername: githubIntegration?.githubUsername ?? null,
             username: userProfile?.username ?? null,
             bio: userProfile?.bio ?? "",

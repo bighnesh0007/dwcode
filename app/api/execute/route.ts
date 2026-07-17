@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   try {
     const { code, input } = await req.json();
 
-    if (!code || !code.trim().startsWith("%dw")) {
+    if (!code?.trim().startsWith("%dw")) {
       return NextResponse.json({
         success: false,
         output: "Error: Invalid DataWeave script. Script must start with %dw 2.0",

@@ -42,7 +42,7 @@ export default function AdminUsersPage() {
 
     useEffect(() => {
         if (!isSignedIn) return;
-        fetch("/api/admin/users")
+        void fetch("/api/admin/users")
             .then(async (response) => {
                 if (response.status === 403) {
                     setForbidden(true);
