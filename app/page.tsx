@@ -9,15 +9,19 @@ import connectToDatabase from "@/lib/db";
 import { Problem } from "@/models/Problem";
 import { Submission } from "@/models/Submission";
 import { Bookmark } from "@/models/Bookmark";
-import { Code2, Zap, Trophy, BookOpen, Star, Shuffle, BarChart2 } from "lucide-react";
+import { Heatmap, ProgressRing } from "@/components/Charts";
+import { Code2, Zap, Trophy, BookOpen, Star, Shuffle, BarChart2, Flame, TrendingUp } from "lucide-react";
 
 export default async function Home() {
   const { userId } = await auth();
 
   let total = 0, easy = 0, medium = 0, hard = 0;
   let solved = 0, attempted = 0, bookmarked = 0;
+  let totalSubmissions = 0, acceptanceRate = 0, streak = 0;
+  let solvedEasy = 0, solvedMedium = 0, solvedHard = 0;
   let recentProblems: any[] = [];
   let bookmarkedProblems: any[] = [];
+  let activityData: { date: string; count: number }[] = [];
 
   try {
     await connectToDatabase();
@@ -42,6 +46,40 @@ export default async function Home() {
         const bIds = bmarks.map((b: any) => b.problemId);
         const bDocs = await Problem.find({ _id: { $in: bIds } }).limit(3).lean();
         bookmarkedProblems = JSON.parse(JSON.stringify(bDocs));
+      }
+
+      const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
+      totalSubmissions = allSubmissions.length;
+      const acceptedCount = allSubmissions.filter((s: any) => s.status === "Accepted").length;
+      acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
+
+      const solvedProbs = await Problem.find({ slug: { $in: acceptedSlugs } }).select("difficulty").lean();
+      solvedEasy = solvedProbs.filter((p: any) => p.difficulty === "Easy").length;
+      solvedMedium = solvedProbs.filter((p: any) => p.difficulty === "Medium").length;
+      solvedHard = solvedProbs.filter((p: any) => p.difficulty === "Hard").length;
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const recentSubs = allSubmissions.filter((s: any) => new Date(s.createdAt) >= thirtyDaysAgo);
+      const activityMap: Record<string, number> = {};
+      for (const sub of recentSubs) {
+        const day = new Date((sub as any).createdAt).toISOString().split("T")[0];
+        activityMap[day] = (activityMap[day] ?? 0) + 1;
+      }
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().split("T")[0];
+        activityData.push({ date: key, count: activityMap[key] ?? 0 });
+      }
+
+      const todayStr = new Date().toISOString().split("T")[0];
+      for (let i = 0; i < 365; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().split("T")[0];
+        if (activityMap[key] || (i === 0 && activityMap[todayStr])) streak++;
+        else if (i > 0) break;
       }
 
       const recentDocs = await Problem.find({ createdBy: userId }).sort({ createdAt: -1 }).limit(4).lean();
@@ -83,29 +121,11 @@ export default async function Home() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <BookOpen className="w-4 h-4" /> Total Problems
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{total}</div>
-            <div className="flex gap-2 mt-2">
-              <span className="text-xs text-green-500">{easy} Easy</span>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs text-yellow-500">{medium} Medium</span>
-              <span className="text-xs text-muted-foreground">·</span>
-              <span className="text-xs text-red-500">{hard} Hard</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Trophy className="w-4 h-4" /> Solved
+              <Trophy className="w-4 h-4 text-green-500" /> Solved
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -114,7 +134,7 @@ export default async function Home() {
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                 <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${solvedPct}%` }} />
               </div>
-              <p className="text-xs text-muted-foreground mt-1">{solvedPct}% solved</p>
+              <p className="text-xs text-muted-foreground mt-1">{solvedPct}% of total</p>
             </div>
           </CardContent>
         </Card>
@@ -122,7 +142,31 @@ export default async function Home() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Zap className="w-4 h-4" /> Attempted
+              <Zap className="w-4 h-4 text-blue-500" /> Submissions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-500">{totalSubmissions}</div>
+            <p className="text-xs text-muted-foreground mt-2">{acceptanceRate}% acceptance rate</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Flame className="w-4 h-4 text-orange-500" /> Current Streak
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-orange-500">{streak}</div>
+            <p className="text-xs text-muted-foreground mt-2">{streak === 1 ? "day" : "days"} active</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Zap className="w-4 h-4 text-yellow-500" /> Attempted
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -134,7 +178,7 @@ export default async function Home() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Star className="w-4 h-4" /> Bookmarked
+              <Star className="w-4 h-4 text-yellow-400" /> Bookmarked
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -143,6 +187,54 @@ export default async function Home() {
           </CardContent>
         </Card>
       </div>
+
+      {userId && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Solve breakdown */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BarChart2 className="w-4 h-4 text-primary" /> Solve Breakdown
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-around gap-4 py-2">
+                {[
+                  { label: "Easy", value: solvedEasy, total: easy, color: "text-green-500" },
+                  { label: "Medium", value: solvedMedium, total: medium, color: "text-yellow-500" },
+                  { label: "Hard", value: solvedHard, total: hard, color: "text-red-500" },
+                ].map(({ label, value, total, color }) => (
+                  <div key={label} className="flex flex-col items-center gap-1">
+                    <div className="relative">
+                      <ProgressRing value={value} max={total} color={color} size={72} />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className={`text-sm font-bold ${color}`}>{value}</span>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{label}</span>
+                    <span className="text-[10px] text-muted-foreground/60">{value}/{total}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Activity heatmap */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="w-4 h-4 text-primary" /> Activity — Last 30 Days
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Heatmap data={activityData} />
+              <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
+                <span>Total this month: <span className="font-semibold text-foreground">{activityData.reduce((a, d) => a + d.count, 0)}</span> submissions</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Bottom Grid */}
       <div className="grid gap-6 md:grid-cols-2">

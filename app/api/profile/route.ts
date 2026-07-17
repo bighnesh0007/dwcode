@@ -5,7 +5,7 @@ import { Problem } from "@/models/Problem";
 import { Submission } from "@/models/Submission";
 import { Bookmark } from "@/models/Bookmark";
 import { GitHubIntegration } from "@/models/GitHubIntegration";
-
+import { UserProfile } from "@/models/UserProfile";
 export async function GET() {
     try {
         const { userId } = await auth();
@@ -108,9 +108,16 @@ export async function GET() {
         // ── GitHub Integration ────────────────────────────────────────────────
         const githubIntegration = await GitHubIntegration.findOne({ userId }).lean();
 
+        // ── User Profile ──────────────────────────────────────────────────────
+        const userProfile = await UserProfile.findOne({ userId }).lean();
+
         return NextResponse.json({
             githubConnected: !!githubIntegration,
             githubUsername: githubIntegration ? (githubIntegration as any).githubUsername : null,
+            username: userProfile ? (userProfile as any).username : null,
+            bio: userProfile ? (userProfile as any).bio : "",
+            followers: userProfile ? (userProfile as any).followers.length : 0,
+            following: userProfile ? (userProfile as any).following.length : 0,
             problems: {
                 total: totalProblems,
                 easy: easyCount,

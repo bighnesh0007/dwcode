@@ -9,12 +9,20 @@ import { Button } from "@/components/ui/button";
 import {
     Trophy, Zap, Star, BookOpen, BarChart2, Flame,
     CheckCircle2, Code2, Cpu, Target, Award, TrendingUp,
-    Medal, Coins,
+    Medal, Coins, Edit2
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ProfileData {
+    username?: string;
+    bio?: string;
+    followers: number;
+    following: number;
     githubConnected?: boolean;
     githubUsername?: string;
     problems: { total: number; easy: number; medium: number; hard: number; createdByAI: number; createdManually: number };
@@ -257,10 +265,31 @@ export default function ProfilePage() {
     const [score, setScore] = useState<number>(0);
     const [coins, setCoins] = useState<{ balance: number; transactions: any[] }>({ balance: 0, transactions: [] });
 
+    // Edit Profile state
+    const [editOpen, setEditOpen] = useState(false);
+    const [editUsername, setEditUsername] = useState("");
+    const [editBio, setEditBio] = useState("");
+    const [editSaving, setEditSaving] = useState(false);
+    const [editError, setEditError] = useState("");
+
     useEffect(() => {
         fetch("/api/profile")
             .then((r) => r.json())
-            .then((d) => { if (d.error) throw new Error(d.error); setData(d); })
+            .then((d) => {
+                if (d.error) throw new Error(d.error);
+                if (!d.username) {
+                    // Auto-setup profile if username is missing
+                    fetch("/api/profile/setup", { method: "POST" })
+                        .then(res => res.json())
+                        .then(setupData => {
+                            setData({ ...d, username: setupData.profile?.username, bio: setupData.profile?.bio, followers: 0, following: 0 });
+                        });
+                } else {
+                    setData(d);
+                    setEditUsername(d.username || "");
+                    setEditBio(d.bio || "");
+                }
+            })
             .catch((e) => setError(e.message))
             .finally(() => setLoading(false));
     }, []);
@@ -335,9 +364,16 @@ export default function ProfilePage() {
                         </div>
                     )}
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">{user?.fullName || user?.username || "My Profile"}</h1>
+                        <h1 className="text-2xl font-bold tracking-tight">{user?.fullName || "My Profile"}</h1>
                         <p className="text-muted-foreground text-sm mt-0.5">{user?.primaryEmailAddress?.emailAddress}</p>
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        {data.username && (
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
+                                <Badge variant="secondary" className="text-xs font-mono w-fit px-2 py-0.5">@{data.username}</Badge>
+                                <span className="text-xs text-muted-foreground">{data.followers} followers · {data.following} following</span>
+                                <Link href={`/profile/${data.username}`} className="text-xs text-primary hover:underline ml-1">View Public Profile →</Link>
+                            </div>
+                        )}
+                        <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                             <Badge className={`border text-xs ${tier.bg} ${tier.color}`}>
                                 {tier.icon} {tier.label}
                             </Badge>
@@ -392,6 +428,68 @@ export default function ProfilePage() {
                             Leaderboard
                         </Badge>
                     </Link>
+
+                    <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 ml-auto">
+                                <Edit2 className="w-3.5 h-3.5" /> Edit Profile
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Edit Profile</DialogTitle>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                {editError && <div className="text-xs text-red-500 bg-red-500/10 p-2 rounded">{editError}</div>}
+                                <div className="space-y-2">
+                                    <Label htmlFor="username">Username</Label>
+                                    <Input 
+                                        id="username" 
+                                        value={editUsername} 
+                                        onChange={e => setEditUsername(e.target.value)} 
+                                        placeholder="e.g. dataweave_pro"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground">Only letters, numbers, and underscores.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="bio">Bio</Label>
+                                    <Textarea 
+                                        id="bio" 
+                                        value={editBio} 
+                                        onChange={e => setEditBio(e.target.value)} 
+                                        placeholder="Tell us about yourself..." 
+                                        className="resize-none"
+                                        rows={3}
+                                    />
+                                </div>
+                                <Button 
+                                    className="w-full" 
+                                    disabled={editSaving} 
+                                    onClick={async () => {
+                                        setEditSaving(true);
+                                        setEditError("");
+                                        try {
+                                            const res = await fetch("/api/profile/username", {
+                                                method: "PUT",
+                                                headers: { "Content-Type": "application/json" },
+                                                body: JSON.stringify({ username: editUsername, bio: editBio })
+                                            });
+                                            const dataRes = await res.json();
+                                            if (dataRes.error) throw new Error(dataRes.error);
+                                            setData((prev: any) => ({ ...prev, username: dataRes.profile.username, bio: dataRes.profile.bio }));
+                                            setEditOpen(false);
+                                        } catch (e: any) {
+                                            setEditError(e.message);
+                                        } finally {
+                                            setEditSaving(false);
+                                        }
+                                    }}
+                                >
+                                    {editSaving ? "Saving..." : "Save Changes"}
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
