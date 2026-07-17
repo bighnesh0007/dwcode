@@ -430,10 +430,8 @@ export default function ProfilePage() {
                     </Link>
 
                     <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 ml-auto">
-                                <Edit2 className="w-3.5 h-3.5" /> Edit Profile
-                            </Button>
+                        <DialogTrigger render={<Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 ml-auto" />}>
+                            <Edit2 className="w-3.5 h-3.5" /> Edit Profile
                         </DialogTrigger>
                         <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
