@@ -74,11 +74,21 @@ export async function POST(req: Request) {
       });
     }
 
+    // The backend returns `output` as the DECODED value, not serialized text:
+    //   - application/json      → a real JSON value (string | number | object | array)
+    //   - other formats (csv…)  → the already-serialized text as a string
+    // For JSON output we must re-serialize so a top-level string keeps its quotes
+    // (e.g. "Alice, Bob, Carol"), matching what `output application/json` produces.
+    // For non-JSON formats the string is the final rendered text — pass it through.
+    const value = data.output ?? data.result;
+    const outputMime = /output\s+([\w./+-]+)/i.exec(code)?.[1]?.toLowerCase() ?? "application/json";
+    const isJsonOutput = outputMime.includes("json");
+
     return NextResponse.json({
       success: true,
-      output: typeof (data.output ?? data.result) === "string"
-        ? (data.output ?? data.result)
-        : JSON.stringify(data.output ?? data.result, null, 2),
+      output: !isJsonOutput && typeof value === "string"
+        ? value
+        : JSON.stringify(value, null, 2),
       time: `${executionTime}ms`,
     });
   } catch (error: any) {
