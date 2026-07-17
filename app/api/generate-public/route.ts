@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Problem } from "@/models/Problem";
 import { awardCoins } from "@/lib/coins";
+import { getErrorMessage } from "@/lib/errors";
 
 const PROBLEM_PROMPT = (difficulty: string, category: string, topic: string) => `
 Create a DataWeave coding problem for a practice platform.
@@ -29,7 +30,6 @@ export async function POST(req: Request) {
         const { userId } = await auth();
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const user = await currentUser();
         const { difficulty, category, topic, geminiApiKey } = await req.json();
 
         if (!geminiApiKey?.trim()) {
@@ -47,32 +47,32 @@ export async function POST(req: Request) {
                 contents: PROBLEM_PROMPT(difficulty || "Medium", category || "Arrays", topic || ""),
             });
             text = response.text || "";
-        } catch (genErr: any) {
+        } catch (genErr) {
             return NextResponse.json({
                 success: false,
-                error: `Gemini API error: ${genErr.message}. Check your API key is valid.`,
+                error: `Gemini API error: ${getErrorMessage(genErr)}. Check your API key is valid.`,
             }, { status: 400 });
         }
 
         // Strip markdown fences if present
         text = text.replace(/^```json\n?/, "").replace(/\n?```$/, "").trim();
 
-        let generatedData: any;
+        let parsedData: unknown;
         try {
-            generatedData = JSON.parse(text);
+            parsedData = JSON.parse(text);
         } catch {
             return NextResponse.json({ success: false, error: "Failed to parse Gemini response as JSON. Try again." }, { status: 500 });
         }
+        const newProblem = new Problem(parsedData);
 
-        const slug = generatedData.title
+        const slug = newProblem.title
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/(^-|-$)/g, "");
 
         await connectToDatabase();
 
-        const newProblem = new Problem({
-            ...generatedData,
+        newProblem.set({
             slug,
             difficulty: difficulty || "Medium",
             category: category || "Arrays",
@@ -82,10 +82,10 @@ export async function POST(req: Request) {
         await newProblem.save();
 
         // Award 2 coins for creating a problem
-        await awardCoins(userId, 2, "problem_created", `Created problem: ${generatedData.title}`);
+        await awardCoins(userId, 2, "problem_created", `Created problem: ${newProblem.title}`);
 
         return NextResponse.json({ success: true, problem: newProblem });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }

@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useUser } from "@clerk/nextjs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, TrendingUp, Zap, Target, Loader2 } from "lucide-react";
+import { Trophy, Medal, TrendingUp, Target, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface LeaderboardRow {
@@ -18,6 +19,13 @@ interface LeaderboardRow {
     score: number;
     totalSubmissions: number;
     acceptanceRate: number;
+}
+
+interface LeaderboardMeta {
+    totalProblems: number;
+    easyCount: number;
+    mediumCount: number;
+    hardCount: number;
 }
 
 const RANK_TIERS = [
@@ -46,7 +54,7 @@ function RankBadge({ rank }: { rank: number }) {
 
 export default function LeaderboardPage() {
     const { user } = useUser();
-    const [data, setData] = useState<{ leaderboard: LeaderboardRow[]; meta: any } | null>(null);
+    const [data, setData] = useState<{ leaderboard: LeaderboardRow[]; meta: LeaderboardMeta } | null>(null);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<"all" | "score" | "solved" | "acceptance">("all");
 
@@ -185,7 +193,7 @@ export default function LeaderboardPage() {
                                         {/* Avatar + name */}
                                         <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                             {row.userImageUrl ? (
-                                                <img src={row.userImageUrl} className="w-8 h-8 rounded-full flex-shrink-0" alt={row.userName} />
+                                                <Image unoptimized src={row.userImageUrl} width={32} height={32} className="w-8 h-8 rounded-full flex-shrink-0" alt={row.userName} />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
                                                     {(row.userName || "?")[0].toUpperCase()}

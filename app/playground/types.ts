@@ -1,15 +1,6 @@
-// ─── MIME / language support ──────────────────────────────────────────────────
+import type { InferRawDocTypeFromSchema } from "mongoose";
 
-/** All editor languages the playground supports */
-export type PlaygroundFileLanguage =
-  | "json"
-  | "xml"
-  | "csv"
-  | "yaml"
-  | "text"
-  | "java"
-  | "ndjson"   // newline-delimited JSON
-  | "multipart";
+// ─── MIME / language support ──────────────────────────────────────────────────
 
 /** Maps a PlaygroundFileLanguage to the DataWeave MIME type sent to the backend */
 export const LANGUAGE_MIME: Record<PlaygroundFileLanguage, string> = {
@@ -49,14 +40,18 @@ export const OUTPUT_MIMES = [
 
 // ─── Files ────────────────────────────────────────────────────────────────────
 
-export type PlaygroundFileKind = "payload" | "vars" | "attributes" | "custom";
+type StoredSnippet = InferRawDocTypeFromSchema<
+  typeof import("@/models/PlaygroundSnippet").PlaygroundSnippetSchema
+>;
+type StoredFile = StoredSnippet["files"][number];
+type StoredTestCase = StoredSnippet["testCases"][number];
 
-export type PlaygroundFile = {
+export type PlaygroundFileLanguage = StoredFile["language"];
+
+export type PlaygroundFileKind = StoredFile["kind"];
+
+export type PlaygroundFile = StoredFile & {
   id: string;
-  name: string;
-  kind: PlaygroundFileKind;
-  language: PlaygroundFileLanguage;
-  content: string;
 };
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -67,11 +62,9 @@ export type PlaygroundTestResult = {
   time: string | null;
 };
 
-export type PlaygroundTestCase = {
+export type PlaygroundTestCase = Omit<StoredTestCase, "files"> & {
   id: string;
-  name: string;
   files: PlaygroundFile[];
-  expectedOutput?: string;
   result?: PlaygroundTestResult;
 };
 

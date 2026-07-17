@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,19 @@ export default function AdminUsersPage() {
         setLoading(false);
     };
 
-    useEffect(() => { if (isSignedIn) fetchUsers(); }, [isSignedIn]);
+    useEffect(() => {
+        if (!isSignedIn) return;
+        fetch("/api/admin/users")
+            .then(async (response) => {
+                if (response.status === 403) {
+                    setForbidden(true);
+                    return null;
+                }
+                return response.json();
+            })
+            .then((nextData) => { if (nextData) setData(nextData); })
+            .finally(() => setLoading(false));
+    }, [isSignedIn]);
 
     const grantAdmin = async (user: UserRow) => {
         setActionId(user.userId);
@@ -151,7 +164,7 @@ export default function AdminUsersPage() {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2.5">
                                                 {u.userImageUrl ? (
-                                                    <img src={u.userImageUrl} className="w-8 h-8 rounded-full flex-shrink-0" alt={u.userName} />
+                                                    <Image unoptimized src={u.userImageUrl} width={32} height={32} className="w-8 h-8 rounded-full flex-shrink-0" alt={u.userName} />
                                                 ) : (
                                                     <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
                                                         {(u.userName || "?")[0].toUpperCase()}

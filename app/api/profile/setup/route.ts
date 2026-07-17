@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { UserProfile } from "@/models/UserProfile";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function POST() {
   try {
@@ -20,7 +21,7 @@ export async function POST() {
 
     // Generate default username from email
     const email = user.emailAddresses[0]?.emailAddress || "";
-    let baseUsername = email.split("@")[0] || `dw_${userId.slice(-6)}`;
+    const baseUsername = email.split("@")[0] || `dw_${userId.slice(-6)}`;
     
     // Ensure uniqueness
     let username = baseUsername;
@@ -37,8 +38,8 @@ export async function POST() {
     });
 
     return NextResponse.json({ message: "Profile created", profile: newProfile });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[profile/setup] ERROR:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

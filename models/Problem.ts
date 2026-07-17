@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { modelFromSchema } from './model';
 
 const TestCaseSchema = new mongoose.Schema({
   input: { type: String, required: true },
@@ -11,7 +12,7 @@ const ExampleSchema = new mongoose.Schema({
   explanation: String,
 });
 
-const ProblemSchema = new mongoose.Schema({
+export const ProblemSchema = new mongoose.Schema({
   title: { type: String, required: true },
   slug: { type: String, required: true, unique: true },
   difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], required: true },
@@ -30,4 +31,4 @@ const ProblemSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-export const Problem = mongoose.models.Problem || mongoose.model('Problem', ProblemSchema);
+export const Problem = modelFromSchema('Problem', ProblemSchema);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DWL_BACKEND_URL } from "@/lib/config";
+import { getErrorMessage } from "@/lib/errors";
 
 /**
  * Proxy to the DataWeave compiler backend.
@@ -42,19 +43,19 @@ export async function POST(req: Request) {
           inputs: [{ name: "payload", value: parsedInput }],
         }),
       });
-    } catch (networkErr: any) {
+    } catch (networkErr) {
       return NextResponse.json({
         success: false,
         output:
           `Connection error: Could not reach the DataWeave compiler at ${DWL_BACKEND_URL}.\n` +
-          `Make sure your Docker container is running.\n\n${networkErr.message}`,
+          `Make sure your Docker container is running.\n\n${getErrorMessage(networkErr)}`,
         time: "0ms",
       });
     }
 
     const executionTime = Date.now() - start;
 
-    let data: any;
+    let data: { error?: string; message?: string; output?: unknown; result?: unknown };
     try {
       data = await response.json();
     } catch {
@@ -81,9 +82,9 @@ export async function POST(req: Request) {
         : JSON.stringify(data.output ?? data.result, null, 2),
       time: `${executionTime}ms`,
     });
-  } catch (error: any) {
+  } catch (error) {
     return NextResponse.json(
-      { success: false, output: error.message, time: "0ms" },
+      { success: false, output: getErrorMessage(error), time: "0ms" },
       { status: 500 }
     );
   }

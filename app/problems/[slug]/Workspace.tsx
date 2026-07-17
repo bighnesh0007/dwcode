@@ -1,17 +1,19 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Send, RotateCcw, Star, Eye, EyeOff, Timer, PauseCircle, PlayCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Send, RotateCcw, Star, Eye, EyeOff, Timer, PauseCircle, PlayCircle } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { Comments } from "@/components/Comments";
 import { renderMarkdown } from "@/lib/markdown";
+import { getErrorMessage } from "@/lib/errors";
+import type { BookmarkSummary, Problem, SubmissionSummary } from "@/lib/types";
 
-export default function Workspace({ problem }: { problem: any }) {
+export default function Workspace({ problem }: { problem: Problem }) {
   const { resolvedTheme } = useTheme();
   const editorTheme = resolvedTheme === "light" ? "vs-light" : "vs-dark";
 
@@ -35,7 +37,7 @@ export default function Workspace({ problem }: { problem: any }) {
   const [showSolution, setShowSolution] = useState(false);
   // Once the solution is viewed, we track it for the lifetime of this session.
   // Hiding it again does NOT reset this flag — the user already saw the answer.
-  const solutionWasViewed = useRef(false);
+  const [solutionWasViewed, setSolutionWasViewed] = useState(false);
 
   // Timer
   const [seconds, setSeconds] = useState(0);
@@ -43,7 +45,7 @@ export default function Workspace({ problem }: { problem: any }) {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Submissions
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -71,7 +73,7 @@ export default function Workspace({ problem }: { problem: any }) {
 
   // --- Bookmark ---
   useEffect(() => {
-    fetch("/api/bookmarks").then(r => r.json()).then((data: any[]) => {
+    fetch("/api/bookmarks").then(r => r.json()).then((data: BookmarkSummary[]) => {
       if (Array.isArray(data)) {
         setIsBookmarked(data.some(b => b.problemId === problem._id));
       }
@@ -109,7 +111,7 @@ export default function Workspace({ problem }: { problem: any }) {
 
   // --- Submissions ---
   useEffect(() => {
-    fetch("/api/submissions").then(r => r.json()).then((data: any[]) => {
+    fetch("/api/submissions").then(r => r.json()).then((data: SubmissionSummary[]) => {
       if (Array.isArray(data)) {
         setSubmissions(data.filter(s => s.problemSlug === problem.slug).slice(0, 5));
       }
@@ -130,9 +132,9 @@ export default function Workspace({ problem }: { problem: any }) {
       const data = await res.json();
       setOutputStatus(data.success ? "success" : "error");
       setOutput(data.success ? `⏱ ${data.time}\n\n${data.output}` : `✗ Error:\n${data.output}`);
-    } catch (err: any) {
+    } catch (error) {
       setOutputStatus("error");
-      setOutput(`✗ Error: ${err.message}`);
+      setOutput(`✗ Error: ${getErrorMessage(error)}`);
     } finally {
       setIsRunning(false);
     }
@@ -150,7 +152,7 @@ export default function Workspace({ problem }: { problem: any }) {
     // NOT compare code against the stored solution: for many DataWeave
     // problems there is a single idiomatic answer, so a legitimate solve
     // naturally matches the canonical solution and would be falsely blocked.
-    if (solutionWasViewed.current) {
+    if (solutionWasViewed) {
       setIsRunning(false);
       setOutputStatus("error");
       setOutput(
@@ -267,14 +269,14 @@ export default function Workspace({ problem }: { problem: any }) {
       }
 
       // Refresh history
-      fetch("/api/submissions").then(r => r.json()).then((d: any[]) => {
+      fetch("/api/submissions").then(r => r.json()).then((d: SubmissionSummary[]) => {
         if (Array.isArray(d)) {
           setSubmissions(d.filter(s => s.problemSlug === problem.slug).slice(0, 5));
         }
       });
-    } catch (err: any) {
+    } catch (error) {
       setOutputStatus("error");
-      setOutput(`✗ Error: ${err.message}`);
+      setOutput(`✗ Error: ${getErrorMessage(error)}`);
     } finally {
       setIsRunning(false);
     }
@@ -349,7 +351,7 @@ export default function Workspace({ problem }: { problem: any }) {
               {problem.examples?.length > 0 && (
                 <div className="space-y-4">
                   <p className="text-sm font-semibold">Examples</p>
-                  {problem.examples.map((ex: any, i: number) => (
+                  {problem.examples.map((ex, i) => (
                     <div key={i} className="bg-muted/60 rounded-lg p-3 text-xs font-mono space-y-1">
                       <div><span className="font-bold text-foreground/60">Input: </span><span className="whitespace-pre-wrap">{ex.input}</span></div>
                       <div><span className="font-bold text-foreground/60">Output: </span><span className="whitespace-pre-wrap">{ex.output}</span></div>
@@ -368,11 +370,11 @@ export default function Workspace({ problem }: { problem: any }) {
                 </div>
               )}
 
-              {problem.hints?.length > 0 && (
+              {(problem.hints?.length ?? 0) > 0 && (
                 <div>
                   <p className="text-sm font-semibold mb-2">Hints</p>
                   <ul className="list-disc pl-4 space-y-1 text-xs text-muted-foreground">
-                    {problem.hints.map((h: string, i: number) => <li key={i}>{h}</li>)}
+                    {problem.hints?.map((hint, i) => <li key={i}>{hint}</li>)}
                   </ul>
                 </div>
               )}
@@ -387,17 +389,17 @@ export default function Workspace({ problem }: { problem: any }) {
                       const next = !showSolution;
                       setShowSolution(next);
                       // Mark solution as viewed the moment user opens it
-                      if (next) solutionWasViewed.current = true;
+                      if (next) setSolutionWasViewed(true);
                     }}
                   >
                     {showSolution ? <><EyeOff className="w-3.5 h-3.5 mr-1.5" /> Hide Solution</> : <><Eye className="w-3.5 h-3.5 mr-1.5" /> Reveal Solution</>}
                   </Button>
-                  {!solutionWasViewed.current && (
+                  {!solutionWasViewed && (
                     <p className="text-xs text-muted-foreground mt-2">
                       ⚠ Revealing the solution will disable submission credit for this session.
                     </p>
                   )}
-                  {solutionWasViewed.current && (
+                  {solutionWasViewed && (
                     <p className="text-xs text-yellow-500 mt-2">
                       Solution viewed — submissions are disabled for this session.
                     </p>

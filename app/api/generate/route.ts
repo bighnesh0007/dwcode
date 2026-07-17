@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import connectToDatabase from "@/lib/db";
 import { Problem } from "@/models/Problem";
+import { getErrorMessage } from "@/lib/errors";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -83,8 +84,8 @@ Questions should test real DataWeave skills. Avoid trivial questions. Include Mu
     await newProblem.save();
 
     return NextResponse.json({ success: true, problem: newProblem });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error generating problem:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

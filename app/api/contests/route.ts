@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Contest } from "@/models/Contest";
+import type { ProblemSchema } from "@/models/Problem";
+import type { InferSchemaType } from "mongoose";
 import { randomBytes } from "node:crypto";
+import { getErrorMessage } from "@/lib/errors";
 
 function generateInviteCode() {
     return randomBytes(5).toString("base64url").slice(0, 8).toUpperCase();
@@ -31,23 +34,23 @@ export async function GET() {
             : { isPublic: true };
         const contests = await Contest.find(visibility)
             .sort({ startTime: -1 })
-            .populate("problems", "title slug difficulty")
+            .populate<{ problems: InferSchemaType<typeof ProblemSchema>[] }>("problems", "title slug difficulty")
             .lean();
 
-        const enriched = contests.map((c: any) => ({
-            ...c,
-            status: computeStatus(new Date(c.startTime), new Date(c.endTime)),
-            participantCount: c.participants?.length ?? 0,
+        const enriched = contests.map((contest) => ({
+            ...contest,
+            status: computeStatus(new Date(contest.startTime), new Date(contest.endTime)),
+            participantCount: contest.participants?.length ?? 0,
             isParticipant: Boolean(
-                userId && c.participants?.some((participant: any) => participant.userId === userId)
+                userId && contest.participants?.some((participant) => participant.userId === userId)
             ),
-            inviteCode: c.createdBy === userId ? c.inviteCode : undefined,
+            inviteCode: contest.createdBy === userId ? contest.inviteCode : undefined,
             participants: undefined,
         }));
 
         return NextResponse.json(enriched);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -77,7 +80,7 @@ export async function POST(req: Request) {
             if (new Date() > contest.endTime) {
                 return NextResponse.json({ error: "This contest has ended." }, { status: 400 });
             }
-            if (contest.participants.some((participant: any) => participant.userId === userId)) {
+            if (contest.participants.some((participant) => participant.userId === userId)) {
                 return NextResponse.json({ success: true, contestId: contest.id });
             }
             if (contest.participants.length >= contest.maxParticipants) {
@@ -116,7 +119,7 @@ export async function POST(req: Request) {
         // Fetch problem slugs for quick lookup
         const { Problem } = await import("@/models/Problem");
         const problems = await Problem.find({ _id: { $in: problemIds } }).select("slug").lean();
-        const problemSlugs = (problems as any[]).map((p) => p.slug);
+        const problemSlugs = problems.map((problem) => problem.slug);
 
         const isPrivate = isPublic === false;
         const contest = new Contest({
@@ -138,7 +141,7 @@ export async function POST(req: Request) {
 
         await contest.save();
         return NextResponse.json({ success: true, contest });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }

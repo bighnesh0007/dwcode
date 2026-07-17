@@ -10,6 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Plus, Trash2, Pencil, ChevronDown, ChevronUp, Check, X, Users, ShieldOff, Loader2 } from "lucide-react";
 import Link from "next/link";
+import type { Difficulty, ProblemSummary } from "@/lib/types";
+
+interface ProblemEdit {
+  title: string;
+  description: string;
+  difficulty: Difficulty;
+  tags: string;
+  starterCode: string;
+}
 
 const emptyManual = {
   title: "",
@@ -28,13 +37,13 @@ export default function AdminPage() {
   const [adminCheck, setAdminCheck] = useState<"loading" | "allowed" | "forbidden">("loading");
 
   useEffect(() => {
-    if (!isSignedIn) { setAdminCheck("forbidden"); return; }
+    if (!isSignedIn) return;
     fetch("/api/admin/users")
       .then(r => { setAdminCheck(r.status === 403 ? "forbidden" : "allowed"); })
       .catch(() => setAdminCheck("forbidden"));
   }, [isSignedIn]);
 
-  if (adminCheck === "loading") {
+  if (isSignedIn === undefined || (isSignedIn && adminCheck === "loading")) {
     return (
       <div className="flex items-center justify-center py-32 gap-2 text-muted-foreground">
         <Loader2 className="w-5 h-5 animate-spin" /> Checking access…
@@ -42,7 +51,7 @@ export default function AdminPage() {
     );
   }
 
-  if (adminCheck === "forbidden") {
+  if (!isSignedIn || adminCheck === "forbidden") {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-4 text-muted-foreground">
         <ShieldOff className="w-10 h-10 opacity-30" />
@@ -70,10 +79,16 @@ function AdminPageContent() {
   const [addMsg, setAddMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Manage Problems
-  const [problems, setProblems] = useState<any[]>([]);
+  const [problems, setProblems] = useState<ProblemSummary[]>([]);
   const [showManage, setShowManage] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editData, setEditData] = useState<any>({});
+  const [editData, setEditData] = useState<ProblemEdit>({
+    title: "",
+    description: "",
+    difficulty: "Medium",
+    tags: "",
+    starterCode: "",
+  });
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const fetchProblems = async () => {
@@ -82,9 +97,11 @@ function AdminPageContent() {
     if (Array.isArray(data)) setProblems(data);
   };
 
-  useEffect(() => {
-    if (showManage) fetchProblems();
-  }, [showManage]);
+  const toggleManage = () => {
+    const nextShowManage = !showManage;
+    setShowManage(nextShowManage);
+    if (nextShowManage) void fetchProblems();
+  };
 
   // --- AI Generate ---
   const handleGenerate = async () => {
@@ -102,7 +119,7 @@ function AdminPageContent() {
       } else {
         setGenerateMsg({ type: "error", text: `✗ ${data.error}` });
       }
-    } catch (error) {
+    } catch {
       setGenerateMsg({ type: "error", text: "✗ Network error. Check your API key." });
     } finally {
       setIsGenerating(false);
@@ -146,14 +163,14 @@ function AdminPageContent() {
   };
 
   // --- Edit ---
-  const startEdit = (problem: any) => {
+  const startEdit = (problem: ProblemSummary) => {
     setEditingId(problem._id);
     setEditData({
       title: problem.title,
-      description: problem.description,
+      description: problem.description ?? "",
       difficulty: problem.difficulty,
       tags: (problem.tags || []).join(", "),
-      starterCode: problem.starterCode,
+      starterCode: problem.starterCode ?? "",
     });
   };
 
@@ -314,7 +331,7 @@ function AdminPageContent() {
       <Card>
         <CardHeader
           className="pb-4 cursor-pointer select-none"
-          onClick={() => setShowManage(!showManage)}
+          onClick={toggleManage}
         >
           <CardTitle className="flex items-center justify-between text-lg">
             <span className="flex items-center">
@@ -335,10 +352,10 @@ function AdminPageContent() {
                 <div key={p._id} className="border rounded-lg p-3 space-y-2">
                   {editingId === p._id ? (
                     <div className="space-y-2">
-                      <Input value={editData.title} onChange={e => setEditData((d: any) => ({ ...d, title: e.target.value }))} placeholder="Title" />
-                      <Textarea value={editData.description} onChange={e => setEditData((d: any) => ({ ...d, description: e.target.value }))} rows={3} placeholder="Description" />
+                      <Input value={editData.title} onChange={e => setEditData((data) => ({ ...data, title: e.target.value }))} placeholder="Title" />
+                      <Textarea value={editData.description} onChange={e => setEditData((data) => ({ ...data, description: e.target.value }))} rows={3} placeholder="Description" />
                       <div className="grid grid-cols-2 gap-2">
-                        <Select value={editData.difficulty} onValueChange={v => v && setEditData((d: any) => ({ ...d, difficulty: v }))}>
+                        <Select value={editData.difficulty} onValueChange={value => value && setEditData((data) => ({ ...data, difficulty: value as Difficulty }))}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="Easy">Easy</SelectItem>
@@ -346,9 +363,9 @@ function AdminPageContent() {
                             <SelectItem value="Hard">Hard</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Input value={editData.tags} onChange={e => setEditData((d: any) => ({ ...d, tags: e.target.value }))} placeholder="Tags (comma separated)" />
+                        <Input value={editData.tags} onChange={e => setEditData((data) => ({ ...data, tags: e.target.value }))} placeholder="Tags (comma separated)" />
                       </div>
-                      <Textarea className="font-mono text-xs" value={editData.starterCode} onChange={e => setEditData((d: any) => ({ ...d, starterCode: e.target.value }))} rows={3} placeholder="Starter code" />
+                      <Textarea className="font-mono text-xs" value={editData.starterCode} onChange={e => setEditData((data) => ({ ...data, starterCode: e.target.value }))} rows={3} placeholder="Starter code" />
                       <div className="flex gap-2">
                         <Button size="sm" className="flex-1" onClick={() => saveEdit(p._id)}><Check className="w-3.5 h-3.5 mr-1" /> Save</Button>
                         <Button size="sm" variant="outline" className="flex-1" onClick={() => setEditingId(null)}><X className="w-3.5 h-3.5 mr-1" /> Cancel</Button>

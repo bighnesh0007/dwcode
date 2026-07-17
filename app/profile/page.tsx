@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import type { CoinTransaction } from "@/lib/types";
+import { getErrorMessage } from "@/lib/errors";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -263,7 +266,7 @@ export default function ProfilePage() {
     const [error, setError] = useState<string | null>(null);
     const [rank, setRank] = useState<number | null>(null);
     const [score, setScore] = useState<number>(0);
-    const [coins, setCoins] = useState<{ balance: number; transactions: any[] }>({ balance: 0, transactions: [] });
+    const [coins, setCoins] = useState<{ balance: number; transactions: CoinTransaction[] }>({ balance: 0, transactions: [] });
 
     // Edit Profile state
     const [editOpen, setEditOpen] = useState(false);
@@ -308,7 +311,7 @@ export default function ProfilePage() {
             .then((r) => r.json())
             .then((d) => {
                 if (d.leaderboard) {
-                    const idx = d.leaderboard.findIndex((r: any) => r.userId === user.id);
+                    const idx = d.leaderboard.findIndex((row: { userId: string }) => row.userId === user.id);
                     if (idx !== -1) { setRank(idx + 1); setScore(d.leaderboard[idx].score); }
                 }
             })
@@ -357,7 +360,7 @@ export default function ProfilePage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     {user?.imageUrl ? (
-                        <img src={user.imageUrl} className="w-16 h-16 rounded-full border-2 border-primary/30" alt={user.fullName || ""} />
+                        <Image unoptimized src={user.imageUrl} width={64} height={64} className="w-16 h-16 rounded-full border-2 border-primary/30" alt={user.fullName || ""} />
                     ) : (
                         <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
                             <Code2 className="w-7 h-7 text-primary" />
@@ -474,10 +477,12 @@ export default function ProfilePage() {
                                             });
                                             const dataRes = await res.json();
                                             if (dataRes.error) throw new Error(dataRes.error);
-                                            setData((prev: any) => ({ ...prev, username: dataRes.profile.username, bio: dataRes.profile.bio }));
+                                            setData((previous) => previous
+                                                ? { ...previous, username: dataRes.profile.username, bio: dataRes.profile.bio }
+                                                : previous);
                                             setEditOpen(false);
-                                        } catch (e: any) {
-                                            setEditError(e.message);
+                                        } catch (error) {
+                                            setEditError(getErrorMessage(error));
                                         } finally {
                                             setEditSaving(false);
                                         }
@@ -658,7 +663,7 @@ export default function ProfilePage() {
                         <p className="text-sm text-muted-foreground italic">No coin transactions yet. Start solving problems!</p>
                     ) : (
                         <div className="space-y-2">
-                            {coins.transactions.map((t: any, i: number) => (
+                            {coins.transactions.map((t, i) => (
                                 <div key={i} className="flex items-center justify-between gap-3 py-1.5 px-3 rounded-md bg-muted/20 hover:bg-muted/30 transition-colors">
                                     <div className="flex items-center gap-2 min-w-0">
                                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${t.amount > 0 ? "bg-yellow-500" : "bg-red-500"}`} />

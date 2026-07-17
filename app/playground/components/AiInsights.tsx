@@ -14,6 +14,7 @@ import {
     RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getErrorMessage } from "@/lib/errors";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -102,8 +103,8 @@ export function AiInsights({ script, inputSample, outputSample }: AiInsightsProp
             const data = await res.json();
             if (!res.ok || data.error) throw new Error(data.error ?? "AI request failed.");
             setResult(data.result);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (error) {
+            setError(getErrorMessage(error));
         } finally {
             setLoading(false);
         }

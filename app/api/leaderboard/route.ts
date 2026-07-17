@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectToDatabase from "@/lib/db";
 import { Submission } from "@/models/Submission";
 import { Problem } from "@/models/Problem";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function GET() {
     try {
@@ -21,7 +22,9 @@ export async function GET() {
         // Get difficulty map  slug → difficulty
         const problems = await Problem.find().select("slug difficulty").lean();
         const diffMap: Record<string, string> = {};
-        for (const p of problems as any[]) diffMap[p.slug] = p.difficulty;
+        for (const problem of problems) {
+            diffMap[problem.slug] = problem.difficulty;
+        }
 
         // Group by userId
         const userMap: Record<
@@ -36,7 +39,7 @@ export async function GET() {
             }
         > = {};
 
-        for (const sub of submissions as any[]) {
+        for (const sub of submissions) {
             if (!sub.userId) continue; // skip old submissions without userId
             if (!userMap[sub.userId]) {
                 userMap[sub.userId] = {
@@ -88,7 +91,7 @@ export async function GET() {
             leaderboard: rows,
             meta: { totalProblems, easyCount, mediumCount, hardCount },
         });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

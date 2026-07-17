@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
 const TransactionSchema = new mongoose.Schema({
     type: { type: String, required: true },        // e.g. "first_solve", "difficulty_bonus", "comment"
@@ -7,11 +8,10 @@ const TransactionSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
-const UserCoinsSchema = new mongoose.Schema({
+export const UserCoinsSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     balance: { type: Number, default: 0 },
     transactions: [TransactionSchema],
 });
 
-export const UserCoins =
-    mongoose.models.UserCoins || mongoose.model("UserCoins", UserCoinsSchema);
+export const UserCoins = modelFromSchema("UserCoins", UserCoinsSchema);

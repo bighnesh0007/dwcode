@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useUser } from "@clerk/nextjs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, Tag, Trash2, Loader2, Share2, Check } from "lucide-react";
-import { isAdmin } from "@/lib/coins";
 import { renderMarkdown } from "@/lib/markdown";
+import type { BlogPost } from "@/lib/types";
 
 /**
  * Wrap iframes in a responsive container so they don't overflow on mobile.
@@ -29,10 +30,10 @@ export default function BlogPostPage() {
     const slug = params.slug as string;
     const { user } = useUser();
 
-    const [post, setPost] = useState<any>(null);
+    const [post, setPost] = useState<BlogPost | null>(null);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
-    const [canDelete, setCanDelete] = useState(false);
+    const [hasAdminAccess, setHasAdminAccess] = useState(false);
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
@@ -44,13 +45,15 @@ export default function BlogPostPage() {
 
     useEffect(() => {
         if (!user || !post) return;
-        if (post.authorId === user.id) { setCanDelete(true); return; }
+        if (post.authorId === user.id) return;
         // Check admin rights
         fetch("/api/admin/users")
             .then(r => r.json())
-            .then(d => { if (!d.error) setCanDelete(true); })
+            .then(d => { if (!d.error) setHasAdminAccess(true); })
             .catch(() => { });
     }, [user, post]);
+
+    const canDelete = post?.authorId === user?.id || hasAdminAccess;
 
     const handleDelete = async () => {
         if (!confirm("Delete this post?")) return;
@@ -149,7 +152,7 @@ export default function BlogPostPage() {
                 <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
                         {post.authorImageUrl ? (
-                            <img src={post.authorImageUrl} className="w-7 h-7 rounded-full" alt={post.authorName} />
+                            <Image unoptimized src={post.authorImageUrl} width={28} height={28} className="w-7 h-7 rounded-full" alt={post.authorName} />
                         ) : (
                             <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                                 {(post.authorName || "?")[0].toUpperCase()}

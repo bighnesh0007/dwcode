@@ -1,7 +1,8 @@
 import { GitHubIntegration } from "@/models/GitHubIntegration";
 import connectToDatabase from "@/lib/db";
 import { Submission } from "@/models/Submission";
-import { Problem } from "@/models/Problem";
+import { Problem, type ProblemSchema } from "@/models/Problem";
+import type { InferSchemaType } from "mongoose";
 
 const REPO_NAME = "dwcode-solutions";
 
@@ -237,7 +238,11 @@ export async function publishPlaygroundToGitHub(
   };
 }
 
-export async function pushSolutionToGithub(userId: string, problem: any, code: string) {
+export async function pushSolutionToGithub(
+  userId: string,
+  problem: Pick<InferSchemaType<typeof ProblemSchema>, "title" | "slug" | "difficulty">,
+  code: string
+) {
   try {
     await connectToDatabase();
     const integration = await GitHubIntegration.findOne({ userId });
@@ -331,23 +336,27 @@ async function updateReadme(userId: string, token: string, username: string) {
   try {
     const allSubmissions = await Submission.find({ userId }).lean();
     const acceptedSlugs = new Set(
-      allSubmissions.filter((s: any) => s.status === "Accepted").map((s: any) => s.problemSlug)
+      allSubmissions
+        .filter((submission) => submission.status === "Accepted")
+        .map((submission) => submission.problemSlug)
     );
     
-    const solvedProblems = await Problem.find({ slug: { $in: Array.from(acceptedSlugs) } }).select("title slug difficulty").lean();
+    const solvedProblems = await Problem.find({ slug: { $in: Array.from(acceptedSlugs) } })
+      .select("title slug difficulty")
+      .lean();
     
-    const easyCount = solvedProblems.filter((p: any) => p.difficulty === "Easy").length;
-    const mediumCount = solvedProblems.filter((p: any) => p.difficulty === "Medium").length;
-    const hardCount = solvedProblems.filter((p: any) => p.difficulty === "Hard").length;
+    const easyCount = solvedProblems.filter((problem) => problem.difficulty === "Easy").length;
+    const mediumCount = solvedProblems.filter((problem) => problem.difficulty === "Medium").length;
+    const hardCount = solvedProblems.filter((problem) => problem.difficulty === "Hard").length;
 
     let readmeContent = `# DWCode Solutions\n\nGenerated automatically by DWCode.\n\n## Stats\n\n- Total Solved: ${solvedProblems.length}\n- Easy: ${easyCount}\n- Medium: ${mediumCount}\n- Hard: ${hardCount}\n\n## Latest Solved\n\n`;
 
     // get last 5 solved
     const latestSlugs = Array.from(acceptedSlugs).slice(-5);
-    const latestProblems = solvedProblems.filter((p: any) => latestSlugs.includes(p.slug));
+    const latestProblems = solvedProblems.filter((problem) => latestSlugs.includes(problem.slug));
 
-    latestProblems.forEach((p: any) => {
-      readmeContent += `- ${p.title || p.slug}\n`;
+    latestProblems.forEach((problem) => {
+      readmeContent += `- ${problem.title || problem.slug}\n`;
     });
 
     const base64Content = Buffer.from(readmeContent).toString("base64");

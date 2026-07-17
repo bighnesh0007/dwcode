@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Star, CheckCircle2, Circle, Shuffle } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
+import type { BookmarkSummary, ProblemSummary, SubmissionSummary } from "@/lib/types";
 
 const DIFFICULTY_TAGS = ["Easy", "Medium", "Hard"];
 const FILTER_TAGS = ["All", "Bookmarked", "Solved", "Attempted", "Easy", "Medium", "Hard", "Arrays", "Objects", "Transformations", "JSON", "Manual"];
@@ -17,8 +18,8 @@ function ProblemsList() {
   const router = useRouter();
   const q = searchParams.get("q") || "";
 
-  const [problems, setProblems] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [problems, setProblems] = useState<ProblemSummary[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [search, setSearch] = useState(q);
   const [selectedTag, setSelectedTag] = useState("All");
@@ -36,7 +37,9 @@ function ProblemsList() {
         const [pData, sData, bData] = await Promise.all([pRes.json(), sRes.json(), bRes.json()]);
         if (Array.isArray(pData)) setProblems(pData);
         if (Array.isArray(sData)) setSubmissions(sData);
-        if (Array.isArray(bData)) setBookmarks(bData.map((b: any) => b.problemId));
+        if (Array.isArray(bData)) {
+          setBookmarks((bData as BookmarkSummary[]).map((bookmark) => bookmark.problemId));
+        }
       } catch (err) {
         console.error(err);
       } finally {

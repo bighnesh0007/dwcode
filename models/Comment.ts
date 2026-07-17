@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
-const CommentSchema = new mongoose.Schema({
+export const CommentSchema = new mongoose.Schema({
     problemSlug: { type: String, required: true, index: true },
     userId: { type: String, required: true },        // Clerk user ID
     userName: { type: String, required: true },       // Clerk display name
@@ -10,5 +11,4 @@ const CommentSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
-export const Comment =
-    mongoose.models.Comment || mongoose.model("Comment", CommentSchema);
+export const Comment = modelFromSchema("Comment", CommentSchema);
