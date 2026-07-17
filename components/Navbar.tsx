@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { GlobalSearch } from "@/components/global-search";
 import { cn } from "@/lib/utils";
+import { SHOW_ADMIN } from "@/lib/config";
 
 const NAV_LINKS = [
   { href: "/problems", label: "Problems" },
@@ -16,6 +17,7 @@ const NAV_LINKS = [
   { href: "/leaderboard", label: "Leaderboard", icon: <Trophy className="w-3.5 h-3.5 mr-1" /> },
   { href: "/blog", label: "Blog", icon: <BookOpen className="w-3.5 h-3.5 mr-1" /> },
   { href: "/contests", label: "Contests" },
+  { href: "/changelog", label: "Changelog" },
 ];
 
 function CoinsBadge() {
@@ -112,21 +114,23 @@ export default function Navbar() {
               </Button>
             </Link>
 
-            {/* Admin */}
-            <Link href="/admin">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "text-[13px] font-medium transition-colors",
-                  pathname.startsWith("/admin")
-                    ? "bg-accent text-accent-foreground"
-                    : "text-foreground/60 hover:text-foreground"
-                )}
-              >
-                Admin
-              </Button>
-            </Link>
+            {/* Admin — only visible when NEXT_PUBLIC_SHOW_ADMIN=true */}
+            {SHOW_ADMIN && (
+              <Link href="/admin">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "text-[13px] font-medium transition-colors",
+                    pathname.startsWith("/admin")
+                      ? "bg-accent text-accent-foreground"
+                      : "text-foreground/60 hover:text-foreground"
+                  )}
+                >
+                  Admin
+                </Button>
+              </Link>
+            )}
 
             <ModeToggle />
 
@@ -187,7 +191,12 @@ export default function Navbar() {
         <div className="border-t bg-background/98 px-3 py-3 shadow-lg md:hidden">
           <GlobalSearch />
           <nav className="mt-3 grid grid-cols-2 gap-1">
-            {[...NAV_LINKS, { href: "/create", label: "Create" }, { href: "/store", label: "Store" }, { href: "/admin", label: "Admin" }].map(
+            {[
+              ...NAV_LINKS,
+              { href: "/create", label: "Create" },
+              { href: "/store", label: "Store" },
+              ...(SHOW_ADMIN ? [{ href: "/admin", label: "Admin" }] : []),
+            ].map(
               ({ href, label }) => (
                 <Link
                   key={href}

@@ -6,9 +6,22 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, Tag, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar, Tag, Trash2, Loader2, Share2, Check } from "lucide-react";
 import { isAdmin } from "@/lib/coins";
 import { renderMarkdown } from "@/lib/markdown";
+
+/**
+ * Wrap iframes in a responsive container so they don't overflow on mobile.
+ * LinkedIn embed iframes have no width/height constraints by default.
+ */
+function wrapIframes(html: string): string {
+    return html.replace(
+        /<iframe([^>]*)>/gi,
+        "<div class='relative w-full overflow-hidden rounded-lg my-4 not-prose' style='max-width:552px;margin-inline:auto'><iframe$1 style='width:100%;border:none;'>"
+    ).replace(/<\/iframe>/gi, "</iframe></div>");
+}
+
+// ---------------------------------------------------------------------------
 
 export default function BlogPostPage() {
     const params = useParams();
@@ -20,6 +33,7 @@ export default function BlogPostPage() {
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
     const [canDelete, setCanDelete] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     useEffect(() => {
         fetch(`/api/blog/${slug}`)
@@ -30,8 +44,8 @@ export default function BlogPostPage() {
 
     useEffect(() => {
         if (!user || !post) return;
-        // Can delete if author or admin (check via API)
         if (post.authorId === user.id) { setCanDelete(true); return; }
+        // Check admin rights
         fetch("/api/admin/users")
             .then(r => r.json())
             .then(d => { if (!d.error) setCanDelete(true); })
@@ -43,6 +57,19 @@ export default function BlogPostPage() {
         setDeleting(true);
         await fetch(`/api/blog/${slug}`, { method: "DELETE" });
         router.push("/blog");
+    };
+
+    const handleShare = async () => {
+        const url = window.location.href;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: post?.title ?? "DWCode Blog", url });
+            } else {
+                await navigator.clipboard.writeText(url);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }
+        } catch { /* user cancelled */ }
     };
 
     if (loading) {
@@ -62,24 +89,58 @@ export default function BlogPostPage() {
         );
     }
 
+    const renderedContent = wrapIframes(
+        `<p class='mb-3'>${renderMarkdown(post.content)}</p>`
+    );
+
     return (
         <div className="container max-w-screen-md mx-auto py-10 px-4 space-y-6">
+            {/* Top bar */}
             <div className="flex items-center justify-between gap-3">
-                <Link href="/blog" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+                <Link
+                    href="/blog"
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+                >
                     <ArrowLeft className="w-4 h-4" /> Back to Blog
                 </Link>
-                {canDelete && (
+
+                <div className="flex items-center gap-2">
+                    {/* Share button — works for everyone, no login needed */}
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-7 text-xs gap-1"
-                        onClick={handleDelete}
-                        disabled={deleting}
+                        className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                        onClick={handleShare}
                     >
-                        {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                        Delete
+                        {copied ? (
+                            <>
+                                <Check className="w-3.5 h-3.5 text-green-500" />
+                                Copied!
+                            </>
+                        ) : (
+                            <>
+                                <Share2 className="w-3.5 h-3.5" />
+                                Share
+                            </>
+                        )}
                     </Button>
-                )}
+
+                    {/* Delete — only for author / admin */}
+                    {canDelete && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-7 text-xs gap-1"
+                            onClick={handleDelete}
+                            disabled={deleting}
+                        >
+                            {deleting
+                                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : <Trash2 className="w-3.5 h-3.5" />}
+                            Delete
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Post header */}
@@ -99,7 +160,9 @@ export default function BlogPostPage() {
                     <span className="text-muted-foreground/40">·</span>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Calendar className="w-3.5 h-3.5" />
-                        {new Date(post.createdAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}
+                        {new Date(post.createdAt).toLocaleDateString(undefined, {
+                            month: "long", day: "numeric", year: "numeric",
+                        })}
                     </div>
                 </div>
                 {(post.tags || []).length > 0 && (
@@ -115,10 +178,10 @@ export default function BlogPostPage() {
 
             <hr className="border-border/60" />
 
-            {/* Post content */}
+            {/* Post content — iframes rendered, not escaped */}
             <article
                 className="prose prose-sm dark:prose-invert max-w-none text-foreground/90 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(post.content) }}
+                dangerouslySetInnerHTML={{ __html: renderedContent }}
             />
         </div>
     );

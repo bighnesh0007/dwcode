@@ -1,69 +1,111 @@
 import { NextResponse } from "next/server";
+import { DWL_BACKEND_URL } from "@/lib/config";
 
 /**
- * Proxy to the DataWeave compiler backend at https://dwlbackend.onrender.com.
+ * Proxy to the DataWeave compiler backend.
+ * Backend URL is controlled by DWL_BACKEND_URL in .env.local.
  *
- * Accepts either of two shapes from the frontend:
- *   A) { script: string, inputs: Array<{ name: string, value: any }> }   ← already correct
- *   B) { script: string, inputs: { [name]: string|object } }             ← legacy object form
+ * Accepted body shape (sent by the playground):
+ *   {
+ *     script: string,
+ *     inputs: Array<{
+ *       name:     string,
+ *       value:    any,
+ *       mimeType: string   // e.g. "application/json", "application/xml", "text/plain"
+ *     }>
+ *   }
  *
- * Always forwards to the backend as shape A.
+ * Rules per MIME type:
+ *   application/json  → parse string → object (existing behaviour)
+ *   everything else   → keep as raw string (XML, CSV, YAML, plain text, etc.)
+ *
+ * The backend must understand the mimeType field to parse correctly.
  */
+
+const JSON_MIME = "application/json";
+
+type RawInput = {
+    name?: unknown;
+    value?: unknown;
+    mimeType?: unknown;
+};
+
+function normaliseInput(item: RawInput, index: number) {
+    const name = typeof item.name === "string" && item.name.trim()
+        ? item.name.trim()
+        : `input${index}`;
+    const mime = typeof item.mimeType === "string" && item.mimeType.trim()
+        ? item.mimeType.trim()
+        : JSON_MIME;
+    const isJson = mime === JSON_MIME;
+
+    let value: unknown = item.value;
+
+    if (isJson) {
+        // JSON inputs: parse string → object so the backend gets a structured value
+        if (typeof value === "string") {
+            try { value = JSON.parse(value); } catch { /* keep as string */ }
+        }
+    } else {
+        // Non-JSON inputs: always send as raw string — do NOT parse
+        if (typeof value !== "string") {
+            value = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "");
+        }
+    }
+
+    return { name, value, mimeType: mime };
+}
+
 export async function POST(request: Request) {
+    const start = Date.now();
     try {
         const body = await request.json();
         const { script, inputs } = body;
 
-        if (!script) {
+        if (!script || typeof script !== "string" || !script.trim()) {
             return NextResponse.json(
-                { success: false, output: "Missing 'script' field", time: "0ms" },
+                { success: false, output: "Missing or empty 'script' field.", time: "0ms" },
                 { status: 400 }
             );
         }
 
-        // ── Normalise inputs → Array<{ name, value }> ──────────────────────────
-        let normalisedInputs: { name: string; value: unknown }[] = [];
+        // ── Normalise inputs ──────────────────────────────────────────────────────
+        let normalisedInputs: ReturnType<typeof normaliseInput>[] = [];
 
-        if (Array.isArray(inputs)) {
-            // Shape A — already correct, just make sure value is parsed if it's a string
-            normalisedInputs = inputs.map((item: any) => {
-                let val = item.value;
-                if (typeof val === "string") {
-                    try { val = JSON.parse(val); } catch { /* keep as string */ }
-                }
-                return { name: item.name, value: val };
-            });
-        } else if (inputs && typeof inputs === "object") {
-            // Shape B — { payload: "..." } or { payload: {...} }
-            normalisedInputs = Object.entries(inputs).map(([name, val]) => {
-                if (typeof val === "string") {
-                    try { val = JSON.parse(val); } catch { /* keep as string */ }
-                }
-                return { name, value: val };
+        if (Array.isArray(inputs) && inputs.length > 0) {
+            normalisedInputs = inputs.map((item, i) => normaliseInput(item as RawInput, i));
+        } else if (inputs && typeof inputs === "object" && !Array.isArray(inputs)) {
+            // Legacy shape B: { payload: "..." }
+            normalisedInputs = Object.entries(inputs as Record<string, unknown>).map(([name, val], i) => {
+                let v: unknown = val;
+                if (typeof v === "string") { try { v = JSON.parse(v); } catch { /* keep */ } }
+                return { name, value: v, mimeType: JSON_MIME };
             });
         }
 
-        // If no inputs provided at all, pass an empty payload
         if (normalisedInputs.length === 0) {
-            normalisedInputs = [{ name: "payload", value: {} }];
+            normalisedInputs = [{ name: "payload", value: {}, mimeType: JSON_MIME }];
         }
 
-        const backendBody = { script, inputs: normalisedInputs };
+        console.log(`[transform] script=${script.slice(0, 60).replace(/\n/g, " ")}…`);
+        console.log(`[transform] inputs=${normalisedInputs.map(i => `${i.name}(${i.mimeType})`).join(", ")}`);
 
-        // ── Forward to backend ─────────────────────────────────────────────────
+        // ── Forward to backend ────────────────────────────────────────────────────
         let response: Response;
         try {
-            response = await fetch("https://dwlbackend.onrender.com/api/transform", {
+            response = await fetch(`${DWL_BACKEND_URL}/api/transform`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(backendBody),
+                body: JSON.stringify({ script, inputs: normalisedInputs }),
             });
         } catch (networkErr: any) {
+            const elapsed = Date.now() - start;
+            console.error(`[transform] network error after ${elapsed}ms:`, networkErr.message);
             return NextResponse.json(
                 {
                     success: false,
                     output:
-                        `Connection error: Could not reach the DataWeave compiler at https://dwlbackend.onrender.com.\n` +
+                        `Connection error: Could not reach the DataWeave compiler at ${DWL_BACKEND_URL}.\n` +
                         `Make sure your Docker container is running.\n\n${networkErr.message}`,
                     time: "0ms",
                 },
@@ -76,11 +118,15 @@ export async function POST(request: Request) {
             data = await response.json();
         } catch {
             const text = await response.text();
+            console.error("[transform] non-JSON backend response:", text.slice(0, 200));
             return NextResponse.json(
                 { success: false, output: `Backend returned non-JSON response:\n${text}`, time: "0ms" },
                 { status: 502 }
             );
         }
+
+        const elapsed = Date.now() - start;
+        console.log(`[transform] backend responded in ${elapsed}ms — ok=${response.ok}`);
 
         if (!response.ok || data.error) {
             return NextResponse.json(
@@ -89,18 +135,20 @@ export async function POST(request: Request) {
                     output: data.error || data.message || `Compilation failed (HTTP ${response.status})`,
                     time: data.time ?? "0ms",
                 },
-                { status: response.status }
+                { status: response.ok ? 200 : response.status }
             );
         }
 
+        const rawOutput = data.output ?? data.result;
         return NextResponse.json({
             success: true,
-            output: typeof (data.output ?? data.result) === "string"
-                ? (data.output ?? data.result)
-                : JSON.stringify(data.output ?? data.result, null, 2),
-            time: data.time ?? "0ms",
+            output: typeof rawOutput === "string"
+                ? rawOutput
+                : JSON.stringify(rawOutput, null, 2),
+            time: data.time ?? `${elapsed}ms`,
         });
     } catch (err: any) {
+        console.error("[transform] unhandled error:", err);
         return NextResponse.json(
             { success: false, output: err.message, time: "0ms" },
             { status: 500 }

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { DWL_BACKEND_URL } from "@/lib/config";
 
 /**
- * Proxy to the DataWeave compiler backend (port 4000).
+ * Proxy to the DataWeave compiler backend.
+ * Backend URL is controlled by DWL_BACKEND_URL in .env.local.
  * Used by the problem Workspace.
  *
  * Accepts: { code: string, input: string }
@@ -32,7 +34,7 @@ export async function POST(req: Request) {
 
     let response: Response;
     try {
-      response = await fetch("https://dwlbackend.onrender.com/api/transform", {
+      response = await fetch(`${DWL_BACKEND_URL}/api/transform`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -44,7 +46,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: false,
         output:
-          `Connection error: Could not reach the DataWeave compiler at https://dwlbackend.onrender.com.\n` +
+          `Connection error: Could not reach the DataWeave compiler at ${DWL_BACKEND_URL}.\n` +
           `Make sure your Docker container is running.\n\n${networkErr.message}`,
         time: "0ms",
       });

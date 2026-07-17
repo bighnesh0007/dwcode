@@ -43,7 +43,7 @@ function normalizeFile(file: IncomingFile, fallbackName: string) {
     throw new Error(`Input file "${name}" is too large.`);
   }
 
-  const language = ["json", "xml", "csv", "text"].includes(String(file.language))
+  const language = ["json", "xml", "csv", "yaml", "text", "java", "ndjson", "multipart"].includes(String(file.language))
     ? file.language
     : "json";
   const kind = ["payload", "vars", "attributes", "custom"].includes(String(file.kind))

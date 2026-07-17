@@ -5,6 +5,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/components/theme-provider";
+import { MaintenanceBanner } from "@/components/MaintenanceBanner";
+import { ProductTour } from "@/components/ProductTour";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +53,8 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <Navbar />
+            <MaintenanceBanner />
+            <ProductTour />
             <main className="flex-1 flex flex-col">{children}</main>
             <footer className="border-t py-4 text-center text-xs text-muted-foreground">
               Licensed under the{" "}

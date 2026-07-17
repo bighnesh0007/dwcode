@@ -10,7 +10,7 @@ const PlaygroundFileSchema = new mongoose.Schema(
     },
     language: {
       type: String,
-      enum: ["json", "xml", "csv", "text"],
+      enum: ["json", "xml", "csv", "yaml", "text", "java", "ndjson", "multipart"],
       default: "json",
     },
     content: { type: String, default: "" },
