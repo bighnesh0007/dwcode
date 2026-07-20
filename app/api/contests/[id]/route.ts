@@ -85,7 +85,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         if (action === "leave") {
-            contest.participants.pull({ userId });
+            const participantIndex = contest.participants.findIndex(
+                (participant) => participant.userId === userId
+            );
+            if (participantIndex !== -1) {
+                contest.participants.splice(participantIndex, 1);
+            }
             await contest.save();
             return NextResponse.json({ success: true });
         }
