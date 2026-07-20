@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DWL_BACKEND_URL } from "@/lib/config";
+import { getErrorMessage } from "@/lib/errors";
 
 /**
  * Proxy to the DataWeave compiler backend.
@@ -49,7 +50,12 @@ function normaliseInput(item: RawInput, index: number) {
     } else {
         // Non-JSON inputs: always send as raw string — do NOT parse
         if (typeof value !== "string") {
-            value = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "");
+            if (value == null) value = "";
+            else if (typeof value === "object") value = JSON.stringify(value, null, 2) ?? "";
+            else if (typeof value === "number" || typeof value === "bigint" || typeof value === "boolean") {
+                value = value.toString();
+            } else if (typeof value === "symbol") value = value.description ?? "";
+            else value = "";
         }
     }
 
@@ -76,7 +82,7 @@ export async function POST(request: Request) {
             normalisedInputs = inputs.map((item, i) => normaliseInput(item as RawInput, i));
         } else if (inputs && typeof inputs === "object" && !Array.isArray(inputs)) {
             // Legacy shape B: { payload: "..." }
-            normalisedInputs = Object.entries(inputs as Record<string, unknown>).map(([name, val], i) => {
+            normalisedInputs = Object.entries(inputs as Record<string, unknown>).map(([name, val]) => {
                 let v: unknown = val;
                 if (typeof v === "string") { try { v = JSON.parse(v); } catch { /* keep */ } }
                 return { name, value: v, mimeType: JSON_MIME };
@@ -98,22 +104,22 @@ export async function POST(request: Request) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ script, inputs: normalisedInputs }),
             });
-        } catch (networkErr: any) {
+        } catch (networkErr) {
             const elapsed = Date.now() - start;
-            console.error(`[transform] network error after ${elapsed}ms:`, networkErr.message);
+            console.error(`[transform] network error after ${elapsed}ms:`, getErrorMessage(networkErr));
             return NextResponse.json(
                 {
                     success: false,
                     output:
                         `Connection error: Could not reach the DataWeave compiler at ${DWL_BACKEND_URL}.\n` +
-                        `Make sure your Docker container is running.\n\n${networkErr.message}`,
+                        `Make sure your Docker container is running.\n\n${getErrorMessage(networkErr)}`,
                     time: "0ms",
                 },
                 { status: 503 }
             );
         }
 
-        let data: any;
+        let data: { error?: string; message?: string; output?: unknown; result?: unknown; time?: string };
         try {
             data = await response.json();
         } catch {
@@ -147,10 +153,10 @@ export async function POST(request: Request) {
                 : JSON.stringify(rawOutput, null, 2),
             time: data.time ?? `${elapsed}ms`,
         });
-    } catch (err: any) {
+    } catch (err) {
         console.error("[transform] unhandled error:", err);
         return NextResponse.json(
-            { success: false, output: err.message, time: "0ms" },
+            { success: false, output: getErrorMessage(err), time: "0ms" },
             { status: 500 }
         );
     }

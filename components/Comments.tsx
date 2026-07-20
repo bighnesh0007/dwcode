@@ -2,20 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useUser, SignInButton } from "@clerk/nextjs";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { getErrorMessage } from "@/lib/errors";
 import { Trash2, MessageSquare, Loader2 } from "lucide-react";
 import { renderMarkdown } from "@/lib/markdown";
-
-interface Comment {
-    _id: string;
-    userId: string;
-    userName: string;
-    userImageUrl: string;
-    content: string;
-    createdAt: string;
-}
+import type { Comment } from "@/lib/types";
 
 export function Comments({ problemSlug }: { problemSlug: string }) {
     const { user, isSignedIn } = useUser();
@@ -37,7 +31,13 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
         }
     };
 
-    useEffect(() => { fetchComments(); }, [problemSlug]);
+    useEffect(() => {
+        fetch(`/api/comments?problemSlug=${problemSlug}`)
+            .then((response) => response.json())
+            .then((data) => { if (Array.isArray(data)) setComments(data); })
+            .catch(() => { })
+            .finally(() => setLoading(false));
+    }, [problemSlug]);
 
     const handlePost = async () => {
         if (!draft.trim()) return;
@@ -52,12 +52,12 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
             const data = await res.json();
             if (data.success) {
                 setDraft("");
-                fetchComments();
+                await fetchComments();
             } else {
                 setError(data.error || "Failed to post comment");
             }
-        } catch (e: any) {
-            setError(e.message);
+        } catch (error) {
+            setError(getErrorMessage(error));
         } finally {
             setPosting(false);
         }
@@ -85,7 +85,7 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
                         {user?.imageUrl ? (
-                            <img src={user.imageUrl} className="w-6 h-6 rounded-full" alt={user.fullName || ""} />
+                            <Image unoptimized src={user.imageUrl} width={24} height={24} className="w-6 h-6 rounded-full" alt={user.fullName || ""} />
                         ) : (
                             <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                                 {(user?.fullName || user?.username || "?")[0].toUpperCase()}
@@ -137,7 +137,7 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
                     {comments.map((c) => (
                         <div key={c._id} className="flex gap-2.5 group">
                             {c.userImageUrl ? (
-                                <img src={c.userImageUrl} className="w-7 h-7 rounded-full flex-shrink-0 mt-0.5" alt={c.userName} />
+                                <Image unoptimized src={c.userImageUrl} width={28} height={28} className="w-7 h-7 rounded-full flex-shrink-0 mt-0.5" alt={c.userName} />
                             ) : (
                                 <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0 mt-0.5">
                                     {(c.userName || "?")[0].toUpperCase()}

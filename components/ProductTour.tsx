@@ -94,7 +94,8 @@ export function ProductTour() {
         if (!isSignedIn) return;
         try {
             if (!localStorage.getItem(STORAGE_KEY)) {
-                setOpen(true);
+                const timeout = setTimeout(() => setOpen(true), 0);
+                return () => clearTimeout(timeout);
             }
         } catch {
             // localStorage unavailable (SSR / private mode) — skip silently

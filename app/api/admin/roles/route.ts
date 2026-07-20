@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { UserRole } from "@/models/UserRole";
+import { getErrorMessage } from "@/lib/errors";
 
 function isSuperAdmin(userId: string) {
     return userId === process.env.SUPER_ADMIN_USER_ID;
@@ -17,8 +18,8 @@ export async function GET() {
         await connectToDatabase();
         const roles = await UserRole.find({ role: "admin" }).lean();
         return NextResponse.json(roles);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -40,8 +41,8 @@ export async function POST(req: Request) {
             { upsert: true }
         );
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -60,7 +61,7 @@ export async function DELETE(req: Request) {
         await connectToDatabase();
         await UserRole.deleteOne({ userId: targetUserId });
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }

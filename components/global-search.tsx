@@ -9,7 +9,7 @@ export function GlobalSearch() {
   const [query, setQuery] = useState("")
   const router = useRouter()
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (query.trim()) {
       router.push(`/problems?q=${encodeURIComponent(query.trim())}`)

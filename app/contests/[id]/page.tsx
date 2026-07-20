@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +13,17 @@ import {
     Globe, Lock, Loader2, Copy, Check, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { ContestSummary } from "@/lib/types";
+
+function getTimeLeft(endTime: string, status: string, now: number) {
+    if (status === "ended") return "Contest ended";
+    const diff = new Date(endTime).getTime() - now;
+    if (diff <= 0) return "Ended";
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    return `${h}h ${m}m ${s}s`;
+}
 
 function formatDate(d: string) {
     return new Date(d).toLocaleString(undefined, {
@@ -21,21 +33,13 @@ function formatDate(d: string) {
 }
 
 function TimeLeft({ endTime, status }: { endTime: string; status: string }) {
-    const [left, setLeft] = useState("");
+    const [now, setNow] = useState(() => Date.now());
     useEffect(() => {
-        if (status === "ended") { setLeft("Contest ended"); return; }
-        const update = () => {
-            const diff = new Date(endTime).getTime() - Date.now();
-            if (diff <= 0) { setLeft("Ended"); return; }
-            const h = Math.floor(diff / 3600000);
-            const m = Math.floor((diff % 3600000) / 60000);
-            const s = Math.floor((diff % 60000) / 1000);
-            setLeft(`${h}h ${m}m ${s}s`);
-        };
-        update();
-        const t = setInterval(update, 1000);
+        if (status === "ended") return;
+        const t = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(t);
-    }, [endTime, status]);
+    }, [status]);
+    const left = getTimeLeft(endTime, status, now);
     return <span className="font-mono">{left}</span>;
 }
 
@@ -44,12 +48,12 @@ export default function ContestDetailPage() {
     const id = params.id as string;
     const { user, isSignedIn } = useUser();
 
-    const [contest, setContest] = useState<any>(null);
+    const [contest, setContest] = useState<ContestSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [joining, setJoining] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const fetchContest = async () => {
+    const fetchContest = useCallback(async () => {
         try {
             const res = await fetch(`/api/contests/${id}`);
             const data = await res.json();
@@ -57,9 +61,9 @@ export default function ContestDetailPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id]);
 
-    useEffect(() => { fetchContest(); }, [id]);
+    useEffect(() => { void fetchContest(); }, [fetchContest]);
 
     const handleJoin = async () => {
         if (!isSignedIn) return;
@@ -67,7 +71,7 @@ export default function ContestDetailPage() {
         try {
             const res = await fetch(`/api/contests/${id}?action=join`, { method: "POST" });
             const data = await res.json();
-            if (data.success) fetchContest();
+            if (data.success) await fetchContest();
         } finally {
             setJoining(false);
         }
@@ -79,14 +83,14 @@ export default function ContestDetailPage() {
         try {
             const res = await fetch(`/api/contests/${id}?action=leave`, { method: "POST" });
             const data = await res.json();
-            if (data.success) fetchContest();
+            if (data.success) await fetchContest();
         } finally {
             setJoining(false);
         }
     };
 
     const copyCode = () => {
-        navigator.clipboard.writeText(contest?.inviteCode || "");
+        void navigator.clipboard.writeText(contest?.inviteCode || "");
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -109,7 +113,7 @@ export default function ContestDetailPage() {
         );
     }
 
-    const isParticipant = contest.participants?.some((p: any) => p.userId === user?.id);
+    const isParticipant = contest.participants?.some((participant) => participant.userId === user?.id);
     const canEnter = (contest.status === "active" || contest.status === "upcoming") && isParticipant;
 
     const STATUS_COLORS: Record<string, string> = {
@@ -230,7 +234,7 @@ export default function ContestDetailPage() {
                         <CardTitle className="text-base">Problems ({contest.problems?.length ?? 0})</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                        {(contest.problems || []).map((p: any, i: number) => (
+                                {(contest.problems || []).map((p, i) => (
                             <div key={p._id || p.slug} className="flex items-center justify-between gap-2 p-2 rounded-md hover:bg-muted/30 transition-colors group">
                                 <div className="flex items-center gap-2 min-w-0">
                                     <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground flex-shrink-0">
@@ -269,8 +273,8 @@ export default function ContestDetailPage() {
                         ) : (
                             <div className="space-y-2">
                                 {[...(contest.participants || [])]
-                                    .sort((a: any, b: any) => b.score - a.score)
-                                    .map((p: any, i: number) => (
+                                    .sort((a, b) => b.score - a.score)
+                                    .map((p, i) => (
                                         <div key={p.userId} className={cn(
                                             "flex items-center justify-between gap-2 p-2 rounded-md",
                                             i === 0 ? "bg-yellow-500/10 border border-yellow-500/20" :
@@ -289,7 +293,7 @@ export default function ContestDetailPage() {
                                                     {i + 1}
                                                 </span>
                                                 {p.userImageUrl ? (
-                                                    <img src={p.userImageUrl} className="w-6 h-6 rounded-full" alt={p.userName} />
+                                                    <Image unoptimized src={p.userImageUrl} width={24} height={24} className="w-6 h-6 rounded-full" alt={p.userName} />
                                                 ) : (
                                                     <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                                                         {(p.userName || "?")[0].toUpperCase()}

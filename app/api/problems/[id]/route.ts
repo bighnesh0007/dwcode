@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectToDatabase from "@/lib/db";
 import { Problem } from "@/models/Problem";
 import mongoose from "mongoose";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -23,8 +24,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     return NextResponse.json(problem);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -44,8 +45,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ success: false, error: "Problem not found" }, { status: 404 });
     }
     return NextResponse.json({ success: true, problem: updated });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -58,7 +59,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       return NextResponse.json({ success: false, error: "Problem not found" }, { status: 404 });
     }
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

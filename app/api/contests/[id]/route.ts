@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Contest } from "@/models/Contest";
+import { getErrorMessage } from "@/lib/errors";
 
 // GET /api/contests/:id
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -15,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         if (!contest) return NextResponse.json({ error: "Not found" }, { status: 404 });
         const isCreator = contest.createdBy === userId;
         const isParticipant = Boolean(
-            userId && contest.participants?.some((participant: any) => participant.userId === userId)
+            userId && contest.participants?.some((participant) => participant.userId === userId)
         );
         if (!contest.isPublic && !isCreator && !isParticipant) {
             return NextResponse.json({ error: "Invite required" }, { status: 403 });
@@ -32,8 +33,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             isCreator,
             isParticipant,
         });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -63,7 +64,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             if (now > contest.endTime) {
                 return NextResponse.json({ error: "Contest has ended" }, { status: 400 });
             }
-            const alreadyIn = contest.participants.some((p: any) => p.userId === userId);
+            const alreadyIn = contest.participants.some((participant) => participant.userId === userId);
             if (alreadyIn) {
                 return NextResponse.json({ success: true, message: "Already joined" });
             }
@@ -84,14 +85,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         }
 
         if (action === "leave") {
-            contest.participants = contest.participants.filter((p: any) => p.userId !== userId);
+            const participantIndex = contest.participants.findIndex(
+                (participant) => participant.userId === userId
+            );
+            if (participantIndex !== -1) {
+                contest.participants.splice(participantIndex, 1);
+            }
             await contest.save();
             return NextResponse.json({ success: true });
         }
 
         return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -110,7 +116,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         }
         await Contest.findByIdAndDelete(id);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }

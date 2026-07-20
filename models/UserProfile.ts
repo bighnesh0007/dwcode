@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
-const UserProfileSchema = new mongoose.Schema({
+export const UserProfileSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true }, // Clerk User ID
   username: { type: String, required: true, unique: true },
   bio: { type: String, default: "" },
@@ -10,5 +11,4 @@ const UserProfileSchema = new mongoose.Schema({
   timestamps: true
 });
 
-export const UserProfile =
-  mongoose.models.UserProfile || mongoose.model("UserProfile", UserProfileSchema);
+export const UserProfile = modelFromSchema("UserProfile", UserProfileSchema);

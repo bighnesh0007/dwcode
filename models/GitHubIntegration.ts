@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
-const GitHubIntegrationSchema = new mongoose.Schema({
+export const GitHubIntegrationSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true }, // Clerk User ID
   githubId: { type: String, required: true },
   githubUsername: { type: String, required: true },
@@ -12,5 +13,4 @@ const GitHubIntegrationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-export const GitHubIntegration =
-  mongoose.models.GitHubIntegration || mongoose.model("GitHubIntegration", GitHubIntegrationSchema);
+export const GitHubIntegration = modelFromSchema("GitHubIntegration", GitHubIntegrationSchema);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
+import { getErrorMessage } from "@/lib/errors";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,8 +78,8 @@ export default function CreatePage() {
             } else {
                 setCreateMsg({ type: "error", text: data.error || "Failed to create." });
             }
-        } catch (e: any) {
-            setCreateMsg({ type: "error", text: e.message });
+        } catch (error) {
+            setCreateMsg({ type: "error", text: getErrorMessage(error) });
         } finally {
             setCreating(false);
         }
@@ -110,8 +111,8 @@ export default function CreatePage() {
             } else {
                 setAiMsg({ type: "error", text: data.error || "AI generation failed." });
             }
-        } catch (e: any) {
-            setAiMsg({ type: "error", text: e.message });
+        } catch (error) {
+            setAiMsg({ type: "error", text: getErrorMessage(error) });
         } finally {
             setGenerating(false);
         }
@@ -134,7 +135,12 @@ export default function CreatePage() {
                 </Badge>
             </div>
 
-            <Tabs value={tab} onValueChange={v => setTab(v as any)}>
+            <Tabs
+                value={tab}
+                onValueChange={(value) => {
+                    if (value === "manual" || value === "ai") setTab(value);
+                }}
+            >
                 <TabsList className="w-full">
                     <TabsTrigger value="manual" className="flex-1">
                         <Plus className="w-3.5 h-3.5 mr-1.5" /> Manual

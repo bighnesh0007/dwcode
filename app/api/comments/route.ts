@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Comment } from "@/models/Comment";
+import { getErrorMessage } from "@/lib/errors";
 
 // GET /api/comments?problemSlug=xxx
 export async function GET(req: Request) {
@@ -16,8 +17,8 @@ export async function GET(req: Request) {
             .sort({ createdAt: -1 })
             .lean();
         return NextResponse.json(comments);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -50,8 +51,8 @@ export async function POST(req: Request) {
         } catch { /* ignore */ }
 
         return NextResponse.json({ success: true, comment });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -74,7 +75,7 @@ export async function DELETE(req: Request) {
         }
         await Comment.findByIdAndDelete(id);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }

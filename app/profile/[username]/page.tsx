@@ -5,7 +5,6 @@ import { UserProfile } from "@/models/UserProfile";
 import { Problem } from "@/models/Problem";
 import { Submission } from "@/models/Submission";
 import { Heatmap, ProgressRing } from "@/components/Charts";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Trophy, Code2, Zap, TrendingUp, BarChart2, Star } from "lucide-react";
 import FollowButton from "./FollowButton";
@@ -21,14 +20,14 @@ export default async function PublicProfilePage({ params }: { params: { username
   // Compute stats
   const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
   const totalSubmissions = allSubmissions.length;
-  const acceptedSlugs = new Set(allSubmissions.filter((s: any) => s.status === "Accepted").map((s: any) => s.problemSlug));
+  const acceptedSlugs = new Set(allSubmissions.filter((submission) => submission.status === "Accepted").map((submission) => submission.problemSlug));
   const acceptedCount = acceptedSlugs.size;
-  const acceptanceRate = totalSubmissions > 0 ? Math.round((allSubmissions.filter((s: any) => s.status === "Accepted").length / totalSubmissions) * 100) : 0;
+  const acceptanceRate = totalSubmissions > 0 ? Math.round((allSubmissions.filter((submission) => submission.status === "Accepted").length / totalSubmissions) * 100) : 0;
 
   const solvedProbs = await Problem.find({ slug: { $in: Array.from(acceptedSlugs) } }).select("difficulty").lean();
-  const solvedEasy = solvedProbs.filter((p: any) => p.difficulty === "Easy").length;
-  const solvedMedium = solvedProbs.filter((p: any) => p.difficulty === "Medium").length;
-  const solvedHard = solvedProbs.filter((p: any) => p.difficulty === "Hard").length;
+  const solvedEasy = solvedProbs.filter((problem) => problem.difficulty === "Easy").length;
+  const solvedMedium = solvedProbs.filter((problem) => problem.difficulty === "Medium").length;
+  const solvedHard = solvedProbs.filter((problem) => problem.difficulty === "Hard").length;
 
   const [easy, medium, hard] = await Promise.all([
     Problem.countDocuments({ difficulty: "Easy" }),
@@ -38,10 +37,10 @@ export default async function PublicProfilePage({ params }: { params: { username
 
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const recentSubs = allSubmissions.filter((s: any) => new Date(s.createdAt) >= thirtyDaysAgo);
+  const recentSubs = allSubmissions.filter((submission) => new Date(submission.createdAt) >= thirtyDaysAgo);
   const activityMap: Record<string, number> = {};
   for (const sub of recentSubs) {
-    const day = new Date((sub as any).createdAt).toISOString().split("T")[0];
+    const day = new Date(sub.createdAt).toISOString().split("T")[0];
     activityMap[day] = (activityMap[day] ?? 0) + 1;
   }
   const activityData: { date: string; count: number }[] = [];
@@ -166,7 +165,7 @@ export default async function PublicProfilePage({ params }: { params: { username
             <p className="text-sm text-muted-foreground italic">No submissions yet.</p>
           ) : (
             <div className="space-y-2">
-              {recentLog.map((entry: any, i) => (
+              {recentLog.map((entry, i) => (
                 <div key={i} className="flex items-center justify-between gap-3 py-2 px-3 rounded-md bg-muted/20 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-2 min-w-0">
                     <Link href={`/problems/${entry.problemSlug}`} className="text-sm font-medium hover:text-primary transition-colors truncate">
