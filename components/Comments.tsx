@@ -17,7 +17,13 @@ interface Comment {
     createdAt: string;
 }
 
-export function Comments({ problemSlug }: { problemSlug: string }) {
+export function Comments({
+    problemSlug,
+    onCountChange,
+}: {
+    problemSlug: string;
+    onCountChange?: (count: number) => void;
+}) {
     const { user, isSignedIn } = useUser();
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,6 +44,8 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
     };
 
     useEffect(() => { fetchComments(); }, [problemSlug]);
+
+    useEffect(() => { onCountChange?.(comments.length); }, [comments.length, onCountChange]);
 
     const handlePost = async () => {
         if (!draft.trim()) return;
