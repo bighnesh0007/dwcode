@@ -138,22 +138,26 @@ Every piece was chosen to keep the loop tight: **write DataWeave → run against
 
 ### 1. Clone & Install
 
+The Next.js application lives in the **`client/`** directory; there is no root `package.json`.
+All npm commands below run from `client/`.
+
 ```bash
 git clone https://github.com/your-username/dwcode.git
-cd dwcode
+cd dwcode/client
 npm install
 ```
 
 ### 2. Environment Variables
 
-Copy the example env file and fill in your values:
+Create `client/.env.local` and fill in your values:
 
 ```bash
-cp .env.example .env.local
+# from the repo root
+touch client/.env.local
 ```
 
 ```env
-# .env.local
+# client/.env.local
 
 # MongoDB connection string
 MONGODB_URI=mongodb://localhost:27017/dwcode
@@ -172,6 +176,8 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 
 ### 3. Start MongoDB
 
+From the **repo root** (`docker-compose.yml` lives there, not in `client/`):
+
 ```bash
 docker-compose up -d
 ```
@@ -185,6 +191,7 @@ The code execution engine is a separate DataWeave runtime service. By default th
 ### 5. Run the Development Server
 
 ```bash
+cd client
 npm run dev
 ```
 
@@ -194,37 +201,52 @@ The app starts on **[http://localhost:8000](http://localhost:8000)** — open it
 
 ## 📂 Project Structure
 
+The repo root holds infrastructure and docs; the entire Next.js application lives in `client/`.
+
 ```
 dwcode/
-├── app/                        # Next.js App Router pages & API routes
-│   ├── api/                    # REST API handlers
-│   │   ├── execute/            # DataWeave code execution proxy
-│   │   ├── generate/           # AI problem generation (Gemini)
-│   │   ├── problems/           # Problem CRUD
-│   │   ├── submissions/        # Submission tracking
-│   │   ├── contests/           # Contest management
-│   │   ├── leaderboard/        # Score aggregation
-│   │   ├── bookmarks/          # Bookmark toggle
-│   │   ├── notes/              # Per-problem notes
-│   │   ├── coins/              # Gamification coins
-│   │   ├── blog/               # Blog posts
-│   │   ├── comments/           # Problem discussion threads
-│   │   └── admin/              # Admin: users & roles
-│   ├── problems/[slug]/        # Problem workspace (split-pane editor)
-│   ├── playground/             # Free DataWeave playground
-│   ├── contests/               # Contest list & detail
-│   ├── leaderboard/            # Global leaderboard
-│   ├── blog/                   # Blog list, detail & editor
-│   ├── profile/                # User profile page
-│   ├── create/                 # Manual problem creation form
-│   └── admin/                  # Admin dashboard
-├── components/                 # Shared UI components (Navbar, Comments, etc.)
-├── models/                     # Mongoose schemas (Problem, Submission, Contest…)
-├── lib/                        # Database connection, utilities
-├── scripts/                    # Seed scripts
-├── public/                     # Static assets
+├── client/                     # ◀ THE NEXT.JS APP (run npm here)
+│   ├── app/                    # App Router pages & API routes
+│   │   ├── api/                # REST API handlers
+│   │   │   ├── execute/        # DataWeave code execution proxy
+│   │   │   ├── transform/      # Playground execution proxy (multi-input)
+│   │   │   ├── generate/       # AI problem generation (Gemini)
+│   │   │   ├── problems/       # Problem CRUD
+│   │   │   ├── submissions/    # Submission tracking
+│   │   │   ├── contests/       # Contest management
+│   │   │   ├── leaderboard/    # Score aggregation
+│   │   │   ├── bookmarks/      # Bookmark toggle
+│   │   │   ├── notes/          # Per-problem notes
+│   │   │   ├── coins/          # Gamification coins
+│   │   │   ├── blog/           # Blog posts
+│   │   │   ├── comments/       # Problem discussion threads
+│   │   │   ├── profile/        # Profile, username, follow
+│   │   │   ├── auth/github/    # GitHub OAuth flow
+│   │   │   ├── playground/     # Share, AI insights, GitHub import/push
+│   │   │   └── admin/          # Admin: users & roles
+│   │   ├── problems/[slug]/    # Problem workspace (split-pane editor)
+│   │   ├── playground/         # Free DataWeave playground
+│   │   ├── contests/           # Contest list & detail
+│   │   ├── leaderboard/        # Global leaderboard
+│   │   ├── blog/               # Blog list, detail & editor
+│   │   ├── profile/            # User profile page
+│   │   ├── create/             # Manual problem creation form
+│   │   └── admin/              # Admin dashboard
+│   ├── components/             # Shared UI components (Navbar, Comments, etc.)
+│   ├── models/                 # Mongoose schemas (Problem, Submission, Contest…)
+│   ├── lib/                    # Database connection, config, utilities
+│   ├── public/                 # Static assets
+│   ├── __tests__/              # Vitest property-based tests
+│   ├── proxy.ts                # Clerk middleware (Next.js 16 naming)
+│   ├── package.json            # Dependencies & scripts
+│   ├── next.config.ts          # output: "standalone"
+│   ├── tsconfig.json           # "@/*" → client root
+│   └── .env.local              # Local secrets (gitignored)
+├── .github/workflows/          # CI (runs with working-directory: client)
+├── .agents/ · .kiro/           # Agent skills & feature specs
 ├── docker-compose.yml          # MongoDB container
-└── Dockerfile                  # App Dockerfile
+├── Dockerfile                  # App image (build context = repo root)
+└── README.md
 ```
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
@@ -249,18 +271,22 @@ dwcode/
 
 ## 🐳 Docker
 
-Start only MongoDB:
+Start only MongoDB (from the repo root):
 
 ```bash
 docker-compose up -d
 ```
 
-Build and run the full app in Docker:
+Build and run the full app in Docker. The build context is the **repo root** (the Dockerfile
+copies from `client/`), so run this from the root, not from `client/`:
 
 ```bash
 docker build -t dwcode .
-docker run -p 8000:8000 --env-file .env.local dwcode
+docker run -p 3000:3000 --env-file client/.env.local dwcode
 ```
+
+> **Note:** the image listens on port **3000** (`ENV PORT 3000` in the Dockerfile), whereas
+> `npm run dev` and `npm start` use port **8000**. Map ports accordingly.
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
@@ -316,8 +342,8 @@ var community = payload.developers
 DWCode gets better every time a MuleSoft dev throws in a problem, fixes a bug, or writes a blog post. Jump in:
 
 1. Fork the repo and create a feature branch: `git checkout -b feat/your-feature`
-2. Make your changes and ensure the app builds: `npm run build`
-3. Run lint: `npm run lint`
+2. Make your changes, then from `client/` ensure the app builds: `npm run build`
+3. Run lint from `client/`: `npm run lint`
 4. Open a pull request with a clear description
 
 Every contribution — a single test case or a whole new feature — makes the whole community sharper. 🙌
