@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -19,25 +19,30 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
     const [draft, setDraft] = useState("");
     const [error, setError] = useState<string | null>(null);
 
-    const fetchComments = async () => {
+    const fetchComments = useCallback(async (signal?: AbortSignal) => {
+        setLoading(true);
         try {
-            const res = await fetch(`/api/comments?problemSlug=${problemSlug}`);
+            const res = await fetch(`/api/comments?problemSlug=${problemSlug}`, { signal });
             const data = await res.json();
             if (Array.isArray(data)) setComments(data);
         } catch {
             // silently fail
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
-    };
+    }, [problemSlug]);
 
     useEffect(() => {
-        fetch(`/api/comments?problemSlug=${problemSlug}`)
-            .then((response) => response.json())
-            .then((data) => { if (Array.isArray(data)) setComments(data); })
-            .catch(() => { })
-            .finally(() => setLoading(false));
-    }, [problemSlug]);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            fetchComments(controller.signal).catch(() => { });
+        }, 0);
+
+        return () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, [fetchComments]);
 
     const handlePost = async () => {
         if (!draft.trim()) return;
