@@ -1,39 +1,116 @@
-name: Next.js CI/CD
+name: CI
 
 on:
   push:
-    branches:
-      - master
-      - develop
-
+    branches: [master, develop]
   pull_request:
-    branches:
-      - master
-      - develop
+    branches: [master, develop]
+
+# A new push to the same branch supersedes the previous run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22.x"
 
 jobs:
-  build:
+  # ── Backend: server/ ────────────────────────────────────────────────────────
+  server:
+    name: server (typecheck · lint · test · build)
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [26]
+    defaults:
+      run:
+        working-directory: server
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: server/package-lock.json
 
-      - name: Install Dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Run Tests
-        run: npm test --if-present
+      - name: Typecheck
+        run: npm run typecheck
 
-      - name: Build Next.js App
+      - name: Lint
+        run: npm run lint
+
+      # Includes the frozen legacy /api/transform characterization tests, which are
+      # what make redeploying the live DataWeave proxy safe.
+      - name: Test
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      - name: Build
         run: npm run build
+
+  # ── Frontend: client/ ───────────────────────────────────────────────────────
+  client:
+    name: client (typecheck · lint · test · build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # `next build` needs Clerk's publishable key at build time. A dummy key is
+      # enough to compile; no real secret is required and none should be added here.
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2ktZHVtbXktZm9yLWJ1aWxkLW9ubHkk
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+
+  # ── Guard: no secrets committed ─────────────────────────────────────────────
+  secrets-scan:
+    name: no committed secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assert no env or key files are tracked
+        run: |
+          # .gitignore should keep these out; this fails loudly if one slips through.
+          if git ls-files | grep -E '(^|/)\.env($|\.)|(^|/)\.clerk/|\.pem$|\.key$'; then
+            echo "::error::Secret-bearing file is tracked in git (see above)."
+            exit 1
+          fi
+          echo "OK — no tracked env/key files."
+
+      - name: Warn on hardcoded live keys
+        run: |
+          # Live Razorpay / Clerk / Google keys must never be committed.
+          if git grep -nIE 'rzp_live_[A-Za-z0-9]+|sk_live_[A-Za-z0-9]+|AIza[0-9A-Za-z_-]{35}' -- . ':!*.md'; then
+            echo "::error::A live API key appears to be committed."
+            exit 1
+          fi
+          echo "OK — no live keys found."

@@ -1,0 +1,52 @@
+{
+  "name": "dwcode-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DWCode application backend — business logic, data access, validation and integrations.",
+  "license": "ISC",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --import tsx/esm --watch src/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:cov": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@clerk/backend": "3.8.2",
+    "@google/genai": "^2.8.0",
+    "compression": "^1.8.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.0.0",
+    "helmet": "^8.0.0",
+    "lru-cache": "^11.0.0",
+    "mongoose": "9.7.1",
+    "pino": "^9.0.0",
+    "pino-http": "^10.0.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.8.0",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/supertest": "^6.0.2",
+    "eslint": "^9.0.0",
+    "fast-check": "^4.8.0",
+    "mongodb-memory-server": "^10.0.0",
+    "pino-pretty": "^13.0.0",
+    "supertest": "^7.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.64.0",
+    "vitest": "^4.1.9"
+  }
+}

@@ -1,0 +1,22 @@
+# Keep the build context small and never bake secrets or host-built artifacts
+# into the image. Without this, `COPY client/ ./` would overwrite the deps
+# stage's `npm ci` node_modules with the host's copy and embed .env.local.
+
+**/node_modules
+**/.next
+**/.env*
+**/.clerk
+**/coverage
+**/*.tsbuildinfo
+
+.git
+.github
+.agents
+.kiro
+.vscode
+.playwright-cli
+Dockerfile
+.dockerignore
+docker-compose.yml
+README.md
+CLAUDE.md

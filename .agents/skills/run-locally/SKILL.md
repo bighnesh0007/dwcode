@@ -10,26 +10,32 @@ and **Clerk** auth. `npm run dev` alone is NOT enough — pages that read data (
 `/problems/<slug>` page) throw `Please define the MONGODB_URI environment variable` until the
 DB and env are set up. The home page renders without a DB, but a problem/description page does not.
 
+**Layout:** the Next.js app lives in **`client/`**, and there is no root `package.json`. Every
+npm command below must run from `client/` — `npm run dev` at the repo root will fail.
+`docker-compose.yml` stays at the repo root.
+
 ## Setup (once per machine)
 
-1. **Env file.** `.env.local` is gitignored and not checked in. Create it:
+1. **Env file.** `client/.env.local` is gitignored and not checked in. Create it:
    ```
    MONGODB_URI=mongodb://localhost:27017/dwcode
    NEXT_PUBLIC_APP_URL=http://localhost:8000
    ```
-2. **MongoDB.** The repo ships a `docker-compose.yml` with a `mongo:latest` service named
-   `dwcode_mongodb` on `27017`. Start it (Docker daemon must be running):
+2. **MongoDB.** The repo ships a root `docker-compose.yml` with a `mongo:latest` service named
+   `dwcode_mongodb` on `27017`. Start it from the repo root (Docker daemon must be running):
    ```bash
    docker compose up -d
    docker exec dwcode_mongodb mongosh --quiet --eval "db.runCommand({ping:1}).ok"   # -> 1
    ```
 3. **Clerk.** No key needed for local dev — the first `npm run dev` provisions a *keyless*
-   throwaway dev instance under `.clerk/.tmp/keyless.json`. **Never commit `.clerk/`** (it holds
-   a secret key; it's already generated locally, not in git history).
+   throwaway dev instance under `client/.clerk/.tmp/keyless.json`. **Never commit `.clerk/`**
+   (it holds a secret key; `.gitignore` now covers it).
 
 ## Launch
 
 ```bash
+cd client
+npm install   # first run only — deps live in client/node_modules
 npm run dev   # next dev -p 8000
 ```
 
@@ -42,7 +48,7 @@ npm run dev   # next dev -p 8000
 ## Seed data to exercise a page
 
 There is **no seed script**. Insert directly with `mongosh` against the running container.
-The `Problem` model (`models/Problem.ts`) requires `title, slug, difficulty (Easy|Medium|Hard),
+The `Problem` model (`client/models/Problem.ts`) requires `title, slug, difficulty (Easy|Medium|Hard),
 category, description`; `examples/constraints/hints/testCases` are optional arrays. Example:
 
 ```bash
