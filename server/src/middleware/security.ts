@@ -7,9 +7,19 @@
  * strict zod schemas (which drop unknown keys) for params and query.
  */
 import cors, { type CorsOptions } from "cors";
-import helmet from "helmet";
+import helmetImport from "helmet";
+import type { HelmetOptions } from "helmet";
 import type { RequestHandler } from "express";
 import { config } from "../config/index.ts";
+import { interopDefault } from "../lib/interop.ts";
+
+/**
+ * helmet ships both CJS and ESM declarations, and resolvers disagree about which to
+ * use — under the CJS one a default import types as the module namespace and is not
+ * callable. Normalise it and state the factory type explicitly. See lib/interop.ts.
+ */
+type HelmetFactory = (options?: Readonly<HelmetOptions>) => RequestHandler;
+const helmet = interopDefault<HelmetFactory>(helmetImport);
 
 /** Headers suitable for a JSON-only API. */
 export function securityHeaders(): RequestHandler {

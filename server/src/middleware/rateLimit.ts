@@ -5,10 +5,20 @@
  * implements the same interface, so moving off memory later is a store swap in the
  * container, with no change to any policy or route.
  */
-import rateLimit, { ipKeyGenerator, type RateLimitRequestHandler } from "express-rate-limit";
+import rateLimitImport, { ipKeyGenerator } from "express-rate-limit";
+import type { Options, RateLimitRequestHandler } from "express-rate-limit";
 import { RATE_LIMIT_POLICIES, type RateLimitPolicyName } from "../config/constants.ts";
 import { RateLimitError } from "../errors/AppError.ts";
 import { logEvent } from "../lib/logger.ts";
+import { interopDefault } from "../lib/interop.ts";
+
+/**
+ * Same CJS/ESM declaration split as helmet — the default export is only callable
+ * under the ESM declaration. `ipKeyGenerator` is a real named export in BOTH
+ * declaration files, so it imports normally. See lib/interop.ts.
+ */
+type RateLimitFactory = (options?: Partial<Options>) => RateLimitRequestHandler;
+const rateLimit = interopDefault<RateLimitFactory>(rateLimitImport);
 
 /**
  * Build a limiter from a named policy.
