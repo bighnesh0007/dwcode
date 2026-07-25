@@ -1,0 +1,107 @@
+# Render Blueprint — DWCode backend (server/)
+#
+# WHY RENDER AND NOT VERCEL
+# The backend is a long-lived Express process: it calls app.listen(), holds a
+# MongoDB connection pool, and runs a periodic upstream heartbeat. None of that
+# survives a serverless runtime that freezes between invocations. The Next.js
+# frontend (client/) is deployed separately on Vercel.
+#
+# This blueprint also keeps the FROZEN legacy contract on its existing host, so
+# POST /api/transform, /health and /healthcheck stay byte-compatible for callers
+# still pointing at the old URL.
+#
+# Apply with: Render Dashboard → Blueprints → New Blueprint Instance.
+# Secrets are declared with `sync: false`, which means "prompt me in the
+# dashboard, never store the value in git".
+
+services:
+  - type: web
+    name: dwcode-server
+    runtime: node
+    # The monorepo root is the repo; the service lives in server/.
+    rootDir: server
+    plan: free
+    region: oregon
+    branch: master
+    autoDeployTrigger: commit
+
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+
+    # Cheap, dependency-free endpoint — deliberately not /healthcheck, which
+    # probes the upstream compiler and returns 503 when that is degraded. A
+    # flaky third party must not make Render restart this service.
+    healthCheckPath: /health
+
+    envVars:
+      # ── Runtime ────────────────────────────────────────────────────────────
+      # Pinned rather than floating: package.json says ">=22", which Render
+      # would otherwise auto-upgrade on each new major release.
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT and expects the process to bind it; src/config reads it.
+      - key: LOG_LEVEL
+        value: info
+      - key: LOG_PRETTY
+        value: "false"
+      # Render terminates TLS upstream, so trust the proxy or every client IP
+      # used for rate limiting collapses to Render's edge address.
+      - key: TRUST_PROXY
+        value: "true"
+
+      # ── DataWeave compiler (frozen legacy contract) ────────────────────────
+      # NOTE: this must be the real upstream compiler, never this service's own
+      # public URL — that would make it proxy to itself in a loop.
+      - key: DW_COMPILER_URL
+        value: https://dataweave-playground-h1p7.onrender.com/api/transform
+      - key: DW_VERSION
+        value: 2.3.0
+      - key: HEALTHCHECK_URL
+        value: https://dataweave-playground-h1p7.onrender.com/healthCheck
+      - key: HEALTHCHECK_ENABLED
+        value: "true"
+
+      # ── Set these in the dashboard (never committed) ───────────────────────
+      # Database
+      - key: MONGODB_URI
+        sync: false
+      # Clerk — required for any authenticated endpoint
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      # Your Clerk user id; grants super-admin
+      - key: SUPER_ADMIN_USER_ID
+        sync: false
+      # Must include the deployed Vercel origin, comma-separated, or the browser
+      # will be blocked by CORS.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: APP_URL
+        sync: false
+      # AI problem generation / playground assistance
+      - key: GEMINI_API_KEY
+        sync: false
+      # GitHub integration. OAUTH_STATE_SECRET signs the OAuth `state` because
+      # cookies are not viable cross-origin.
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: OAUTH_STATE_SECRET
+        sync: false
+      # 64 hex chars (32 bytes) — AES-256-GCM key for GitHub tokens at rest.
+      # Generate: node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))'
+      - key: TOKEN_ENCRYPTION_KEY
+        sync: false
+      # Razorpay sponsorship. All three are required for the `payments`
+      # capability; with any missing, sponsorship endpoints report 503 rather
+      # than half-working.
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false

@@ -290,6 +290,52 @@ docker run -p 3000:3000 --env-file client/.env.local dwcode
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
+## 🚀 Deployment
+
+The two halves deploy independently.
+
+| Part | Platform | Config | Why |
+|---|---|---|---|
+| `client/` | **Vercel** | [client/vercel.json](client/vercel.json) | Native Next.js hosting |
+| `server/` | **Render** | [render.yaml](render.yaml) | Long-lived Express process |
+
+**The backend cannot run on Vercel.** It calls `app.listen()`, holds a MongoDB
+connection pool, and runs a periodic upstream heartbeat — none of which survive a
+serverless runtime that freezes between invocations.
+
+### Frontend → Vercel
+
+Create the project, then **set Root Directory to `client`** in Settings → General.
+That one setting is what makes the monorepo work; everything else is auto-detected.
+
+Required environment variables:
+
+```
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+CLERK_SECRET_KEY
+NEXT_PUBLIC_API_URL          # the deployed Render URL
+NEXT_PUBLIC_APP_URL          # the deployed Vercel URL
+MONGODB_URI                  # until the API migration finishes
+```
+
+### Backend → Render
+
+Dashboard → **Blueprints** → New Blueprint Instance, pointed at `render.yaml`.
+It declares the build/start commands, `/health` as the health check, and every
+environment variable. Secrets are marked `sync: false`, so Render prompts for them
+instead of reading values from git.
+
+After the first deploy, two values must agree or the browser will be blocked by CORS:
+
+- `CORS_ALLOWED_ORIGINS` on Render must contain the Vercel origin.
+- `NEXT_PUBLIC_API_URL` on Vercel must be the Render URL.
+
+The service also keeps the frozen legacy endpoints — `POST /api/transform`,
+`/health`, `/healthcheck` — byte-compatible with the original `server.js`, so
+existing callers continue to work unchanged.
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
+
 ## 🗺 Roadmap Ideas
 
 _Want to help shape where DWCode goes next? These are open for the taking:_
