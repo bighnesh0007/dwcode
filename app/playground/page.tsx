@@ -160,8 +160,10 @@ export default function PlaygroundPage() {
 
   // ── Init: load localStorage + snippet from URL + GitHub status ─────────────
   useEffect(() => {
-    setExecHistory(loadLS<ExecutionHistoryEntry[]>(LS_HISTORY, []));
-    setSavedSnippets(loadLS<SavedSnippet[]>(LS_SNIPPETS, []));
+    const storageTimeout = setTimeout(() => {
+      setExecHistory(loadLS<ExecutionHistoryEntry[]>(LS_HISTORY, []));
+      setSavedSnippets(loadLS<SavedSnippet[]>(LS_SNIPPETS, []));
+    }, 0);
 
     // Mobile layout
     const media = window.matchMedia("(max-width: 767px)");
@@ -180,7 +182,10 @@ export default function PlaygroundPage() {
 
     // Shared snippet from URL
     const snippetId = new URLSearchParams(window.location.search).get("id");
-    if (!snippetId) return () => media.removeEventListener("change", sync);
+    if (!snippetId) return () => {
+      clearTimeout(storageTimeout);
+      media.removeEventListener("change", sync);
+    };
 
     let cancelled = false;
     fetch(`/api/playground/share?id=${snippetId}`)
@@ -212,9 +217,20 @@ export default function PlaygroundPage() {
             expectedOutput: tc.expectedOutput ?? "",
           }))
           : []);
+        setStatus("idle");
+        setOutput("");
+        setExecutionTime(null);
       })
-      .catch(() => { });
-    return () => { cancelled = true; media.removeEventListener("change", sync); };
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setStatus("error");
+        setOutput(getErrorMessage(error, "Could not load shared snippet."));
+      });
+    return () => {
+      cancelled = true;
+      clearTimeout(storageTimeout);
+      media.removeEventListener("change", sync);
+    };
   }, []);
 
   // ── Core run ──────────────────────────────────────────────────────────────────

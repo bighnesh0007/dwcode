@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
 const ParticipantSchema = new mongoose.Schema(
     {
@@ -13,7 +14,7 @@ const ParticipantSchema = new mongoose.Schema(
     { _id: false }
 );
 
-const ContestSchema = new mongoose.Schema({
+export const ContestSchema = new mongoose.Schema({
     title: { type: String, required: true },
     description: { type: String, default: "" },
     createdBy: { type: String, required: true },       // Clerk user ID
@@ -43,5 +44,4 @@ ContestSchema.virtual("computedStatus").get(function () {
     return "active";
 });
 
-export const Contest =
-    mongoose.models.Contest || mongoose.model("Contest", ContestSchema);
+export const Contest = modelFromSchema("Contest", ContestSchema);

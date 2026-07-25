@@ -5,7 +5,7 @@ import { useUser, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
 export default function FollowButton({ targetUsername }: { targetUsername: string }) {
-  const { user, isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
   const [following, setFollowing] = useState(false); // we would ideally fetch initial state, but for simplicity we toggle.
   const [loading, setLoading] = useState(false);
 

@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Submission } from "@/models/Submission";
 import { Problem } from "@/models/Problem";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function POST(req: Request) {
   try {
@@ -42,8 +43,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ migrated: count });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
-  

@@ -2,6 +2,26 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { GitHubIntegration } from "@/models/GitHubIntegration";
+import { getErrorMessage } from "@/lib/errors";
+
+interface GitHubContentFile {
+    type: string;
+    content: string;
+    sha: string;
+}
+
+interface GitHubRepository {
+    default_branch?: string;
+}
+
+interface GitHubTreeItem {
+    type: string;
+    path?: string;
+}
+
+interface GitHubTree {
+    tree?: GitHubTreeItem[];
+}
 
 /**
  * GET /api/playground/github/import?repo=owner/name&path=path/to/file
@@ -47,7 +67,7 @@ export async function GET(req: Request) {
             );
         }
 
-        const data = await ghRes.json();
+        const data: GitHubContentFile = await ghRes.json();
         if (data.type !== "file") {
             return NextResponse.json({ error: "Path points to a directory, not a file." }, { status: 400 });
         }
@@ -57,8 +77,8 @@ export async function GET(req: Request) {
         const fileName = path.split("/").pop() ?? "imported.json";
 
         return NextResponse.json({ fileName, content, sha: data.sha });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message ?? "Import failed." }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error, "Import failed.") }, { status: 500 });
     }
 }
 
@@ -98,7 +118,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: `Repo not found or no access.` }, { status: 404 });
         }
 
-        const repoData = await repoRes.json();
+        const repoData: GitHubRepository = await repoRes.json();
         const branch = repoData.default_branch ?? "main";
 
         // Get git tree recursively
@@ -117,14 +137,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Could not fetch repository tree." }, { status: 502 });
         }
 
-        const treeData = await treeRes.json();
+        const treeData: GitHubTree = await treeRes.json();
         const files: string[] = (treeData.tree ?? [])
-            .filter((item: any) => item.type === "blob")
-            .map((item: any) => item.path as string)
+            .filter((item): item is GitHubTreeItem & { path: string } =>
+                item.type === "blob" && typeof item.path === "string"
+            )
+            .map((item) => item.path)
             .slice(0, 300);
 
         return NextResponse.json({ files, branch });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message ?? "Browse failed." }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error, "Browse failed.") }, { status: 500 });
     }
 }

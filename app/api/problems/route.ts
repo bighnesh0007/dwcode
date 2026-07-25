@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Problem } from "@/models/Problem";
 import { awardCoins } from "@/lib/coins";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function GET(req: Request) {
   try {
@@ -10,7 +11,7 @@ export async function GET(req: Request) {
     const difficulty = searchParams.get("difficulty");
     const category = searchParams.get("category");
 
-    const query: any = {};
+    const query: Record<string, string> = {};
     if (difficulty) query.difficulty = difficulty;
     if (category) query.category = category;
 
@@ -20,8 +21,8 @@ export async function GET(req: Request) {
       .sort({ createdAt: -1 });
 
     return NextResponse.json(problems);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -48,8 +49,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true, problem: newProblem });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error adding problem manually:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

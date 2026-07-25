@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getErrorMessage } from "@/lib/errors";
 import { GoogleGenAI } from "@google/genai";
 
 const MODEL = "gemini-2.0-flash";
@@ -98,15 +99,15 @@ export async function POST(req: Request) {
         console.log(`[playground/ai] success responseLen=${text.length}`);
 
         return NextResponse.json({ result: text });
-    } catch (err: any) {
-        console.error(`[playground/ai] ERROR model=${MODEL}:`, err?.message ?? err);
+    } catch (error) {
+        console.error(`[playground/ai] ERROR model=${MODEL}:`, getErrorMessage(error));
         return NextResponse.json(
-            { error: err.message ?? "AI request failed." },
+            { error: getErrorMessage(error, "AI request failed.") },
             { status: 500 }
         );
     }
 }
 
-export async function GET() {
+export function GET() {
     return NextResponse.json({ status: "alive" });
 }

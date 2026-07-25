@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectToDatabase from "@/lib/db";
 import { Note } from "@/models/Note";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function GET(req: Request) {
   try {
@@ -12,8 +13,8 @@ export async function GET(req: Request) {
     await connectToDatabase();
     const note = await Note.findOne({ problemId }).lean();
     return NextResponse.json(note || { content: "" });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -28,7 +29,7 @@ export async function PUT(req: Request) {
       { upsert: true, new: true }
     );
     return NextResponse.json({ success: true, note });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

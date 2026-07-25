@@ -168,7 +168,7 @@ describe(
                         fc.array(problemArb, { minLength: 0, maxLength: 30 }),
                         userIdArb,
 
-                        (problems, userId) => {
+                        (problems, _userId) => {
                             // Counts without any userId consideration
                             const counts = computeProblemCounts(problems);
 
@@ -212,7 +212,7 @@ describe(
                         fc.array(problemArb, { minLength: 0, maxLength: 20 }),
                         fc.tuple(userIdArb, userIdArb).filter(([a, b]) => a !== b),
 
-                        (problems, [userA, userB]) => {
+                        (problems, [_userA, _userB]) => {
                             const countsA = computeProblemCounts(problems);
                             const countsB = computeProblemCounts(problems);
 

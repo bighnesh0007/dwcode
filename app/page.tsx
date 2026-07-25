@@ -10,7 +10,8 @@ import { Problem } from "@/models/Problem";
 import { Submission } from "@/models/Submission";
 import { Bookmark } from "@/models/Bookmark";
 import { Heatmap, ProgressRing } from "@/components/Charts";
-import { Code2, Zap, Trophy, BookOpen, Star, Shuffle, BarChart2, Flame, TrendingUp } from "lucide-react";
+import { Code2, Zap, Trophy, Star, BarChart2, Flame, TrendingUp } from "lucide-react";
+import type { ProblemSummary } from "@/lib/types";
 
 export default async function Home() {
   const { userId } = await auth();
@@ -19,9 +20,9 @@ export default async function Home() {
   let solved = 0, attempted = 0, bookmarked = 0;
   let totalSubmissions = 0, acceptanceRate = 0, streak = 0;
   let solvedEasy = 0, solvedMedium = 0, solvedHard = 0;
-  let recentProblems: any[] = [];
-  let bookmarkedProblems: any[] = [];
-  let activityData: { date: string; count: number }[] = [];
+  let recentProblems: ProblemSummary[] = [];
+  let bookmarkedProblems: ProblemSummary[] = [];
+  const activityData: { date: string; count: number }[] = [];
 
   try {
     await connectToDatabase();
@@ -43,27 +44,27 @@ export default async function Home() {
 
       if (bookmarked > 0) {
         const bmarks = await Bookmark.find({ userId }).lean();
-        const bIds = bmarks.map((b: any) => b.problemId);
+        const bIds = bmarks.map((bookmark) => bookmark.problemId);
         const bDocs = await Problem.find({ _id: { $in: bIds } }).limit(3).lean();
         bookmarkedProblems = JSON.parse(JSON.stringify(bDocs));
       }
 
       const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
       totalSubmissions = allSubmissions.length;
-      const acceptedCount = allSubmissions.filter((s: any) => s.status === "Accepted").length;
+      const acceptedCount = allSubmissions.filter((submission) => submission.status === "Accepted").length;
       acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
 
       const solvedProbs = await Problem.find({ slug: { $in: acceptedSlugs } }).select("difficulty").lean();
-      solvedEasy = solvedProbs.filter((p: any) => p.difficulty === "Easy").length;
-      solvedMedium = solvedProbs.filter((p: any) => p.difficulty === "Medium").length;
-      solvedHard = solvedProbs.filter((p: any) => p.difficulty === "Hard").length;
+      solvedEasy = solvedProbs.filter((problem) => problem.difficulty === "Easy").length;
+      solvedMedium = solvedProbs.filter((problem) => problem.difficulty === "Medium").length;
+      solvedHard = solvedProbs.filter((problem) => problem.difficulty === "Hard").length;
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentSubs = allSubmissions.filter((s: any) => new Date(s.createdAt) >= thirtyDaysAgo);
+      const recentSubs = allSubmissions.filter((submission) => new Date(submission.createdAt) >= thirtyDaysAgo);
       const activityMap: Record<string, number> = {};
       for (const sub of recentSubs) {
-        const day = new Date((sub as any).createdAt).toISOString().split("T")[0];
+        const day = new Date(sub.createdAt).toISOString().split("T")[0];
         activityMap[day] = (activityMap[day] ?? 0) + 1;
       }
       for (let i = 29; i >= 0; i--) {
@@ -278,7 +279,7 @@ export default async function Home() {
               <Star className="w-4 h-4 text-yellow-400" />
               Bookmarked for Revision
             </CardTitle>
-            <CardDescription>Problems you've starred to revisit.</CardDescription>
+            <CardDescription>Problems you&apos;ve starred to revisit.</CardDescription>
           </CardHeader>
           <CardContent>
             {bookmarkedProblems.length > 0 ? (

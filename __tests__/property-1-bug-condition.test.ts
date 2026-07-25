@@ -124,21 +124,6 @@ const statusArb = fc.constantFrom<"Accepted" | "Attempted" | "Error">(
 
 const slugArb = fc.stringMatching(/^[a-z][a-z0-9-]{2,10}$/);
 
-function submissionArb(userId: string): fc.Arbitrary<SubmissionDoc> {
-    return fc.record({
-        userId: fc.constant(userId),
-        problemSlug: slugArb,
-        status: statusArb,
-    });
-}
-
-function bookmarkArb(userId: string): fc.Arbitrary<BookmarkDoc> {
-    return fc.record({
-        userId: fc.constant(userId),
-        problemId: fc.uuid(),
-    });
-}
-
 // ---------------------------------------------------------------------------
 // Property 1: Bug Condition — EXPECTED TO FAIL on unfixed code
 //

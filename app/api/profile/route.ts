@@ -6,6 +6,8 @@ import { Submission } from "@/models/Submission";
 import { Bookmark } from "@/models/Bookmark";
 import { GitHubIntegration } from "@/models/GitHubIntegration";
 import { UserProfile } from "@/models/UserProfile";
+import { getErrorMessage } from "@/lib/errors";
+
 export async function GET() {
     try {
         const { userId } = await auth();
@@ -31,12 +33,12 @@ export async function GET() {
         const totalSubmissions = allSubmissions.length;
 
         const acceptedSlugs = new Set(
-            allSubmissions.filter((s: any) => s.status === "Accepted").map((s: any) => s.problemSlug)
+            allSubmissions.filter((submission) => submission.status === "Accepted").map((submission) => submission.problemSlug)
         );
         const attemptedSlugs = new Set(
             allSubmissions
-                .filter((s: any) => s.status !== "Accepted")
-                .map((s: any) => s.problemSlug)
+                .filter((submission) => submission.status !== "Accepted")
+                .map((submission) => submission.problemSlug)
                 .filter((slug: string) => !acceptedSlugs.has(slug))
         );
 
@@ -47,12 +49,12 @@ export async function GET() {
         const solvedProblems = await Problem.find({ slug: { $in: Array.from(acceptedSlugs) } })
             .select("difficulty")
             .lean();
-        const solvedEasy = solvedProblems.filter((p: any) => p.difficulty === "Easy").length;
-        const solvedMedium = solvedProblems.filter((p: any) => p.difficulty === "Medium").length;
-        const solvedHard = solvedProblems.filter((p: any) => p.difficulty === "Hard").length;
+        const solvedEasy = solvedProblems.filter((problem) => problem.difficulty === "Easy").length;
+        const solvedMedium = solvedProblems.filter((problem) => problem.difficulty === "Medium").length;
+        const solvedHard = solvedProblems.filter((problem) => problem.difficulty === "Hard").length;
 
         // Acceptance rate
-        const acceptedCount = allSubmissions.filter((s: any) => s.status === "Accepted").length;
+        const acceptedCount = allSubmissions.filter((submission) => submission.status === "Accepted").length;
         const acceptanceRate =
             totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
 
@@ -64,13 +66,13 @@ export async function GET() {
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
         const recentSubmissions = allSubmissions.filter(
-            (s: any) => new Date(s.createdAt) >= thirtyDaysAgo
+            (submission) => new Date(submission.createdAt) >= thirtyDaysAgo
         );
 
         // Build a map: "YYYY-MM-DD" -> count
         const activityMap: Record<string, number> = {};
         for (const sub of recentSubmissions) {
-            const day = new Date((sub as any).createdAt).toISOString().split("T")[0];
+            const day = new Date(sub.createdAt).toISOString().split("T")[0];
             activityMap[day] = (activityMap[day] ?? 0) + 1;
         }
 
@@ -84,11 +86,11 @@ export async function GET() {
         }
 
         // ── Recent submissions (for log) ──────────────────────────────────────
-        const recentLog = allSubmissions.slice(0, 20).map((s: any) => ({
-            problemSlug: s.problemSlug,
-            status: s.status,
-            executionTime: s.executionTime,
-            createdAt: s.createdAt,
+        const recentLog = allSubmissions.slice(0, 20).map((submission) => ({
+            problemSlug: submission.problemSlug,
+            status: submission.status,
+            executionTime: submission.executionTime,
+            createdAt: submission.createdAt,
         }));
 
         // ── Streak ────────────────────────────────────────────────────────────
@@ -112,12 +114,12 @@ export async function GET() {
         const userProfile = await UserProfile.findOne({ userId }).lean();
 
         return NextResponse.json({
-            githubConnected: !!githubIntegration,
-            githubUsername: githubIntegration ? (githubIntegration as any).githubUsername : null,
-            username: userProfile ? (userProfile as any).username : null,
-            bio: userProfile ? (userProfile as any).bio : "",
-            followers: userProfile ? (userProfile as any).followers.length : 0,
-            following: userProfile ? (userProfile as any).following.length : 0,
+            githubConnected: Boolean(githubIntegration),
+            githubUsername: githubIntegration?.githubUsername ?? null,
+            username: userProfile?.username ?? null,
+            bio: userProfile?.bio ?? "",
+            followers: userProfile?.followers.length ?? 0,
+            following: userProfile?.following.length ?? 0,
             problems: {
                 total: totalProblems,
                 easy: easyCount,
@@ -143,7 +145,7 @@ export async function GET() {
             activityData,
             recentLog,
         });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

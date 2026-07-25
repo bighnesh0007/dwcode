@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
-const BlogSchema = new mongoose.Schema({
+export const BlogSchema = new mongoose.Schema({
     title: { type: String, required: true },
     slug: { type: String, required: true, unique: true },
     content: { type: String, required: true },   // raw markdown
@@ -13,5 +14,4 @@ const BlogSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
-export const Blog =
-    mongoose.models.Blog || mongoose.model("Blog", BlogSchema);
+export const Blog = modelFromSchema("Blog", BlogSchema);

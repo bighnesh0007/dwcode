@@ -5,6 +5,22 @@ import { Submission } from "@/models/Submission";
 import { Comment } from "@/models/Comment";
 import { UserRole } from "@/models/UserRole";
 import { UserCoins } from "@/models/UserCoins";
+import { getErrorMessage } from "@/lib/errors";
+
+interface SubmissionUserAggregate {
+    _id: string;
+    userName?: string;
+    userImageUrl?: string;
+    totalSubmissions: number;
+    accepted: number;
+    joinedAt: Date;
+    solvedSlugs: string[];
+}
+
+interface CommentCountAggregate {
+    _id: string;
+    count: number;
+}
 
 export async function GET() {
     try {
@@ -14,7 +30,7 @@ export async function GET() {
         await connectToDatabase();
 
         // Aggregate unique users from submissions
-        const submissionUsers = await Submission.aggregate([
+        const submissionUsers = await Submission.aggregate<SubmissionUserAggregate>([
             {
                 $group: {
                     _id: "$userId",
@@ -29,7 +45,7 @@ export async function GET() {
         ]);
 
         // Comment counts per user
-        const commentCounts = await Comment.aggregate([
+        const commentCounts = await Comment.aggregate<CommentCountAggregate>([
             { $group: { _id: "$userId", count: { $sum: 1 } } },
         ]);
         const commentMap: Record<string, number> = {};
@@ -38,13 +54,13 @@ export async function GET() {
         }
 
         // Coin balances
-        const coins = await UserCoins.find().select("userId balance").lean() as any[];
+        const coins = await UserCoins.find().select("userId balance").lean();
         const coinMap: Record<string, number> = {};
         for (const c of coins) coinMap[c.userId] = c.balance;
 
         // Admin roles
-        const roles = await UserRole.find({ role: "admin" }).lean() as any[];
-        const adminSet = new Set(roles.map((r: any) => r.userId));
+        const roles = await UserRole.find({ role: "admin" }).lean();
+        const adminSet = new Set(roles.map((role) => role.userId));
 
         const users = submissionUsers
             .filter(u => u._id) // skip anonymous
@@ -63,7 +79,7 @@ export async function GET() {
             .sort((a, b) => b.solvedCount - a.solvedCount);
 
         return NextResponse.json({ users, isSuperAdmin: admin.isSuperAdmin });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

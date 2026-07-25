@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Blog } from "@/models/Blog";
 import { isAdmin } from "@/lib/coins";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function GET(
     _req: Request,
@@ -14,8 +15,8 @@ export async function GET(
         const post = await Blog.findOne({ slug, published: true }).lean();
         if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
         return NextResponse.json(post);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -39,7 +40,7 @@ export async function DELETE(
 
         await Blog.deleteOne({ slug });
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
     }
 }

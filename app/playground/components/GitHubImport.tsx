@@ -12,6 +12,7 @@ import {
     ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getErrorMessage } from "@/lib/errors";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -48,8 +49,8 @@ export function GitHubImport({ onImport, onClose }: GitHubImportProps) {
             if (!res.ok) throw new Error(data.error ?? "Could not load repo.");
             setFiles(data.files ?? []);
             setStep("file");
-        } catch (e: any) {
-            setError(e.message);
+        } catch (error) {
+            setError(getErrorMessage(error));
         } finally {
             setLoading(false);
         }
@@ -65,8 +66,8 @@ export function GitHubImport({ onImport, onClose }: GitHubImportProps) {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error ?? "Import failed.");
             onImport(data.fileName, data.content);
-        } catch (e: any) {
-            setError(e.message);
+        } catch (error) {
+            setError(getErrorMessage(error));
         } finally {
             setImporting(null);
         }
@@ -200,7 +201,7 @@ export function GitHubImport({ onImport, onClose }: GitHubImportProps) {
                                                     variant="ghost"
                                                     className="h-6 text-[10px] gap-1 shrink-0"
                                                     onClick={() => handleImportFile(path)}
-                                                    disabled={!!importing}
+                                                    disabled={Boolean(importing)}
                                                 >
                                                     {importing === path ? (
                                                         <Loader2 className="w-3 h-3 animate-spin" />

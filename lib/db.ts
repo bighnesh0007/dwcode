@@ -1,10 +1,16 @@
 import mongoose from 'mongoose';
 
-let cached = (global as any).mongoose;
-
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
 }
+
+const globalWithMongoose = global as typeof globalThis & {
+  mongoose?: MongooseCache;
+};
+
+const cached = globalWithMongoose.mongoose ??
+  (globalWithMongoose.mongoose = { conn: null, promise: null });
 
 async function connectToDatabase() {
   const MONGODB_URI = process.env.MONGODB_URI;
@@ -22,7 +28,7 @@ async function connectToDatabase() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI as string, opts).then((mongoose) => {
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
       return mongoose;
     });
   }

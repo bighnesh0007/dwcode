@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Bookmark } from "@/models/Bookmark";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function GET() {
   try {
@@ -12,8 +13,8 @@ export async function GET() {
     await connectToDatabase();
     const bookmarks = await Bookmark.find({ userId }).lean();
     return NextResponse.json(bookmarks);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       await bookmark.save();
       return NextResponse.json({ success: true, bookmarked: true });
     }
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

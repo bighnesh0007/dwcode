@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
-const SubmissionSchema = new mongoose.Schema({
+export const SubmissionSchema = new mongoose.Schema({
   problemId: { type: mongoose.Schema.Types.ObjectId, ref: "Problem", required: true },
   problemSlug: { type: String, required: true },
   // Clerk user info (optional for backward compat)
@@ -15,5 +16,4 @@ const SubmissionSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-export const Submission =
-  mongoose.models.Submission || mongoose.model("Submission", SubmissionSchema);
+export const Submission = modelFromSchema("Submission", SubmissionSchema);

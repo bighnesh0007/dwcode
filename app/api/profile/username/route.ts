@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { UserProfile } from "@/models/UserProfile";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function PUT(req: Request) {
   try {
@@ -30,8 +31,8 @@ export async function PUT(req: Request) {
     );
 
     return NextResponse.json({ message: "Profile updated", profile: updated });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[profile/username] ERROR:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

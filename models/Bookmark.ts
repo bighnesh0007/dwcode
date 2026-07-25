@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
+import { modelFromSchema } from './model';
 
-const BookmarkSchema = new mongoose.Schema({
+export const BookmarkSchema = new mongoose.Schema({
   problemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Problem', required: true },
   problemSlug: { type: String, required: true },
   userId: { type: String, default: '' },
@@ -9,4 +10,4 @@ const BookmarkSchema = new mongoose.Schema({
 
 BookmarkSchema.index({ problemId: 1, userId: 1 }, { unique: true });
 
-export const Bookmark = mongoose.models.Bookmark || mongoose.model('Bookmark', BookmarkSchema);
+export const Bookmark = modelFromSchema('Bookmark', BookmarkSchema);

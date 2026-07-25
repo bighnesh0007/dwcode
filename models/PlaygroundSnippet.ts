@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
 const PlaygroundFileSchema = new mongoose.Schema(
   {
@@ -27,7 +28,7 @@ const PlaygroundTestCaseSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const PlaygroundSnippetSchema = new mongoose.Schema(
+export const PlaygroundSnippetSchema = new mongoose.Schema(
   {
     slug: { type: String, required: true, unique: true, index: true },
     script: { type: String, required: true },
@@ -38,6 +39,4 @@ const PlaygroundSnippetSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const PlaygroundSnippet =
-  mongoose.models.PlaygroundSnippet ||
-  mongoose.model("PlaygroundSnippet", PlaygroundSnippetSchema);
+export const PlaygroundSnippet = modelFromSchema("PlaygroundSnippet", PlaygroundSnippetSchema);

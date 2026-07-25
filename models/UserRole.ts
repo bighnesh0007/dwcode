@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
+import { modelFromSchema } from "./model";
 
-const UserRoleSchema = new mongoose.Schema({
+export const UserRoleSchema = new mongoose.Schema({
     userId: { type: String, required: true, unique: true },
     userName: { type: String, default: "" },
     role: { type: String, enum: ["admin", "user"], default: "admin" },
@@ -8,5 +9,4 @@ const UserRoleSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
-export const UserRole =
-    mongoose.models.UserRole || mongoose.model("UserRole", UserRoleSchema);
+export const UserRole = modelFromSchema("UserRole", UserRoleSchema);

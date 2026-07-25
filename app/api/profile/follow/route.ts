@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { UserProfile } from "@/models/UserProfile";
+import { getErrorMessage } from "@/lib/errors";
 
 export async function POST(req: Request) {
   try {
@@ -35,8 +36,8 @@ export async function POST(req: Request) {
       await UserProfile.updateOne({ userId: targetUser.userId }, { $addToSet: { followers: userId } });
       return NextResponse.json({ message: "Followed successfully", following: true });
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("[profile/follow] ERROR:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

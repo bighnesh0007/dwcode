@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
+import { getErrorMessage } from "@/lib/errors";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,23 +16,7 @@ import {
     Lock, Globe, ChevronRight, Loader2, Check, KeyRound
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-interface Contest {
-    _id: string;
-    title: string;
-    description: string;
-    createdByName: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-    status: string;
-    isPublic: boolean;
-    participantCount: number;
-    maxParticipants: number;
-    problems: { title: string; slug: string; difficulty: string }[];
-    inviteCode?: string;
-    isParticipant?: boolean;
-}
+import type { ContestListItem, ProblemSummary } from "@/lib/types";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
     upcoming: { label: "Upcoming", color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/30" },
@@ -45,31 +30,34 @@ function formatDate(d: string) {
     });
 }
 
+function getTimeLeft(endTime: string, status: string, now: number) {
+    if (status === "ended") return "Ended";
+    const diff = new Date(endTime).getTime() - now;
+    if (diff <= 0) return "Ended";
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    return `${h}h ${m}m ${s}s`;
+}
+
 function TimeLeft({ endTime, status }: { endTime: string; status: string }) {
-    const [left, setLeft] = useState("");
+    const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
-        if (status === "ended") { setLeft("Ended"); return; }
-        const update = () => {
-            const diff = new Date(endTime).getTime() - Date.now();
-            if (diff <= 0) { setLeft("Ended"); return; }
-            const h = Math.floor(diff / 3600000);
-            const m = Math.floor((diff % 3600000) / 60000);
-            const s = Math.floor((diff % 60000) / 1000);
-            setLeft(`${h}h ${m}m ${s}s`);
-        };
-        update();
-        const t = setInterval(update, 1000);
+        if (status === "ended") return;
+        const t = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(t);
-    }, [endTime, status]);
+    }, [status]);
+
+    const left = getTimeLeft(endTime, status, now);
 
     return <span className="font-mono text-xs">{left}</span>;
 }
 
 export default function ContestsPage() {
     const router = useRouter();
-    const { user, isSignedIn } = useUser();
-    const [contests, setContests] = useState<Contest[]>([]);
+    const { isSignedIn } = useUser();
+    const [contests, setContests] = useState<ContestListItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
     const [joiningId, setJoiningId] = useState<string | null>(null);
@@ -79,7 +67,7 @@ export default function ContestsPage() {
     const [activeTab, setActiveTab] = useState<"all" | "upcoming" | "active" | "ended">("all");
 
     // Create form state
-    const [allProblems, setAllProblems] = useState<any[]>([]);
+    const [allProblems, setAllProblems] = useState<ProblemSummary[]>([]);
     const [form, setForm] = useState({
         title: "", description: "", duration: "60",
         startTime: "", isPublic: true, maxParticipants: "50",
@@ -99,15 +87,20 @@ export default function ContestsPage() {
         }
     };
 
-    useEffect(() => { fetchContests(); }, []);
+    useEffect(() => {
+        void fetch("/api/contests")
+            .then((response) => response.json())
+            .then((data) => { if (Array.isArray(data)) setContests(data); })
+            .finally(() => setLoading(false));
+    }, []);
 
     useEffect(() => {
         if (showCreate && allProblems.length === 0) {
-            fetch("/api/problems").then(r => r.json()).then(d => {
+            void fetch("/api/problems").then(r => r.json()).then(d => {
                 if (Array.isArray(d)) setAllProblems(d);
             });
         }
-    }, [showCreate]);
+    }, [showCreate, allProblems.length]);
 
     const toggleProblem = (id: string) => {
         setSelectedProblems(prev =>
@@ -142,12 +135,12 @@ export default function ContestsPage() {
                 setShowCreate(false);
                 setForm({ title: "", description: "", duration: "60", startTime: "", isPublic: true, maxParticipants: "50" });
                 setSelectedProblems([]);
-                fetchContests();
+                await fetchContests();
             } else {
                 setCreateMsg({ type: "error", text: data.error || "Failed to create" });
             }
-        } catch (e: any) {
-            setCreateMsg({ type: "error", text: e.message });
+        } catch (error) {
+            setCreateMsg({ type: "error", text: getErrorMessage(error) });
         } finally {
             setCreating(false);
         }
@@ -159,7 +152,7 @@ export default function ContestsPage() {
         try {
             const res = await fetch(`/api/contests/${id}?action=join`, { method: "POST" });
             const data = await res.json();
-            if (data.success) fetchContests();
+            if (data.success) await fetchContests();
         } finally {
             setJoiningId(null);
         }
@@ -248,7 +241,7 @@ export default function ContestsPage() {
                                     value={inviteKey}
                                     onChange={(event) => setInviteKey(event.target.value.toUpperCase())}
                                     onKeyDown={(event) => {
-                                        if (event.key === "Enter") handleJoinPrivate();
+                                        if (event.key === "Enter") void handleJoinPrivate();
                                     }}
                                     placeholder="PRIVATE KEY"
                                     className="font-mono uppercase sm:w-52"
@@ -491,7 +484,7 @@ export default function ContestsPage() {
 
                                     {/* Problem badges */}
                                     <div className="flex flex-wrap gap-1">
-                                        {(c.problems || []).slice(0, 4).map((p: any) => (
+                            {(c.problems || []).slice(0, 4).map((p) => (
                                             <Badge key={p.slug || p._id} variant="outline" className="text-[10px] py-0">
                                                 {p.title?.length > 20 ? p.title.slice(0, 20) + "…" : p.title}
                                             </Badge>

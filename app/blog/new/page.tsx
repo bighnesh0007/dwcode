@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getErrorMessage } from "@/lib/errors";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,8 +49,8 @@ export default function NewBlogPage() {
             } else {
                 setError(data.error || "Failed to publish.");
             }
-        } catch (e: any) {
-            setError(e.message);
+        } catch (error) {
+            setError(getErrorMessage(error));
         } finally {
             setPosting(false);
         }
