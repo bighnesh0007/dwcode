@@ -26,27 +26,34 @@ export async function GET(req: Request) {
   }
 }
 
+/**
+ * POST /api/problems — signed-in users only.
+ *
+ * Authentication used to be best-effort — the `auth()` call sat in a try/catch
+ * whose handler swallowed the failure and continued with `createdBy: ""`, so
+ * anonymous callers could insert documents into the problem bank (finding M-1).
+ */
 export async function POST(req: Request) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+    const createdBy = userId;
+
     const data = await req.json();
+    if (typeof data?.title !== "string" || !data.title.trim()) {
+      return NextResponse.json({ success: false, error: "title is required" }, { status: 400 });
+    }
     const slug = data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
 
     await connectToDatabase();
-
-    // Attach creator if signed in
-    let createdBy = "";
-    try {
-      const { userId } = await auth();
-      if (userId) createdBy = userId;
-    } catch { /* ignore */ }
 
     const newProblem = new Problem({ ...data, slug, createdByAI: false, createdBy });
     await newProblem.save();
 
     // Award 2 coins for creating a problem
-    if (createdBy) {
-      await awardCoins(createdBy, 2, "problem_created", `Created problem: ${data.title}`);
-    }
+    await awardCoins(createdBy, 2, "problem_created", `Created problem: ${data.title}`);
 
     return NextResponse.json({ success: true, problem: newProblem });
   } catch (error) {

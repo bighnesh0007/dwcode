@@ -9,7 +9,10 @@ import { Play, Send, RotateCcw, Star, Eye, EyeOff, Timer, PauseCircle, PlayCircl
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { Comments } from "@/components/Comments";
+import { ReportProblem } from "@/components/ReportProblem";
 import { renderMarkdown } from "@/lib/markdown";
+import { formatPayload } from "@/lib/format";
+import { difficultyClassName } from "@dwcode/shared";
 import { getErrorMessage } from "@/lib/errors";
 import type { BookmarkSummary, Problem, SubmissionSummary } from "@/lib/types";
 
@@ -18,7 +21,11 @@ export default function Workspace({ problem }: { problem: Problem }) {
   const editorTheme = resolvedTheme === "light" ? "vs-light" : "vs-dark";
 
   const [code, setCode] = useState(problem.starterCode || "%dw 2.0\noutput application/json\n---\n");
-  const [customInput, setCustomInput] = useState(problem.examples?.[0]?.input || "{}");
+  // Seeded from the first example, formatted — the stored value is usually compact
+  // JSON and dropping that raw into an editable box is hostile to edit.
+  const [customInput, setCustomInput] = useState(
+    () => formatPayload(problem.examples?.[0]?.input || "{}"),
+  );
   const [output, setOutput] = useState("");
   const [outputStatus, setOutputStatus] = useState<"idle" | "success" | "error">("idle");
   const [isRunning, setIsRunning] = useState(false);
@@ -131,7 +138,11 @@ export default function Workspace({ problem }: { problem: Problem }) {
       });
       const data = await res.json();
       setOutputStatus(data.success ? "success" : "error");
-      setOutput(data.success ? `⏱ ${data.time}\n\n${data.output}` : `✗ Error:\n${data.output}`);
+      setOutput(
+        data.success
+          ? `⏱ ${data.time}\n\n${formatPayload(data.output)}`
+          : `✗ Error:\n${data.output}`,
+      );
     } catch (error) {
       setOutputStatus("error");
       setOutput(`✗ Error: ${getErrorMessage(error)}`);
@@ -165,96 +176,38 @@ export default function Workspace({ problem }: { problem: Problem }) {
     // ────────────────────────────────────────────────────────────────────
 
     try {
-      // 1. Run against custom input for display
-      const runRes = await fetch("/api/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, input: customInput }),
-      });
-      const runData = await runRes.json();
-
-      // 2. Determine actual status by checking test cases
-      const testCases: { input: string; expectedOutput: string }[] =
-        problem.testCases?.length ? problem.testCases
-          : problem.examples?.length ? [{ input: problem.examples[0].input, expectedOutput: problem.examples[0].output }]
-            : [];
-
-      let finalStatus: "Accepted" | "Attempted" | "Error" = "Attempted";
-      let testResultSummary = "";
-
-      if (!runData.success) {
-        finalStatus = "Error";
-        testResultSummary = `✗ Compilation Error:\n${runData.output}`;
-      } else if (testCases.length === 0) {
-        // No test cases — can't verify, mark Attempted
-        finalStatus = "Attempted";
-        testResultSummary = `⚠ No test cases defined. Cannot verify correctness.\n\n${runData.output}`;
-      } else {
-        // Run each test case
-        let allPassed = true;
-        const lines: string[] = [];
-
-        for (let i = 0; i < testCases.length; i++) {
-          const tc = testCases[i];
-          const tcRes = await fetch("/api/execute", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ code, input: tc.input }),
-          });
-          const tcData = await tcRes.json();
-
-          if (!tcData.success) {
-            allPassed = false;
-            finalStatus = "Error";
-            lines.push(`Test ${i + 1}: ✗ Error — ${tcData.output}`);
-            break;
-          }
-
-          const normalize = (s: string) => {
-            try {
-              // Try to normalise JSON so whitespace differences don't matter
-              return JSON.stringify(JSON.parse(s.trim()));
-            } catch {
-              return s.trim();
-            }
-          };
-
-          const actual = normalize(tcData.output);
-          const expected = normalize(tc.expectedOutput);
-          const passed = actual === expected;
-
-          if (!passed) allPassed = false;
-          lines.push(
-            `Test ${i + 1}: ${passed ? "✓ Passed" : "✗ Failed"}\n  Expected: ${tc.expectedOutput.slice(0, 120)}\n  Got:      ${tcData.output.slice(0, 120)}`
-          );
-        }
-
-        if (finalStatus !== "Error") {
-          finalStatus = allPassed ? "Accepted" : "Attempted";
-        }
-        testResultSummary = lines.join("\n\n");
-      }
-
-      setOutputStatus(finalStatus === "Accepted" ? "success" : "error");
-      const statusEmoji = finalStatus === "Accepted" ? "✅ Accepted" : finalStatus === "Error" ? "✗ Error" : "✗ Wrong Answer";
-      setOutput(`${statusEmoji}\n\n${testResultSummary}`);
-
-      // 3. Save submission with correct status
-      await fetch("/api/submissions", {
+      // Submit the CODE and let the server grade it.
+      //
+      // This used to run the test cases in the browser, compare the outputs
+      // here, and POST the resulting verdict — which the API stored verbatim
+      // and paid coins on (audit finding C-4). The comparison now happens in
+      // lib/grading.ts on the server, using test cases read from the database,
+      // and this component only renders what comes back.
+      const submitRes = await fetch("/api/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           problemId: problem._id,
-          problemSlug: problem.slug,
           code,
           input: customInput,
-          output: runData.output || "",
-          status: finalStatus,
-          executionTime: runData.time || "0ms",
         }),
       });
+      const submitData = await submitRes.json();
 
-      // 4. Persist accepted solves to localStorage for guests
+      if (!submitRes.ok || !submitData.success) {
+        setOutputStatus("error");
+        setOutput(`✗ Error:\n${submitData.error ?? `Submission failed (HTTP ${submitRes.status}).`}`);
+        return;
+      }
+
+      const finalStatus: "Accepted" | "Attempted" | "Error" = submitData.status;
+      const statusEmoji =
+        finalStatus === "Accepted" ? "✅ Accepted" : finalStatus === "Error" ? "✗ Error" : "✗ Wrong Answer";
+
+      setOutputStatus(finalStatus === "Accepted" ? "success" : "error");
+      setOutput(`${statusEmoji}\n\n${submitData.summary ?? ""}`);
+
+      // Persist accepted solves to localStorage for guests
       if (finalStatus === "Accepted") {
         try {
           const raw = localStorage.getItem("dwcode_guest_progress");
@@ -302,11 +255,10 @@ export default function Workspace({ problem }: { problem: Problem }) {
               <div className="flex-1 min-w-0">
                 <h2 className="text-xl font-bold leading-tight">{problem.title}</h2>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Badge variant="outline" className={
-                    problem.difficulty === "Easy" ? "text-green-500 border-green-500/50 bg-green-500/10" :
-                      problem.difficulty === "Medium" ? "text-yellow-500 border-yellow-500/50 bg-yellow-500/10" :
-                        "text-red-500 border-red-500/50 bg-red-500/10"
-                  }>
+                  {/* Badge styling comes from the shared difficulty registry
+                      (REF-01) — previously a per-tier ternary duplicated here,
+                      on the problems list, and on both contest pages. */}
+                  <Badge variant="outline" className={difficultyClassName(problem.difficulty).badge}>
                     {problem.difficulty}
                   </Badge>
                   {problem.tags?.map((tag: string) => (
@@ -354,10 +306,28 @@ export default function Workspace({ problem }: { problem: Problem }) {
                 <div className="space-y-4">
                   <p className="text-sm font-semibold">Examples</p>
                   {problem.examples.map((ex, i) => (
-                    <div key={i} className="bg-muted/60 rounded-lg p-3 text-xs font-mono space-y-1">
-                      <div><span className="font-bold text-foreground/60">Input: </span><span className="whitespace-pre-wrap">{ex.input}</span></div>
-                      <div><span className="font-bold text-foreground/60">Output: </span><span className="whitespace-pre-wrap">{ex.output}</span></div>
-                      {ex.explanation && <div className="text-muted-foreground italic pt-1">{ex.explanation}</div>}
+                    <div key={i} className="bg-muted/60 rounded-lg p-3 text-xs space-y-2">
+                      {/*
+                        Label ABOVE the value, value in its own scrollable block.
+                        These used to sit inline on one line, so a stored example
+                        like [{"id":1,"name":"alice"}] rendered as a single
+                        unreadable run of text on every problem page.
+                      */}
+                      <div>
+                        <div className="font-bold text-foreground/60 mb-1">Input</div>
+                        <pre className="font-mono whitespace-pre-wrap break-words overflow-x-auto rounded bg-background/60 p-2 max-h-64">
+                          {formatPayload(ex.input)}
+                        </pre>
+                      </div>
+                      <div>
+                        <div className="font-bold text-foreground/60 mb-1">Output</div>
+                        <pre className="font-mono whitespace-pre-wrap break-words overflow-x-auto rounded bg-background/60 p-2 max-h-64">
+                          {formatPayload(ex.output)}
+                        </pre>
+                      </div>
+                      {ex.explanation && (
+                        <div className="text-muted-foreground italic pt-1">{ex.explanation}</div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -380,6 +350,15 @@ export default function Workspace({ problem }: { problem: Problem }) {
                   </ul>
                 </div>
               )}
+
+              {/*
+                Report. Sits after the problem content and before the solution
+                reveal — reachable once you have read enough to know something is
+                wrong, without competing with the task itself.
+              */}
+              <div className="border-t pt-4">
+                <ReportProblem problemId={problem._id} />
+              </div>
 
               {problem.solution && (
                 <div>
@@ -438,7 +417,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
                         </span>
                         <span className="text-muted-foreground">{s.executionTime} · {new Date(s.createdAt).toLocaleTimeString()}</span>
                       </div>
-                      <pre className="bg-muted/50 rounded p-2 text-xs overflow-auto max-h-24 font-mono">{s.output?.slice(0, 300)}</pre>
+                      <pre className="bg-muted/50 rounded p-2 text-xs overflow-auto max-h-24 font-mono whitespace-pre-wrap break-words">{formatPayload(s.output).slice(0, 500)}</pre>
                     </div>
                   ))}
                 </div>
@@ -446,7 +425,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
             </TabsContent>
 
             <TabsContent value="comments" className="flex-1 overflow-y-auto mt-0">
-              <Comments problemSlug={problem.slug} />
+              <Comments targetType="problem" targetId={problem.slug} />
             </TabsContent>
           </Tabs>
         </div>

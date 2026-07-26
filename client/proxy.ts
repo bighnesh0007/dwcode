@@ -14,6 +14,27 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
  * requireAdmin on its APIs) already guard the actual actions; middleware here
  * only decides who can LOAD a page.
  */
+/*
+ * DEPRECATED API — tracked, not ignored.
+ *
+ * @clerk/nextjs 7.6.1 (picked up when REF-01 regenerated the lockfile)
+ * deprecates `createRouteMatcher`, and its reasoning matches audit finding
+ * W1-R8 exactly: "Middleware-based auth checks rely on path matching, which can
+ * diverge from how Next.js routes requests and leave protected resources
+ * reachable." That is the same class as the Next.js middleware/proxy bypass
+ * fixed in 16.2.12.
+ *
+ * Suppressed rather than migrated HERE because migrating means moving
+ * `auth.protect()` into each of /profile, /create, /admin and /blog/new — an
+ * auth change that does not belong inside a build-system refactor.
+ *
+ * This is LOW RISK today: every protected action already enforces authorisation
+ * server-side in its own route handler (Week 1 SEC-01…SEC-04). This matcher only
+ * decides who may LOAD a page, so a bypass exposes an empty shell, not data.
+ *
+ * Tracked as SEC-21 in docs/audit/03-backlog.md.
+ */
+// eslint-disable-next-line @typescript-eslint/no-deprecated
 const isProtectedRoute = createRouteMatcher([
   "/profile",        // own dashboard only — /profile/[username] stays public
   "/create(.*)",

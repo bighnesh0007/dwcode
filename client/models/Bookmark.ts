@@ -9,5 +9,8 @@ export const BookmarkSchema = new mongoose.Schema({
 });
 
 BookmarkSchema.index({ problemId: 1, userId: 1 }, { unique: true });
+// PERF-02: the unique index above is prefixed on problemId, so it does NOT serve
+// Bookmark.find({ userId }) — the query behind the bookmarks list and count.
+BookmarkSchema.index({ userId: 1 });
 
 export const Bookmark = modelFromSchema('Bookmark', BookmarkSchema);

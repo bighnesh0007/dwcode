@@ -9,7 +9,16 @@
 export const EDITOR_THEMES = ["auto", "vs-dark", "vs-light", "hc-black"] as const;
 export type EditorThemeSetting = (typeof EDITOR_THEMES)[number];
 
-export const AUTO_RUN_DELAYS = [0, 800, 1500, 3000] as const;
+/**
+ * Live-compile debounce options, in ms. 0 disables it.
+ *
+ * `800` is kept even though `1000` sits right next to it: `normalizeSettings`
+ * falls back to the DEFAULT (which is 0 = off) for any value not in this list,
+ * so removing 800 would silently switch live compile OFF for everyone who had
+ * chosen it. Values may be added freely; removing one is a breaking change to
+ * stored preferences.
+ */
+export const AUTO_RUN_DELAYS = [0, 800, 1000, 1500, 3000] as const;
 export type AutoRunDelay = (typeof AUTO_RUN_DELAYS)[number];
 
 export interface PlaygroundSettings {

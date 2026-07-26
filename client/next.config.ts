@@ -1,16 +1,29 @@
+import path from "node:path";
 import type { NextConfig } from "next";
+
+/**
+ * The workspace root is the REPO root, not `client/`.
+ *
+ * This used to be pinned to `import.meta.dirname` (i.e. client/) because the
+ * repo previously had multiple lockfiles and Turbopack's root inference was
+ * ambiguous. REF-01 changed both facts:
+ *
+ *  - there is now exactly ONE lockfile, at the repo root, so nothing is ambiguous
+ *  - `@dwcode/shared` lives at `packages/shared`, OUTSIDE client/
+ *
+ * Keeping the old pin made Turbopack refuse to resolve anything above client/,
+ * which failed the build with `Module not found: @dwcode/shared` in eleven files.
+ */
+const workspaceRoot = path.join(import.meta.dirname, "..");
 
 const nextConfig: NextConfig = {
   output: "standalone",
 
   turbopack: {
-    // The repo root has its own package.json + lockfile (for the `concurrently`
-    // dev runner), so Turbopack detected two lockfiles and inferred the REPO ROOT
-    // as the workspace root. The Next.js app is this directory, so pin it
-    // explicitly: it silences the warning and, more usefully, stops Turbopack
-    // watching and resolving across the whole monorepo (including server/).
-    root: import.meta.dirname,
+    root: workspaceRoot,
   },
+
+  outputFileTracingRoot: workspaceRoot,
 };
 
 export default nextConfig;

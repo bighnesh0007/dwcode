@@ -56,6 +56,28 @@ const DEFAULT_FILES: PlaygroundFile[] = [
   { id: "attributes", name: "attributes.json", kind: "attributes", language: "json", content: "{}" },
 ];
 
+/** Who asked for a run. Live compile is treated differently — see handleRun. */
+type RunSource = "manual" | "auto";
+
+/**
+ * Consecutive TRANSPORT failures before live compile suspends itself.
+ *
+ * The DataWeave compiler is an upstream that sleeps when idle and takes 30–60s
+ * to wake, against a 15s timeout. Without this, a 1s live-compile loop fires a
+ * request every second for the whole cold start, from every open tab — a
+ * self-inflicted request storm against a service that is already struggling.
+ * See docs/audit/09-runtime-ownership.md.
+ */
+const LIVE_FAILURE_LIMIT = 2;
+
+/** Thrown when the compiler proxy rate-limits us, so live compile can back off. */
+class RateLimitedError extends Error {
+  constructor(readonly retryAfterSeconds: number | null) {
+    super("Rate limited");
+    this.name = "RateLimitedError";
+  }
+}
+
 const LS_HISTORY = "dwcode_pg_history";
 const LS_SNIPPETS = "dwcode_pg_snippets";
 const MAX_HISTORY = 30;
@@ -149,6 +171,10 @@ export default function PlaygroundPage() {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [executionTime, setExecutionTime] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
+  /** A live compile is in flight; the visible output belongs to the previous run. */
+  const [isStale, setIsStale] = useState(false);
+  /** Non-null when live compile has suspended itself; holds the reason shown to the user. */
+  const [liveSuspended, setLiveSuspended] = useState<string | null>(null);
 
   // Toolbar state
   const [isSharing, setIsSharing] = useState(false);
@@ -176,6 +202,10 @@ export default function PlaygroundPage() {
   const [savedSnippets, setSavedSnippets] = useState<SavedSnippet[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
+  /** Consecutive transport failures, reset by any successful response. */
+  const liveFailuresRef = useRef(0);
+  /** Signature of the last content actually sent to the compiler. */
+  const lastCompiledRef = useRef<string | null>(null);
 
   const activeFile = useMemo(
     () => files.find((f) => f.id === activeFileId) ?? files[0],
@@ -268,13 +298,41 @@ export default function PlaygroundPage() {
       body: JSON.stringify({ script: runScript, inputs: buildTransformInputs(runFiles) }),
       signal,
     });
+    // Surfaced as a distinct error so live compile suspends immediately rather
+    // than continuing to hammer a proxy that has already said no. The endpoint is
+    // not rate-limited yet (see docs/plans/playground-live-compile.md §3); this
+    // handles it correctly from the moment it is.
+    if (r.status === 429) {
+      const retryAfter = Number(r.headers.get("retry-after"));
+      throw new RateLimitedError(Number.isFinite(retryAfter) ? retryAfter : null);
+    }
     return r.json();
   }, []);
 
-  const handleRun = useCallback(async () => {
+  /**
+   * Run the current script.
+   *
+   * `source` matters once live compile runs at ~1s:
+   *  - "manual" behaves as before — clears the pane, records history.
+   *  - "auto" leaves the previous output visible (flagged stale) and writes NO
+   *    history entry. Clearing at that cadence strobes the output pane, and
+   *    history would evict every deliberate run within 30 seconds while
+   *    re-serialising the whole log — scripts included — to localStorage on
+   *    every keystroke pause.
+   */
+  const handleRun = useCallback(async (source: RunSource = "manual") => {
+    const isAuto = source === "auto";
+
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
-    setIsRunning(true); setStatus("idle"); setOutput(""); setExecutionTime(null);
+
+    setIsRunning(true);
+    if (isAuto) {
+      setIsStale(true);
+    } else {
+      setStatus("idle"); setOutput(""); setExecutionTime(null);
+    }
+
     try {
       const data = await runTransform(script, files, abortRef.current.signal);
       const ok = Boolean(data.success);
@@ -282,25 +340,58 @@ export default function PlaygroundPage() {
       setOutput(data.output ?? (ok ? "" : "Compilation failed"));
       setExecutionTime(data.time ?? null);
 
-      // Record in execution history
-      const entry: ExecutionHistoryEntry = {
-        id: createId("h"), timestamp: Date.now(), script, files: cloneFiles(files),
-        output: data.output ?? "", status: ok ? "success" : "error",
-        time: data.time ?? "?",
-      };
-      setExecHistory((prev) => {
-        const next = [entry, ...prev].slice(0, MAX_HISTORY);
-        saveLS(LS_HISTORY, next);
-        return next;
-      });
-      if (ok) setRightTab("output");
-    } catch (e: unknown) {
-      if (!(e instanceof DOMException && e.name === "AbortError")) {
-        setStatus("error");
-        setOutput(`Network error: ${getErrorMessage(e, "Request failed.")}`);
+      // The compiler answered. A compile ERROR is a legitimate answer about the
+      // user's code — half-typed scripts fail constantly while live compiling —
+      // so it must not count towards the backoff. Only transport failures do.
+      liveFailuresRef.current = 0;
+
+      // Record in execution history — deliberate runs only.
+      if (!isAuto) {
+        const entry: ExecutionHistoryEntry = {
+          id: createId("h"), timestamp: Date.now(), script, files: cloneFiles(files),
+          output: data.output ?? "", status: ok ? "success" : "error",
+          time: data.time ?? "?",
+        };
+        setExecHistory((prev) => {
+          const next = [entry, ...prev].slice(0, MAX_HISTORY);
+          saveLS(LS_HISTORY, next);
+          return next;
+        });
+        if (ok) setRightTab("output");
       }
-    } finally { setIsRunning(false); }
+    } catch (e: unknown) {
+      // Superseded by a newer run. Not a failure — must not trip the backoff.
+      if (e instanceof DOMException && e.name === "AbortError") return;
+
+      const rateLimited = e instanceof RateLimitedError;
+      liveFailuresRef.current += 1;
+
+      if (isAuto && (rateLimited || liveFailuresRef.current >= LIVE_FAILURE_LIMIT)) {
+        setLiveSuspended(
+          rateLimited
+            ? "Live compile paused — too many requests. Press Run to resume."
+            : "Live compile paused — the compiler is not responding. Press Run to resume.",
+        );
+      }
+
+      setStatus("error");
+      setOutput(
+        rateLimited
+          ? "Rate limited by the compiler proxy. Wait a moment and press Run."
+          : `Network error: ${getErrorMessage(e, "Request failed.")}`,
+      );
+    } finally {
+      setIsRunning(false);
+      setIsStale(false);
+    }
   }, [script, files, runTransform]);
+
+  /** Explicit Run: always clears any suspension and re-arms live compile. */
+  const handleManualRun = useCallback(() => {
+    liveFailuresRef.current = 0;
+    setLiveSuspended(null);
+    void handleRun("manual");
+  }, [handleRun]);
 
   // ── Auto-run ──────────────────────────────────────────────────────────────────
   // Opt-in (off by default): re-run after the user stops typing. Deliberately keyed
@@ -311,21 +402,43 @@ export default function PlaygroundPage() {
   );
   const hasMountedRef = useRef(false);
 
+  // Pause while the tab is hidden. Without this a backgrounded playground keeps
+  // its timer running and contributes compiler load for as long as it is open.
+  const [isTabVisible, setIsTabVisible] = useState(true);
+  useEffect(() => {
+    const sync = () => setIsTabVisible(document.visibilityState === "visible");
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => document.removeEventListener("visibilitychange", sync);
+  }, []);
+
   useEffect(() => {
     if (settings.autoRunDelay === 0) return;
+    if (liveSuspended !== null) return;
+    if (!isTabVisible) return;
+
     // Skip the very first pass so simply opening the playground does not compile.
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
+      lastCompiledRef.current = scriptSignature;
       return;
     }
+
+    // Nothing changed since the last compile — undo/redo back to the same text,
+    // a remount, or simply returning to a visible tab. Compilation is a pure
+    // function of script + inputs, so this would spend a compile to produce a
+    // byte-identical result.
+    if (lastCompiledRef.current === scriptSignature) return;
+
     const timer = setTimeout(() => {
-      void handleRun();
+      lastCompiledRef.current = scriptSignature;
+      void handleRun("auto");
     }, settings.autoRunDelay);
     return () => clearTimeout(timer);
     // handleRun is intentionally omitted: it changes identity on every keystroke
     // (it closes over script/files), which would reset the debounce every time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scriptSignature, settings.autoRunDelay]);
+  }, [scriptSignature, settings.autoRunDelay, liveSuspended, isTabVisible]);
 
   // ── File operations ───────────────────────────────────────────────────────────
   const handleAddFile = useCallback(() => {
@@ -512,6 +625,42 @@ export default function PlaygroundPage() {
         <span className="hidden text-xs text-muted-foreground lg:inline">Write, run, and compare</span>
 
         <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+          {/*
+            Live-compile indicator. Only rendered when the feature is on, so the
+            toolbar is unchanged for everyone who has not enabled it.
+          */}
+          {settings.autoRunDelay > 0 && (
+            liveSuspended !== null ? (
+              <span
+                title={liveSuspended}
+                className="flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+              >
+                <span aria-hidden>⏸</span>
+                <span className="hidden sm:inline">Live paused</span>
+              </span>
+            ) : (
+              <span
+                title={
+                  isTabVisible
+                    ? `Live compile every ${settings.autoRunDelay / 1000}s after you stop typing`
+                    : "Live compile pauses while this tab is in the background"
+                }
+                className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground"
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    !isTabVisible ? "bg-muted-foreground/40"
+                      : isStale ? "animate-pulse bg-green-500"
+                        : "bg-green-500/60"
+                  }`}
+                  aria-hidden
+                />
+                <span className="hidden sm:inline">
+                  {isTabVisible ? "Live" : "Live (paused)"}
+                </span>
+              </span>
+            )
+          )}
           {statusBadge}
           {executionTime && (
             <span className="font-mono text-xs text-muted-foreground">{executionTime}</span>
@@ -608,7 +757,7 @@ export default function PlaygroundPage() {
 
           {/* Run — the one primary action */}
           <Button type="button" size="sm" className="h-7 border-0 bg-green-600 text-xs text-white hover:bg-green-700"
-            onClick={handleRun} disabled={isRunning}>
+            onClick={handleManualRun} disabled={isRunning}>
             {isRunning
               ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /><span className="hidden sm:inline">Running</span></>
               : <><Play className="mr-1.5 h-3.5 w-3.5" /><span className="hidden sm:inline">Run</span></>}

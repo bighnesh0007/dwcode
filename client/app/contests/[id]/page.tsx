@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContestSummary } from "@/lib/types";
+import { difficultyClassName } from "@dwcode/shared";
 
 function getTimeLeft(endTime: string, status: string, now: number) {
     if (status === "ended") return "Contest ended";
@@ -250,10 +251,7 @@ export default function ContestDetailPage() {
                                         </span>
                                     )}
                                 </div>
-                                <Badge variant="outline" className={`text-[10px] py-0 shrink-0 ${p.difficulty === "Easy" ? "text-green-500 border-green-500/30" :
-                                        p.difficulty === "Medium" ? "text-yellow-500 border-yellow-500/30" :
-                                            "text-red-500 border-red-500/30"
-                                    }`}>{p.difficulty}</Badge>
+                                <Badge variant="outline" className={`text-[10px] py-0 shrink-0 ${difficultyClassName(p.difficulty).badge}`}>{p.difficulty}</Badge>
                             </div>
                         ))}
                     </CardContent>

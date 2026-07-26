@@ -1,13 +1,44 @@
-version: '3.8'
+# Local development dependencies.
+#
+# SECURITY (audit finding H-7). This previously ran `mongo:latest` with no
+# authentication and published 27017 on 0.0.0.0, so any device on the developer's
+# network could read and write the whole database. It is now pinned, requires
+# credentials, and binds to loopback only.
+#
+# BREAKING FOR EXISTING CHECKOUTS: MONGODB_URI must now include credentials.
+# Set in client/.env.local and server/.env:
+#
+#   MONGODB_URI=mongodb://dwcode:dwcode-local-dev@127.0.0.1:27017/dwcode?authSource=admin
+#
+# MONGO_INITDB_* only provisions users on an EMPTY data directory, so an existing
+# volume will not pick up auth. To adopt it on an existing checkout:
+#   docker compose down -v      # NOTE: -v deletes your local data
+#   docker compose up -d
+#
+# The `version:` key was also removed — obsolete since Compose v2 and it emits a
+# warning on every invocation.
 
 services:
   mongodb:
-    image: mongo:latest
+    # Pinned: `latest` silently moves across major versions between machines.
+    image: mongo:8.0
     container_name: dwcode_mongodb
+    restart: unless-stopped
     ports:
-      - '27017:27017'
+      # Loopback only. Without the 127.0.0.1 prefix Docker publishes on every
+      # interface and bypasses the host firewall.
+      - '127.0.0.1:27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME:-dwcode}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-dwcode-local-dev}
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   mongodb_data:

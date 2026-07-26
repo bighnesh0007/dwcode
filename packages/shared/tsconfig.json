@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+
+    // nodenext so the emitted ESM is consumable by the server's nodenext
+    // resolver AND by the client's bundler resolver. Source imports therefore
+    // carry explicit .js extensions, which is the standard for ESM TS libraries.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+
+    // Matches the server's strictness so the two compose without surprises.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"]
+}

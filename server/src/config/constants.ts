@@ -1,81 +1,36 @@
 /**
- * Business constants — the single source of truth for rules that were previously
- * duplicated across the frontend.
+ * Server-only business constants.
  *
- * Provenance (do not change values without a migration plan, they affect history):
- *  - SCORE_WEIGHTS  was hardcoded in client/app/api/leaderboard/route.ts (hard*5+medium*3+easy)
- *                   and restated as prose in client/app/leaderboard/page.tsx.
- *  - COIN_RULES     was hardcoded in client/app/api/submissions/route.ts (10 first solve,
- *                   {Easy:5,Medium:10,Hard:20} bonus) and in comments/blog/problem routes.
- *  - RANK_TIERS     was duplicated byte-for-byte in client/app/leaderboard/page.tsx and
- *                   client/app/profile/page.tsx. Only the id/label/min live here; colours,
- *                   icons and Tailwind classes stay in the frontend.
+ * Everything shared with the client — the difficulty registry, scoring weights,
+ * coin rules, rank tiers, submission statuses and limits — now lives in
+ * `@dwcode/shared` and is RE-EXPORTED here so existing server imports keep
+ * working unchanged (REF-01).
+ *
+ * These were previously declared here AND separately in the client, with four
+ * independently-maintained copies of the scoring tables. Add a difficulty tier
+ * in packages/shared/src/difficulty.ts and every consumer picks it up.
+ *
+ * Only genuinely server-side values are declared below.
  */
-
-export const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
-export type Difficulty = (typeof DIFFICULTIES)[number];
-
-export const SUBMISSION_STATUSES = ["Accepted", "Attempted", "Error"] as const;
-export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
-
-/** Points per uniquely solved problem, by difficulty. */
-export const SCORE_WEIGHTS: Record<Difficulty, number> = {
-  Easy: 1,
-  Medium: 3,
-  Hard: 5,
-};
-
-export const COIN_RULES = {
-  firstSolve: 10,
-  difficultyBonus: { Easy: 5, Medium: 10, Hard: 20 } satisfies Record<Difficulty, number>,
-  comment: 1,
-  blogPost: 2,
-  problemCreated: 2,
-} as const;
-
-export const RANK_TIERS = [
-  { min: 100, id: "grandmaster", label: "Grandmaster" },
-  { min: 50, id: "master", label: "Master" },
-  { min: 25, id: "expert", label: "Expert" },
-  { min: 10, id: "specialist", label: "Specialist" },
-  { min: 3, id: "apprentice", label: "Apprentice" },
-  { min: 0, id: "novice", label: "Novice" },
-] as const;
-
-export type RankTierId = (typeof RANK_TIERS)[number]["id"];
-
-/** Hard limits enforced by validation and services. */
-export const LIMITS = {
-  body: {
-    legacy: "5mb",
-    default: "1mb",
-    text: "256kb",
-  },
-  grading: {
-    /** Never run more than this many test cases for one submission. */
-    maxTests: 24,
-    /** Total wall-clock budget across all test-case executions. */
-    totalBudgetMs: 25_000,
-    /** Concurrent compiler calls per submission. */
-    concurrency: 3,
-  },
-  code: {
-    maxLength: 50_000,
-  },
-  playground: {
-    maxScriptLength: 50_000,
-    maxFiles: 12,
-    maxFileLength: 100_000,
-    maxTestCases: 20,
-  },
-  comment: {
-    maxLength: 2000,
-  },
-  pagination: {
-    defaultLimit: 20,
-    maxLimit: 100,
-  },
-} as const;
+export {
+  DIFFICULTIES,
+  DIFFICULTY_ENUM,
+  DIFFICULTY_TIERS,
+  SCORE_WEIGHTS,
+  COIN_REWARDS,
+  COIN_RULES,
+  RANK_TIERS,
+  SUBMISSION_STATUSES,
+  SUBMISSION_STATUS_ENUM,
+  LIMITS,
+  coinRewardFor,
+  scoreWeightFor,
+  getRankTier,
+  getDifficultyTier,
+  isDifficulty,
+  DEFAULT_DIFFICULTY,
+} from "@dwcode/shared";
+export type { DifficultyTier, RankTier, SubmissionStatus } from "@dwcode/shared";
 
 /**
  * Rate-limit policies. `keyBy: "user"` falls back to IP for anonymous callers.

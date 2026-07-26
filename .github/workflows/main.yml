@@ -4,15 +4,16 @@ name: CI
 # (Express + TypeScript, deployed to Render). Deployment itself is handled by
 # those platforms' own Git integrations — this workflow only gates correctness.
 
-# Runs on pushes to master only.
+# Runs on pushes to master AND on pull requests targeting it.
 #
-# NOTE: with no `pull_request` trigger, PR branches are NOT checked — a failure is
-# only discovered once the change is already on master. Add back
-#   pull_request:
-#     branches: [master]
-# if you want the gate to run before merging.
+# The pull_request trigger was previously absent, so a failure was only
+# discovered once the change was already on master (audit finding L-6, task
+# OPS-03). Branch protection should now require: frontend, backend, security,
+# dependencies and image.
 on:
   push:
+    branches: [master]
+  pull_request:
     branches: [master]
 
 # Superseded runs on the same ref are cancelled; a merge queue push should not
@@ -48,9 +49,15 @@ jobs:
           filters: |
             client:
               - 'client/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
               - '.github/workflows/**'
             server:
               - 'server/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'package-lock.json'
               - 'render.yaml'
               - '.github/workflows/**'
 
@@ -71,19 +78,28 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: client/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
+      # REF-01: npm workspaces. The only lockfile is at the repo root, so the
+      # install must run there — `npm ci` inside client/ has nothing to read.
+      - name: Install dependencies (workspace root)
+        working-directory: .
         run: npm ci
+
+      # @dwcode/shared is consumed as compiled dist/, so it must exist before
+      # anything typechecks against it.
+      - name: Build shared package
+        working-directory: .
+        run: npm run build:shared
 
       # Reused across runs so unchanged pages are not recompiled from scratch.
       - name: Restore Next.js build cache
         uses: actions/cache@v4
         with:
           path: client/.next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}-${{ hashFiles('client/**/*.[jt]s', 'client/**/*.[jt]sx') }}
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('client/**/*.[jt]s', 'client/**/*.[jt]sx', 'packages/**/*.ts') }}
           restore-keys: |
-            nextjs-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}-
+            nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
             nextjs-${{ runner.os }}-
 
       - name: Typecheck
@@ -135,10 +151,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: server/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
+      - name: Install dependencies (workspace root)
+        working-directory: .
         run: npm ci
+
+      - name: Build shared package
+        working-directory: .
+        run: npm run build:shared
 
       - name: Typecheck
         if: needs.changes.outputs.server == 'true'
@@ -193,9 +214,96 @@ jobs:
           fi
           echo "OK — no live keys found."
 
-      - name: Lockfiles are present and in sync with manifests
+      - name: Exactly one lockfile, at the workspace root
+        run: |
+          test -f package-lock.json || { echo "::error::root package-lock.json missing"; exit 1; }
+          # A stale per-package lockfile silently shadows the root one and
+          # reintroduces the split dependency trees REF-01 removed.
+          for dir in client server packages/shared; do
+            if [ -f "$dir/package-lock.json" ]; then
+              echo "::error::$dir/package-lock.json must not exist — this repo uses npm workspaces."
+              exit 1
+            fi
+          done
+          echo "OK — single root lockfile, no shadowing lockfiles."
+
+  # ── Dependency vulnerabilities ──────────────────────────────────────────────
+  # The audit could not run `npm audit` (no Node available in that environment),
+  # so the CVE status of the dependency tree was explicitly UNKNOWN — recorded as
+  # audit finding L-7. This job makes it known, and keeps it known.
+  #
+  # `--omit=dev` because a vulnerable build-time package is a different (lower)
+  # risk than one shipped to production. Dev-tree issues are surfaced as a
+  # warning below rather than failing the build.
+  dependencies:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Uses scripts/audit-gate.mjs rather than raw `npm audit --audit-level=high`.
+      # Some advisories are bundled inside a framework with no forward fix — for
+      # these, npm's only suggested "fix" is a major DOWNGRADE (right now it would
+      # install next@9.3.3, taking the app from Next 16 to Next 9). The gate lets
+      # such advisories be accepted with a written justification and an EXPIRY
+      # date, so they get re-reviewed instead of silently ignored forever.
+      - name: Audit production dependencies
+        run: |
+          status=0
+          node scripts/audit-gate.mjs client || status=1
+          node scripts/audit-gate.mjs server || status=1
+          if [ "$status" -ne 0 ]; then
+            echo "::error::Unaccepted (or expired) high/critical advisory in a production dependency. See scripts/audit-gate.mjs."
+            exit 1
+          fi
+
+      - name: Audit dev dependencies (report only)
+        continue-on-error: true
         run: |
           for dir in client server; do
-            test -f "$dir/package-lock.json" || { echo "::error::$dir/package-lock.json missing"; exit 1; }
+            echo "── $dir (full tree) ──────────────────────────────────────"
+            npm --prefix "$dir" audit --audit-level=critical || \
+              echo "::warning::Advisories present in $dir dev tree — review, not blocking."
           done
-          echo "OK — both lockfiles tracked."
+
+  # ── Container image ─────────────────────────────────────────────────────────
+  # Nothing in CI built this image, which is exactly why it sat on an EOL
+  # `node:18-alpine` base while both package.json files declared ">=22"
+  # (audit finding H-8). Building it here means that class of drift fails the
+  # build instead of surviving into a release.
+  image:
+    name: Docker image builds
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: dwcode:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_TELEMETRY_DISABLED=1
+
+      - name: Base image matches the declared engines field
+        run: |
+          # Guards the specific drift that finding H-8 was: the Dockerfile's Node
+          # major silently falling behind `engines.node`.
+          actual=$(docker run --rm --entrypoint node dwcode:ci --version | sed -E 's/^v([0-9]+).*/\1/')
+          echo "image node major: $actual, CI NODE_VERSION: ${NODE_VERSION}"
+          if [ "$actual" -lt 22 ]; then
+            echo "::error::Image runs Node $actual but package.json requires >=22."
+            exit 1
+          fi
+          echo "OK — image Node $actual satisfies engines >=22."

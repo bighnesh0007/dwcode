@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Plus, Sparkles, Loader2, Coins, KeyRound } from "lucide-react";
+import { DIFFICULTIES } from "@dwcode/shared";
 
 const EMPTY = {
     title: "", description: "", input: "{}", output: "{}",
@@ -182,7 +183,7 @@ export default function CreatePage() {
                                     <Select value={form.difficulty} onValueChange={v => v && setForm(f => ({ ...f, difficulty: v }))}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            {["Easy", "Medium", "Hard"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                            {DIFFICULTIES.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -249,7 +250,7 @@ export default function CreatePage() {
                                     <Select value={aiDifficulty} onValueChange={v => v && setAiDifficulty(v)}>
                                         <SelectTrigger><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            {["Easy", "Medium", "Hard"].map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                                            {DIFFICULTIES.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                                         </SelectContent>
                                     </Select>
                                 </div>
