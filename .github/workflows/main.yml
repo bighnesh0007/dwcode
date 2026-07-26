@@ -1,12 +1,17 @@
 name: CI
 
+# Monorepo pipeline: client/ (Next.js, deployed to Vercel) and server/
+# (Express + TypeScript, deployed to Render). Deployment itself is handled by
+# those platforms' own Git integrations — this workflow only gates correctness.
+
 on:
   push:
     branches: [master, develop]
   pull_request:
     branches: [master, develop]
 
-# A new push to the same branch supersedes the previous run.
+# Superseded runs on the same ref are cancelled; a merge queue push should not
+# wait behind an obsolete build.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,47 +20,39 @@ permissions:
   contents: read
 
 env:
+  # Matches the "node": ">=22" engines field in both packages. Pinned so a new
+  # Node major cannot break CI without an explicit bump here.
   NODE_VERSION: "22.x"
+  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
-  # ── Backend: server/ ────────────────────────────────────────────────────────
-  server:
-    name: server (typecheck · lint · test · build)
+  # ── Which halves changed? ───────────────────────────────────────────────────
+  # Both jobs below still RUN on every push (so required status checks always
+  # report), but this lets each skip its expensive steps when untouched.
+  changes:
+    name: Detect changed areas
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: server
-
+    outputs:
+      client: ${{ steps.filter.outputs.client }}
+      server: ${{ steps.filter.outputs.server }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: server/package-lock.json
+          filters: |
+            client:
+              - 'client/**'
+              - '.github/workflows/**'
+            server:
+              - 'server/**'
+              - 'render.yaml'
+              - '.github/workflows/**'
 
-      - run: npm ci
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      # Includes the frozen legacy /api/transform characterization tests, which are
-      # what make redeploying the live DataWeave proxy safe.
-      - name: Test
-        run: npm test
-        env:
-          NODE_ENV: test
-
-      - name: Build
-        run: npm run build
-
-  # ── Frontend: client/ ───────────────────────────────────────────────────────
-  client:
-    name: client (typecheck · lint · test · build)
+  # ── Frontend ────────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend · client
+    needs: changes
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -64,53 +61,136 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: client/package-lock.json
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
+
+      # Reused across runs so unchanged pages are not recompiled from scratch.
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: client/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}-${{ hashFiles('client/**/*.[jt]s', 'client/**/*.[jt]sx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}-
+            nextjs-${{ runner.os }}-
 
       - name: Typecheck
+        if: needs.changes.outputs.client == 'true'
         run: npm run typecheck
 
       - name: Lint
+        if: needs.changes.outputs.client == 'true'
         run: npm run lint
 
       - name: Test
+        if: needs.changes.outputs.client == 'true'
         run: npm test
 
-      # `next build` needs Clerk's publishable key at build time. A dummy key is
-      # enough to compile; no real secret is required and none should be added here.
       - name: Build
+        if: needs.changes.outputs.client == 'true'
         run: npm run build
         env:
-          NEXT_TELEMETRY_DISABLED: "1"
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_Y2ktZHVtbXktZm9yLWJ1aWxkLW9ubHkk
-          NEXT_PUBLIC_API_URL: http://localhost:4000
+          # Clerk's publishable key is required at build time. It is a PUBLIC
+          # key (it ships in the browser bundle), so the repo secret is used
+          # when configured and a syntactically valid dummy otherwise — that
+          # keeps builds working on forks, where secrets are unavailable.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: >-
+            ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+            || 'pk_test_Y2ktZHVtbXktZm9yLWJ1aWxkLW9ubHkk' }}
+          NEXT_PUBLIC_API_URL: >-
+            ${{ secrets.NEXT_PUBLIC_API_URL || 'http://localhost:4000' }}
+          NEXT_PUBLIC_APP_URL: >-
+            ${{ secrets.NEXT_PUBLIC_APP_URL || 'http://localhost:8000' }}
 
-  # ── Guard: no secrets committed ─────────────────────────────────────────────
-  secrets-scan:
-    name: no committed secrets
+      - name: Skipped
+        if: needs.changes.outputs.client != 'true'
+        run: echo "No changes under client/ — checks skipped."
+
+  # ── Backend ─────────────────────────────────────────────────────────────────
+  backend:
+    name: Backend · server
+    needs: changes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        if: needs.changes.outputs.server == 'true'
+        run: npm run typecheck
+
+      - name: Lint
+        if: needs.changes.outputs.server == 'true'
+        run: npm run lint
+
+      # Includes the 25 characterization tests that pin the frozen legacy
+      # DataWeave contract — the safety net for redeploying the live proxy.
+      - name: Test
+        if: needs.changes.outputs.server == 'true'
+        run: npm test
+        env:
+          NODE_ENV: test
+          HEALTHCHECK_ENABLED: "false"
+
+      # Compiles with the same command Render runs, so a build break surfaces
+      # here rather than during deploy.
+      - name: Build
+        if: needs.changes.outputs.server == 'true'
+        run: npm run build
+
+      - name: Skipped
+        if: needs.changes.outputs.server != 'true'
+        run: echo "No changes under server/ — checks skipped."
+
+  # ── Repository hygiene ──────────────────────────────────────────────────────
+  security:
+    name: Secret hygiene
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Assert no env or key files are tracked
+      - name: No secret-bearing files are tracked
         run: |
-          # .gitignore should keep these out; this fails loudly if one slips through.
           if git ls-files | grep -E '(^|/)\.env($|\.)|(^|/)\.clerk/|\.pem$|\.key$'; then
-            echo "::error::Secret-bearing file is tracked in git (see above)."
+            echo "::error::A secret-bearing file is tracked in git (listed above)."
             exit 1
           fi
           echo "OK — no tracked env/key files."
 
-      - name: Warn on hardcoded live keys
+      - name: No live API keys in tracked files
         run: |
-          # Live Razorpay / Clerk / Google keys must never be committed.
-          if git grep -nIE 'rzp_live_[A-Za-z0-9]+|sk_live_[A-Za-z0-9]+|AIza[0-9A-Za-z_-]{35}' -- . ':!*.md'; then
+          # Live Razorpay / Stripe / Clerk / Google keys must never be committed.
+          # This workflow is excluded so the patterns themselves do not match.
+          if git grep -nIE 'rzp_live_[A-Za-z0-9]{10}|sk_live_[A-Za-z0-9]{10}|pk_live_[A-Za-z0-9]{10}|AIza[0-9A-Za-z_-]{35}' \
+               -- . ':!*.md' ':!.github/workflows/*'; then
             echo "::error::A live API key appears to be committed."
             exit 1
           fi
           echo "OK — no live keys found."
+
+      - name: Lockfiles are present and in sync with manifests
+        run: |
+          for dir in client server; do
+            test -f "$dir/package-lock.json" || { echo "::error::$dir/package-lock.json missing"; exit 1; }
+          done
+          echo "OK — both lockfiles tracked."

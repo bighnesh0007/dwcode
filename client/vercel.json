@@ -1,0 +1,31 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": [
+    "Vercel deploys ONLY this directory. Set Root Directory = 'client' in the",
+    "project settings — that is a dashboard setting and cannot be declared here.",
+    "The backend (server/) is deployed separately on Render via ../render.yaml,",
+    "because it is a long-lived Express process and cannot run serverless."
+  ],
+
+  "framework": "nextjs",
+
+  "//ignoreCommand": [
+    "Exit 0 = skip the build, exit 1 = build. Because Root Directory is 'client',",
+    "'.' resolves to client/, so a commit touching only server/ or docs no longer",
+    "triggers a pointless frontend redeploy. Mirrors the paths-filter in CI."
+  ],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+
+  "headers": [
+    {
+      "//": "Defence-in-depth headers. The API sets its own via helmet.",
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" }
+      ]
+    }
+  ]
+}
