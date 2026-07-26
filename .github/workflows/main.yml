@@ -4,11 +4,16 @@ name: CI
 # (Express + TypeScript, deployed to Render). Deployment itself is handled by
 # those platforms' own Git integrations — this workflow only gates correctness.
 
+# Runs on pushes to master only.
+#
+# NOTE: with no `pull_request` trigger, PR branches are NOT checked — a failure is
+# only discovered once the change is already on master. Add back
+#   pull_request:
+#     branches: [master]
+# if you want the gate to run before merging.
 on:
   push:
-    branches: [master, develop]
-  pull_request:
-    branches: [master, develop]
+    branches: [master]
 
 # Superseded runs on the same ref are cancelled; a merge queue push should not
 # wait behind an obsolete build.
