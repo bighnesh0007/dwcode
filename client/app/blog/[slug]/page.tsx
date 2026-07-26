@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, Tag, Trash2, Loader2, Share2, Check } from "lucide-react";
 import { BlogVoteButtons } from "@/components/BlogVoteButtons";
+import { Comments } from "@/components/Comments";
 import { renderMarkdown } from "@/lib/markdown";
 import type { BlogPost } from "@/lib/types";
 
@@ -216,6 +217,15 @@ export default function BlogPostPage() {
                            [&_th]:border [&_th]:border-border/60 [&_th]:bg-muted/60 [&_th]:px-3 [&_th]:py-1.5 [&_th]:text-left"
                 dangerouslySetInnerHTML={{ __html: renderedContent }}
             />
+
+            {/*
+              Discussion. Reuses the same component, API and moderation rules as
+              problem comments — see models/Comment.ts for why the model was
+              generalised rather than duplicated.
+            */}
+            <div className="mt-10 border-t pt-8">
+                <Comments targetType="blog" targetId={post.slug} title="Discussion" />
+            </div>
         </div>
     );
 }

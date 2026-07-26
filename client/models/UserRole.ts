@@ -9,4 +9,8 @@ export const UserRoleSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
 });
 
+// PERF-02: UserRole.find({ role: "admin" }) runs on every admin-directory load
+// and inside requireAdmin()'s DB path.
+UserRoleSchema.index({ role: 1 });
+
 export const UserRole = modelFromSchema("UserRole", UserRoleSchema);

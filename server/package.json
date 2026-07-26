@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "DWCode application backend — business logic, data access, validation and integrations.",
+  "description": "DWCode application backend \u2014 business logic, data access, validation and integrations.",
   "license": "ISC",
   "engines": {
     "node": ">=22"
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@clerk/backend": "3.8.2",
+    "@dwcode/shared": "*",
     "@google/genai": "^2.8.0",
     "compression": "^1.8.0",
     "cors": "^2.8.6",
@@ -28,7 +29,7 @@
     "express-rate-limit": "^8.0.0",
     "helmet": "^8.0.0",
     "lru-cache": "^11.0.0",
-    "mongoose": "9.7.1",
+    "mongoose": "9.8.0",
     "pino": "^9.0.0",
     "pino-http": "^10.0.0",
     "zod": "^4.0.0"

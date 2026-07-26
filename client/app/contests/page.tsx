@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContestListItem, ProblemSummary } from "@/lib/types";
+import { difficultyClassName } from "@dwcode/shared";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
     upcoming: { label: "Upcoming", color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/30" },
@@ -358,10 +359,7 @@ export default function ContestsPage() {
                                             onChange={() => toggleProblem(p._id)}
                                         />
                                         <span className="text-sm flex-1">{p.title}</span>
-                                        <Badge variant="outline" className={`text-[10px] py-0 ${p.difficulty === "Easy" ? "text-green-500 border-green-500/30" :
-                                            p.difficulty === "Medium" ? "text-yellow-500 border-yellow-500/30" :
-                                                "text-red-500 border-red-500/30"
-                                            }`}>{p.difficulty}</Badge>
+                                        <Badge variant="outline" className={`text-[10px] py-0 ${difficultyClassName(p.difficulty).badge}`}>{p.difficulty}</Badge>
                                     </label>
                                 ))}
                             </div>

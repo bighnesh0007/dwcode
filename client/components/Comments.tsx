@@ -11,7 +11,22 @@ import { Trash2, MessageSquare, Loader2 } from "lucide-react";
 import { renderMarkdown } from "@/lib/markdown";
 import type { Comment } from "@/lib/types";
 
-export function Comments({ problemSlug }: { problemSlug: string }) {
+/**
+ * Discussion thread for any commentable resource.
+ *
+ * Generalised from problems so blog posts reuse the same component, API and
+ * moderation rules rather than growing a parallel implementation.
+ */
+export function Comments({
+    targetType = "problem",
+    targetId,
+    title = "Discussion",
+}: {
+    targetType?: "problem" | "blog";
+    targetId: string;
+    title?: string;
+}) {
+    const resolvedId = targetId;
     const { user, isSignedIn } = useUser();
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,7 +37,10 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
     const fetchComments = useCallback(async (signal?: AbortSignal) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/comments?problemSlug=${problemSlug}`, { signal });
+            const res = await fetch(
+                `/api/comments?targetType=${targetType}&targetId=${encodeURIComponent(resolvedId)}`,
+                { signal },
+            );
             const data = await res.json();
             if (Array.isArray(data)) setComments(data);
         } catch {
@@ -30,7 +48,7 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
         } finally {
             if (!signal?.aborted) setLoading(false);
         }
-    }, [problemSlug]);
+    }, [targetType, resolvedId]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -52,7 +70,7 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
             const res = await fetch("/api/comments", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ problemSlug, content: draft.trim() }),
+                body: JSON.stringify({ targetType, targetId: resolvedId, content: draft.trim() }),
             });
             const data = await res.json();
             if (data.success) {
@@ -81,7 +99,7 @@ export function Comments({ problemSlug }: { problemSlug: string }) {
         <div className="px-5 py-4 space-y-4">
             <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold">Discussion</span>
+                <span className="text-sm font-semibold">{title}</span>
                 <Badge variant="secondary" className="text-[10px] py-0">{comments.length}</Badge>
             </div>
 

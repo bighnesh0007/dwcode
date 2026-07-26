@@ -3,19 +3,18 @@
  * rules here.
  */
 import type mongoose from "mongoose";
-import type { Difficulty } from "../config/constants.ts";
 import { Problem } from "../models/Problem.ts";
 
 /** The minimal projection the weekly-contest scheduler needs. */
 export interface SampledProblem {
   _id: mongoose.Types.ObjectId;
   slug: string;
-  difficulty: Difficulty;
+  difficulty: string;
 }
 
 export class ProblemRepository {
   /** Uniformly sample up to `n` problems of the given difficulty. */
-  async sampleByDifficulty(difficulty: Difficulty, n: number): Promise<SampledProblem[]> {
+  async sampleByDifficulty(difficulty: string, n: number): Promise<SampledProblem[]> {
     return Problem.aggregate<SampledProblem>([
       { $match: { difficulty } },
       { $sample: { size: n } },

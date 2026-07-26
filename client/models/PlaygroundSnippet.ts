@@ -30,7 +30,9 @@ const PlaygroundTestCaseSchema = new mongoose.Schema(
 
 export const PlaygroundSnippetSchema = new mongoose.Schema(
   {
-    slug: { type: String, required: true, unique: true, index: true },
+    // `unique: true` already builds the index; `index: true` alongside it was a
+    // redundant duplicate declaration (PERF-02).
+    slug: { type: String, required: true, unique: true },
     script: { type: String, required: true },
     files: [PlaygroundFileSchema],
     testCases: [PlaygroundTestCaseSchema],

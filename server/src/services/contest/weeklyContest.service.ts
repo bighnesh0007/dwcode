@@ -10,7 +10,7 @@
  * The scheduler mirrors UpstreamHealthService: started only from server.ts, timer
  * `unref()`d so it never keeps the process (or a test run) alive.
  */
-import { WEEKLY_CONTEST, DIFFICULTIES, type Difficulty } from "../../config/constants.ts";
+import { WEEKLY_CONTEST, DIFFICULTIES, DIFFICULTY_TIERS } from "../../config/constants.ts";
 import { contextLogger, logEvent } from "../../lib/logger.ts";
 import type { ContestRepository } from "../../repositories/contest.repository.ts";
 import type { ProblemRepository, SampledProblem } from "../../repositories/problem.repository.ts";
@@ -23,7 +23,11 @@ export interface WeeklyContestConfig {
   hourUTC: number;
   durationMinutes: number;
   maxParticipants: number;
-  problemMix: Readonly<Record<Difficulty, number>>;
+  /**
+   * Ideal draw per difficulty. PARTIAL over the registry on purpose — since
+   * REF-01 made tiers config-driven, adding one must not force an edit here.
+   */
+  problemMix: Readonly<Partial<Record<string, number>>>;
   minProblems: number;
   checkIntervalMs: number;
 }
@@ -115,7 +119,11 @@ export class WeeklyContestService {
 
     let targetTotal = 0;
     for (const difficulty of DIFFICULTIES) {
-      const want = this.cfg.problemMix[difficulty];
+      // `problemMix` is deliberately PARTIAL over the difficulty registry: since
+      // REF-01 made tiers config-driven, a newly added tier must not force an
+      // edit here. A tier absent from the mix is simply not drawn directly — it
+      // can still arrive through the sampleAny backfill below.
+      const want = this.cfg.problemMix[difficulty] ?? 0;
       targetTotal += want;
       if (want > 0) addUnique(await this.problemRepo.sampleByDifficulty(difficulty, want));
     }
@@ -138,10 +146,17 @@ export class WeeklyContestService {
     }
 
     const dateLabel = slot.toISOString().slice(0, 10);
+    // Scoring blurb is DERIVED, not written out. It previously read
+    // "Hard x5, Medium x3, Easy x1" — a fifth copy of SCORE_WEIGHTS, in prose,
+    // which would have quietly lied the moment a tier was added (REF-01).
+    const scoringBlurb = [...DIFFICULTY_TIERS]
+      .sort((a, b) => b.scoreWeight - a.scoreWeight)
+      .map((tier) => `${tier.label} x${tier.scoreWeight}`)
+      .join(", ");
     const description =
       `Welcome to the DWCode weekly community contest! ` +
       `This round features ${picked.length} randomly selected problems — jump in and see how you rank. ` +
-      `Scoring: Hard x5, Medium x3, Easy x1. Good luck!`;
+      `Scoring: ${scoringBlurb}. Good luck!`;
 
     try {
       await this.contestRepo.create({

@@ -3,24 +3,40 @@
   "version": "1.0.0",
   "private": true,
   "description": "DWCode monorepo — Next.js client + layered application backend.",
-  "scripts": {
-    "dev": "concurrently -n client,server -c cyan,magenta --kill-others-on-fail \"npm:dev:client\" \"npm:dev:server\"",
-    "dev:client": "npm --prefix client run dev",
-    "dev:server": "npm --prefix server run dev",
 
-    "build": "npm --prefix server run build && npm --prefix client run build",
-    "build:client": "npm --prefix client run build",
-    "build:server": "npm --prefix server run build",
+  "//workspaces": [
+    "npm workspaces (REF-01). @dwcode/shared holds the difficulty registry and",
+    "scoring rules that client/ and server/ previously duplicated.",
+    "",
+    "DEPLOYMENT: this changes how both platforms must install. See",
+    "docs/runbooks/deployment-prerequisites.md before deploying."
+  ],
+  "workspaces": [
+    "packages/*",
+    "client",
+    "server"
+  ],
+
+  "scripts": {
+    "dev": "npm run build:shared && concurrently -n client,server -c cyan,magenta --kill-others-on-fail \"npm:dev:client\" \"npm:dev:server\"",
+    "dev:client": "npm run dev -w dwcode-client",
+    "dev:server": "npm run dev -w dwcode-server",
+
+    "//build": "shared MUST build first — both packages consume its dist/.",
+    "build": "npm run build:shared && npm run build:server && npm run build:client",
+    "build:shared": "npm run build -w @dwcode/shared",
+    "build:client": "npm run build -w dwcode-client",
+    "build:server": "npm run build -w dwcode-server",
 
     "start": "concurrently -n client,server -c cyan,magenta \"npm:start:client\" \"npm:start:server\"",
-    "start:client": "npm --prefix client run start",
-    "start:server": "npm --prefix server run start",
+    "start:client": "npm run start -w dwcode-client",
+    "start:server": "npm run start -w dwcode-server",
 
-    "lint": "npm --prefix client run lint && npm --prefix server run lint",
-    "typecheck": "npm --prefix server run typecheck",
-    "test": "npm --prefix server run test",
+    "lint": "npm run lint -w dwcode-client && npm run lint -w dwcode-server",
+    "typecheck": "npm run build:shared && npm run typecheck -w dwcode-client && npm run typecheck -w dwcode-server",
+    "test": "npm run build:shared && npm run test -w dwcode-client && npm run test -w dwcode-server",
 
-    "setup": "npm install && npm --prefix client install && npm --prefix server install",
+    "setup": "npm install && npm run build:shared",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down"
   },
@@ -31,4 +47,3 @@
     "node": ">=22"
   }
 }
-

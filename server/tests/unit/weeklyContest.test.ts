@@ -4,7 +4,6 @@
  */
 import mongoose from "mongoose";
 import { describe, expect, it } from "vitest";
-import type { Difficulty } from "../../src/config/constants.ts";
 import type { ContestCreateInput } from "../../src/repositories/contest.repository.ts";
 import type { SampledProblem } from "../../src/repositories/problem.repository.ts";
 import { WeeklyContestService } from "../../src/services/contest/weeklyContest.service.ts";
@@ -17,7 +16,7 @@ function fixedClock(at: Date): Clock {
   return { now: () => at, nowMs: () => at.getTime() };
 }
 
-function problem(difficulty: Difficulty, slug: string): SampledProblem {
+function problem(difficulty: string, slug: string): SampledProblem {
   return { _id: new mongoose.Types.ObjectId(), slug, difficulty };
 }
 
@@ -47,7 +46,7 @@ class FakeContestRepository {
 class FakeProblemRepository {
   constructor(readonly pool: SampledProblem[] = []) {}
 
-  sampleByDifficulty(difficulty: Difficulty, n: number): Promise<SampledProblem[]> {
+  sampleByDifficulty(difficulty: string, n: number): Promise<SampledProblem[]> {
     return Promise.resolve(
       this.pool.filter((p) => p.difficulty === difficulty).slice(0, n),
     );

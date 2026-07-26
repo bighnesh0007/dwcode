@@ -18,4 +18,10 @@ export const BlogSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now },
 });
 
+// Indexes (PERF-02).
+// Blog.find({ published: true }).sort({ createdAt: -1 }) — the blog index page.
+BlogSchema.index({ published: 1, createdAt: -1 });
+// Author's own posts, used by the profile and moderation views.
+BlogSchema.index({ authorId: 1 });
+
 export const Blog = modelFromSchema("Blog", BlogSchema);

@@ -30,6 +30,7 @@ const THEME_OPTIONS: { value: EditorThemeSetting; label: string }[] = [
 const AUTO_RUN_LABELS: Record<AutoRunDelay, string> = {
     0: "Off",
     800: "0.8s",
+    1000: "1s",
     1500: "1.5s",
     3000: "3s",
 };

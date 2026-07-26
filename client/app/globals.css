@@ -2,6 +2,14 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/*
+ * REF-01: the difficulty registry in @dwcode/shared holds literal Tailwind
+ * classes (text-green-500, before:bg-red-500, …). Tailwind only generates
+ * classes it can SEE in scanned source, and it does not scan node_modules by
+ * default — without this the difficulty colours would silently disappear.
+ */
+@source "../../packages/shared/src";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

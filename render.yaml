@@ -18,15 +18,23 @@ services:
   - type: web
     name: dwcode-server
     runtime: node
-    # The monorepo root is the repo; the service lives in server/.
-    rootDir: server
+    # NOTE: `rootDir: server` was REMOVED in REF-01.
+    #
+    # The repo is now an npm workspace, so the ONLY lockfile is at the root and
+    # `npm ci` inside server/ has nothing to install from. Builds therefore run
+    # from the repository root and target the workspace explicitly.
+    #
+    # See docs/runbooks/deployment-prerequisites.md — the blueprint must be
+    # RE-APPLIED for these commands to take effect.
     plan: free
     region: oregon
     branch: master
     autoDeployTrigger: commit
 
-    buildCommand: npm ci && npm run build
-    startCommand: npm start
+    # `build:shared` must precede `build:server`: the server consumes
+    # @dwcode/shared as compiled dist/ output, not as TypeScript source.
+    buildCommand: npm ci && npm run build:shared && npm run build:server
+    startCommand: npm run start:server
 
     # Cheap, dependency-free endpoint — deliberately not /healthcheck, which
     # probes the upstream compiler and returns 503 when that is degraded. A
