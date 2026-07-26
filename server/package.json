@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx/esm --watch src/server.ts",
     "start": "node dist/server.js",
+    "prebuild": "npm run build --workspace @dwcode/shared --prefix ..",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
