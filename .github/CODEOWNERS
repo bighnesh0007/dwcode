@@ -1,0 +1,14 @@
+# Default owner for everything.
+*                       @bighnesh0007
+
+# Areas where a mistake is expensive — flagged for deliberate review.
+/packages/shared/       @bighnesh0007
+/client/scripts/migrations/  @bighnesh0007
+/client/lib/grading.ts  @bighnesh0007
+/client/lib/markdown.ts @bighnesh0007
+/client/proxy.ts        @bighnesh0007
+/.github/workflows/     @bighnesh0007
+/render.yaml            @bighnesh0007
+/vercel.json            @bighnesh0007
+/client/vercel.json     @bighnesh0007
+/docs/audit/            @bighnesh0007

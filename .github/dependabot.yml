@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # One PR per ecosystem per week, grouped, so the queue stays reviewable.
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    groups:
+      # Framework majors deserve their own PR — grouping them hides breakage.
+      next:
+        patterns: ["next", "eslint-config-next", "@next/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      dev-dependencies:
+        dependency-type: development
+        exclude-patterns: ["next", "eslint-config-next", "react*", "@types/react*"]
+      production-minor-patch:
+        dependency-type: production
+        update-types: ["minor", "patch"]
+        exclude-patterns: ["next", "react*"]
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: monthly }
+    labels: ["dependencies", "ci"]
+    commit-message: { prefix: "ci(deps)" }

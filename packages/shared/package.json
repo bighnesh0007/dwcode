@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Domain constants and rules shared by the DWCode client and server.",
-  "license": "ISC",
+  "license": "MIT",
   "engines": {
     "node": ">=22"
   },

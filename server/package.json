@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "DWCode application backend \u2014 business logic, data access, validation and integrations.",
-  "license": "ISC",
+  "license": "MIT",
   "engines": {
     "node": ">=22"
   },

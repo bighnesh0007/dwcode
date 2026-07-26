@@ -1,0 +1,53 @@
+name: 🧩 Propose a DataWeave problem
+description: Contribute a new practice problem
+labels: ["content", "problem-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The best contribution to DWCode. One hard rule:
+
+        > **Never hand-write the expected output.** Run your solution through the
+        > compiler and paste exactly what it returns. A hand-typed expectation
+        > that differs by one space makes the problem unpassable.
+  - type: input
+    id: title
+    attributes:
+      label: Title
+      placeholder: Flatten a Namespaced SOAP Order into Line Records
+    validations: { required: true }
+  - type: dropdown
+    id: difficulty
+    attributes:
+      label: Difficulty
+      description: Tiers come from `packages/shared/src/difficulty.ts`.
+      options: [Easy, Medium, Hard, Expert]
+    validations: { required: true }
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem description
+      description: What must the transform do? Include the edge cases that make it interesting.
+    validations: { required: true }
+  - type: textarea
+    id: solution
+    attributes:
+      label: Reference solution
+      render: dataweave
+    validations: { required: true }
+  - type: textarea
+    id: cases
+    attributes:
+      label: Test cases
+      description: Input plus the output the COMPILER produced. 3–4 visible, 3–4 hidden.
+      render: json
+    validations: { required: true }
+  - type: checkboxes
+    id: verified
+    attributes:
+      label: Verification
+      options:
+        - label: I ran the solution against every input and pasted the compiler's actual output
+          required: true
+        - label: This is my own work, contributed under the MIT licence
+          required: true

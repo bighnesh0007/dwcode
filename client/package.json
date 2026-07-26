@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "DWCode frontend \u2014 Next.js presentation layer.",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev -p 8000",
     "prebuild": "npm run build --workspace @dwcode/shared --prefix ..",

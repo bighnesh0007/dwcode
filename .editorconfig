@@ -1,0 +1,20 @@
+# Keeps formatting consistent across editors. The repo mixes 2- and 4-space
+# indentation by file; these are the dominant conventions per area.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false   # two trailing spaces is a hard line break
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[Makefile]
+indent_style = tab

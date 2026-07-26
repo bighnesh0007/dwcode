@@ -2,8 +2,8 @@
   "name": "dwcode",
   "version": "1.0.0",
   "private": true,
-  "description": "DWCode monorepo — Next.js client + layered application backend.",
-
+  "description": "DWCode monorepo \u2014 Next.js client + layered application backend.",
+  "license": "MIT",
   "//workspaces": [
     "npm workspaces (REF-01). @dwcode/shared holds the difficulty registry and",
     "scoring rules that client/ and server/ previously duplicated.",
@@ -16,26 +16,21 @@
     "client",
     "server"
   ],
-
   "scripts": {
     "dev": "npm run build:shared && concurrently -n client,server -c cyan,magenta --kill-others-on-fail \"npm:dev:client\" \"npm:dev:server\"",
     "dev:client": "npm run dev -w dwcode-client",
     "dev:server": "npm run dev -w dwcode-server",
-
-    "//build": "shared MUST build first — both packages consume its dist/.",
+    "//build": "shared MUST build first \u2014 both packages consume its dist/.",
     "build": "npm run build:shared && npm run build:server && npm run build:client",
     "build:shared": "npm run build -w @dwcode/shared",
     "build:client": "npm run build -w dwcode-client",
     "build:server": "npm run build -w dwcode-server",
-
     "start": "concurrently -n client,server -c cyan,magenta \"npm:start:client\" \"npm:start:server\"",
     "start:client": "npm run start -w dwcode-client",
     "start:server": "npm run start -w dwcode-server",
-
     "lint": "npm run lint -w dwcode-client && npm run lint -w dwcode-server",
     "typecheck": "npm run build:shared && npm run typecheck -w dwcode-client && npm run typecheck -w dwcode-server",
     "test": "npm run build:shared && npm run test -w dwcode-client && npm run test -w dwcode-server",
-
     "setup": "npm install && npm run build:shared",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down"

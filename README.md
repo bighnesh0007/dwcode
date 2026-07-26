@@ -388,9 +388,15 @@ var community = payload.developers
 DWCode gets better every time a MuleSoft dev throws in a problem, fixes a bug, or writes a blog post. Jump in:
 
 1. Fork the repo and create a feature branch: `git checkout -b feat/your-feature`
-2. Make your changes, then from `client/` ensure the app builds: `npm run build`
-3. Run lint from `client/`: `npm run lint`
+2. Install **from the repository root** — this is an npm workspace: `npm install`
+3. Make your changes, then verify: `npm run typecheck && npm run lint && npm test && npm run build`
 4. Open a pull request with a clear description
+
+**[CONTRIBUTING.md](CONTRIBUTING.md) has the full guide** — repository layout,
+the rule about never hand-writing a problem's expected output, database
+migration conventions, and the gotchas that bite newcomers.
+
+Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Every contribution — a single test case or a whole new feature — makes the whole community sharper. 🙌
 
@@ -398,7 +404,9 @@ Every contribution — a single test case or a whole new feature — makes the w
 
 ## 📄 License
 
-MIT — feel free to use, fork, and extend. Go build something great.
+[MIT](LICENSE) — feel free to use, fork, and extend. Go build something great.
+
+Found a security issue? Please report it privately — see [SECURITY.md](SECURITY.md).
 
 <br/>
 
