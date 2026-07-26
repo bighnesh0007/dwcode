@@ -373,3 +373,106 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.5 0.01 260 / 70%);
 }
+
+/* ===== RANK AVATAR EFFECTS ===== */
+/* Padding-technique rings: the outer .rank-ring carries the gradient (as a
+   rotatable ::before layer), the inner div restores the page background so the
+   ring reads as a ring over any surface. Used by components/RankAvatar.tsx. */
+
+@keyframes rank-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes rank-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 10px 1px rgba(245, 158, 11, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 22px 5px rgba(244, 63, 94, 0.55);
+  }
+}
+
+.rank-ring {
+  position: relative;
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 9999px;
+  isolation: isolate;
+}
+
+/* Gradient layer — kept separate so it can rotate without rotating the avatar. */
+.rank-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -1;
+}
+
+.rank-ring-inner {
+  border-radius: 9999px;
+  padding: 2px;
+  background: var(--background);
+}
+
+/* Grandmaster: rotating conic ring (gold -> orange -> rose -> violet -> gold)
+   with an outer glow that subtly pulses. */
+.rank-ring-grandmaster::before {
+  background: conic-gradient(
+    from 0deg,
+    #f59e0b,
+    #f97316,
+    #f43f5e,
+    #8b5cf6,
+    #f59e0b
+  );
+  animation: rank-spin 3.5s linear infinite;
+}
+.rank-ring-grandmaster {
+  box-shadow: 0 0 14px 2px rgba(245, 158, 11, 0.5);
+  animation: rank-pulse 2.8s ease-in-out infinite;
+}
+
+/* Master: static gold gradient ring + soft golden glow. */
+.rank-ring-master::before {
+  background: linear-gradient(135deg, #fde047, #f59e0b, #b45309);
+}
+.rank-ring-master {
+  box-shadow: 0 0 12px 1px rgba(245, 158, 11, 0.4);
+}
+
+/* Expert: violet ring. */
+.rank-ring-expert::before {
+  background: linear-gradient(135deg, #a78bfa, #7c3aed);
+}
+
+/* Specialist: cyan ring. */
+.rank-ring-specialist::before {
+  background: linear-gradient(135deg, #67e8f9, #0891b2);
+}
+
+/* Apprentice: emerald ring. */
+.rank-ring-apprentice::before {
+  background: linear-gradient(135deg, #6ee7b7, #059669);
+}
+
+/* Novice: plain border. */
+.rank-ring-novice::before {
+  background: var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rank-ring,
+  .rank-ring::before {
+    animation: none;
+  }
+  .rank-ring-grandmaster {
+    box-shadow: 0 0 14px 2px rgba(245, 158, 11, 0.5);
+  }
+}

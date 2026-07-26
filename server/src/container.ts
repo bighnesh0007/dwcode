@@ -11,7 +11,10 @@ import { config } from "./config/index.ts";
 import { MemoryKeyValueStore } from "./lib/store/memoryStore.ts";
 import { LegacyTransformController } from "./controllers/legacy/transform.legacy.controller.ts";
 import { SponsorshipController } from "./controllers/sponsorship.controller.ts";
+import { ContestRepository } from "./repositories/contest.repository.ts";
+import { ProblemRepository } from "./repositories/problem.repository.ts";
 import { SponsorshipRepository } from "./repositories/sponsorship.repository.ts";
+import { WeeklyContestService } from "./services/contest/weeklyContest.service.ts";
 import { DataWeaveClient } from "./services/dataweave/dataweave.client.ts";
 import { UpstreamHealthService } from "./services/dataweave/upstreamHealth.service.ts";
 import {
@@ -44,6 +47,7 @@ export interface Container {
   dataweaveClient: DataWeaveClient;
   upstreamHealth: UpstreamHealthService;
   sponsorshipService: SponsorshipService;
+  weeklyContest: WeeklyContestService;
   // controllers
   legacyTransformController: LegacyTransformController;
   sponsorshipController: SponsorshipController;
@@ -104,6 +108,13 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
 
   const sponsorshipController = new SponsorshipController(sponsorshipService);
 
+  // ── Weekly contest ─────────────────────────────────────────────────────────
+  const weeklyContest = new WeeklyContestService(
+    new ContestRepository(),
+    new ProblemRepository(),
+    clock,
+  );
+
   return {
     store,
     clock,
@@ -111,6 +122,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
     dataweaveClient,
     upstreamHealth,
     sponsorshipService,
+    weeklyContest,
     legacyTransformController,
     sponsorshipController,
   };

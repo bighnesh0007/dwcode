@@ -39,6 +39,12 @@ export async function DELETE(
         }
 
         await Blog.deleteOne({ slug });
+        // Votes are keyed by slug, and slugs are reusable (the uniqueness loop in
+        // POST /api/blog only checks live posts). Stale votes on a recycled slug
+        // would seed the new post with counts/myVote its author never earned —
+        // and retracting one could even drive its counters negative.
+        const { BlogVote } = await import("@/models/BlogVote");
+        await BlogVote.deleteMany({ blogSlug: slug });
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });

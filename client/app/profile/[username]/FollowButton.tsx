@@ -4,9 +4,16 @@ import { useState } from "react";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
-export default function FollowButton({ targetUsername }: { targetUsername: string }) {
+export default function FollowButton({
+  targetUsername,
+  initialFollowing = false,
+}: {
+  targetUsername: string;
+  /** Server-computed follow state, so the button renders correctly without a flash. */
+  initialFollowing?: boolean;
+}) {
   const { isSignedIn, isLoaded } = useUser();
-  const [following, setFollowing] = useState(false); // we would ideally fetch initial state, but for simplicity we toggle.
+  const [following, setFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
 
   if (!isLoaded) return null;

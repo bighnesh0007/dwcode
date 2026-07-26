@@ -107,3 +107,18 @@ export const ABUSE_RULES = {
 
 /** Attempts expire after this long, via a Mongo TTL index. */
 export const ATTEMPT_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The auto-scheduled public weekly contest: Saturday 15:00 UTC, two hours.
+ * `problemMix` is the ideal draw per difficulty; short buckets are backfilled
+ * from the whole pool, and the contest is skipped below `minProblems`.
+ */
+export const WEEKLY_CONTEST = {
+  dayOfWeekUTC: 6, // Saturday
+  hourUTC: 15,
+  durationMinutes: 120,
+  maxParticipants: 500,
+  problemMix: { Easy: 1, Medium: 2, Hard: 1 },
+  minProblems: 2,
+  checkIntervalMs: 60 * 60 * 1000,
+} as const;

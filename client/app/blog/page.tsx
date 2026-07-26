@@ -7,7 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Plus, Calendar, Loader2, Tag, ExternalLink } from "lucide-react";
+import { BookOpen, Plus, Calendar, Loader2, Tag, ExternalLink, ArrowBigUp } from "lucide-react";
 import type { BlogPost } from "@/lib/types";
 
 // LinkedIn brand icon (inline SVG — not in all lucide versions)
@@ -151,6 +151,15 @@ export default function BlogPage() {
                                                         month: "short", day: "numeric", year: "numeric",
                                                     })}
                                                 </div>
+                                                <span className="text-muted-foreground/40 text-xs">·</span>
+                                                {/* Read-only score chip — per-card vote state is NOT fetched (avoids N+1) */}
+                                                <span
+                                                    className="inline-flex items-center gap-0.5 rounded-full border border-border bg-muted/50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground"
+                                                    title="Score"
+                                                >
+                                                    <ArrowBigUp className="w-3 h-3" />
+                                                    {(post.upvotes ?? 0) - (post.downvotes ?? 0)}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>

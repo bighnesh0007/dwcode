@@ -1,0 +1,57 @@
+import mongoose from "mongoose";
+import { modelFromSchema } from "./model.ts";
+
+/**
+ * Ported from client/models/Contest.ts so backend jobs (e.g. the weekly contest
+ * scheduler) can write to the same collection. Keep the two schemas in sync.
+ *
+ * Server-only addition: `seriesKey` — the idempotency key for auto-generated
+ * contests (one per weekly slot). Client code never writes this field, so the
+ * client schema not knowing it is fine.
+ */
+const ParticipantSchema = new mongoose.Schema(
+  {
+    userId: { type: String, required: true },
+    userName: { type: String, required: true },
+    userImageUrl: { type: String, default: "" },
+    score: { type: Number, default: 0 },
+    solvedProblems: [{ type: String }], // array of problem slugs solved
+    joinedAt: { type: Date, default: Date.now },
+    finishedAt: { type: Date },
+  },
+  { _id: false },
+);
+
+export const ContestSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  description: { type: String, default: "" },
+  createdBy: { type: String, required: true }, // Clerk user ID
+  createdByName: { type: String, required: true },
+  problems: [{ type: mongoose.Schema.Types.ObjectId, ref: "Problem" }],
+  problemSlugs: [{ type: String }],
+  startTime: { type: Date, required: true },
+  endTime: { type: Date, required: true },
+  duration: { type: Number, required: true }, // minutes
+  status: {
+    type: String,
+    enum: ["upcoming", "active", "ended"],
+    default: "upcoming",
+  },
+  isPublic: { type: Boolean, default: true },
+  maxParticipants: { type: Number, default: 100 },
+  participants: [ParticipantSchema],
+  inviteCode: { type: String, unique: true, sparse: true, uppercase: true, trim: true },
+  /** Idempotency key for generated contests, e.g. "weekly-2026-08-01". */
+  seriesKey: { type: String, unique: true, sparse: true },
+  createdAt: { type: Date, default: Date.now },
+});
+
+// Auto-compute status based on time
+ContestSchema.virtual("computedStatus").get(function () {
+  const now = new Date();
+  if (now < this.startTime) return "upcoming";
+  if (now > this.endTime) return "ended";
+  return "active";
+});
+
+export const Contest = modelFromSchema("Contest", ContestSchema);

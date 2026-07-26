@@ -8,6 +8,7 @@ import { useUser } from "@clerk/nextjs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, Tag, Trash2, Loader2, Share2, Check } from "lucide-react";
+import { BlogVoteButtons } from "@/components/BlogVoteButtons";
 import { renderMarkdown } from "@/lib/markdown";
 import type { BlogPost } from "@/lib/types";
 
@@ -108,6 +109,13 @@ export default function BlogPostPage() {
                 </Link>
 
                 <div className="flex items-center gap-2">
+                    {/* Vote buttons — visible to everyone, voting requires sign-in */}
+                    <BlogVoteButtons
+                        slug={slug}
+                        initialUpvotes={post.upvotes ?? 0}
+                        initialDownvotes={post.downvotes ?? 0}
+                    />
+
                     {/* Share button — works for everyone, no login needed */}
                     <Button
                         variant="ghost"

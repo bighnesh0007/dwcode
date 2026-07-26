@@ -47,6 +47,9 @@ const envSchema = z.object({
   HEALTHCHECK_ENABLED: booleanish.default(true),
   HEALTHCHECK_INTERVAL_MS: z.coerce.number().int().positive().default(3 * 60 * 1000),
 
+  // ── Weekly contest scheduler ───────────────────────────────────────────────
+  WEEKLY_CONTEST_ENABLED: booleanish.default(true),
+
   // ── External services ──────────────────────────────────────────────────────
   GEMINI_API_KEY: z.string().min(1).optional(),
   GITHUB_CLIENT_ID: z.string().min(1).optional(),

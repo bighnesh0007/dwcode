@@ -63,6 +63,10 @@ services:
       - key: HEALTHCHECK_ENABLED
         value: "true"
 
+      # ── Weekly contest scheduler ───────────────────────────────────────────
+      - key: WEEKLY_CONTEST_ENABLED
+        value: "true"
+
       # ── Set these in the dashboard (never committed) ───────────────────────
       # Database
       - key: MONGODB_URI

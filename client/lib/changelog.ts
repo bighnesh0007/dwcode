@@ -31,6 +31,176 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "leaderboard-profiles-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "feature",
+        title: "Leaderboard → public profiles",
+        description:
+            "Every player on the leaderboard is now clickable — jump straight to their public profile to see their tier, heatmap and recent submissions. Users without a public profile show as plain rows.",
+        tags: ["leaderboard", "profile", "community"],
+    },
+    {
+        id: "leaderboard-pagination-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "improvement",
+        title: "Leaderboard pagination",
+        description:
+            "The leaderboard is paginated server-side (25 players per page) with sort by score, solved or accuracy. Rank numbers stay canonical across every sort, and your own rank card works from any page.",
+        tags: ["leaderboard", "performance"],
+    },
+    {
+        id: "monorepo-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "dx",
+        title: "Monorepo restructure",
+        description:
+            "The app is now split into client/ (the Next.js frontend) and server/ (a new TypeScript backend). A single `npm run dev` starts both.",
+        tags: ["architecture", "dx"],
+    },
+    {
+        id: "backend-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "feature",
+        title: "New backend service",
+        description:
+            "A layered Express + TypeScript API with request validation, structured logging, rate limiting, and Clerk JWT auth. The legacy DataWeave /api/transform contract is preserved byte-for-byte, guarded by characterization tests.",
+        tags: ["backend", "api", "dx"],
+    },
+    {
+        id: "sponsor-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "feature",
+        title: "Sponsorships",
+        description:
+            "A new /sponsor page with Razorpay checkout, preset tiers, and a public sponsor wall. Every payment is verified server-side via HMAC signature before it counts.",
+        tags: ["sponsor", "payments", "community"],
+    },
+    {
+        id: "theme-store-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "feature",
+        title: "Theme Store",
+        description:
+            "Seven purchasable accent themes with a live try-before-you-buy preview across the whole site. Coins are now spendable — debits are atomic and race-safe.",
+        tags: ["themes", "coins", "gamification"],
+    },
+    {
+        id: "playground-redesign-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "improvement",
+        title: "Playground redesign",
+        description:
+            "A decluttered toolbar, the AI panel removed, and a new settings dialog covering editor theme, font size, indent, wrap, minimap, line numbers, and opt-in auto-run. Your layout preference is persisted.",
+        tags: ["playground", "editor", "ux"],
+    },
+    {
+        id: "footer-002",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "improvement",
+        title: "Site footer",
+        description:
+            "A new footer with quick links across the site. Changelog moved from the navbar into it, and the footer stays hidden inside the problem workspace to keep the editor distraction-free.",
+        tags: ["ui", "navigation"],
+    },
+    {
+        id: "blog-dark-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "bugfix",
+        title: "Blog — dark-theme fixes",
+        description:
+            "LinkedIn embed tiles are now readable in dark mode, and long-form post styling has been rebuilt from scratch — the old prose classes were inert and did nothing.",
+        tags: ["blog", "dark-mode"],
+    },
+    {
+        id: "admin-users-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "bugfix",
+        title: "Admin user directory fixed",
+        description:
+            "Users who never submitted code were invisible in the admin directory. It now unions profiles, submissions, comments, coins, and roles, with activity tabs and per-user counts.",
+        tags: ["admin", "bugfix"],
+    },
+    {
+        id: "security-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "security",
+        title: "Security hardening",
+        description:
+            "Removed an unauthenticated AI endpoint that exposed the server's Gemini key. CI now scans every push for committed secrets and live API keys.",
+        tags: ["security", "ci"],
+    },
+    {
+        id: "cicd-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "dx",
+        title: "CI/CD overhaul",
+        description:
+            "Separate frontend and backend pipelines with path filtering and caching, a one-click Render blueprint for the backend, and Vercel config for the frontend.",
+        tags: ["ci", "deploy", "dx"],
+    },
+    {
+        id: "blog-votes-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "feature",
+        title: "Blog voting",
+        description:
+            "Upvote or downvote any blog post, with the score updating live.",
+        tags: ["blog", "community"],
+    },
+    {
+        id: "rank-avatars-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "feature",
+        title: "Rank avatars",
+        description:
+            "Profile pictures now carry tier effects that match your rank — and Grandmasters get an animated ring.",
+        tags: ["profile", "gamification"],
+    },
+    {
+        id: "profile-redesign-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "improvement",
+        title: "Public profiles redesigned",
+        description:
+            "Public profiles got a full refresh: tier badge, score, streak, solve breakdown rings, an activity heatmap, and recent submissions.",
+        tags: ["profile", "ui"],
+    },
+    {
+        id: "weekly-contests-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "feature",
+        title: "Weekly contests",
+        description:
+            "A public contest with randomly selected problems is scheduled automatically every Saturday at 15:00 UTC — show up, solve, climb the leaderboard.",
+        tags: ["contests", "community", "gamification"],
+    },
+    {
+        id: "not-found-001",
+        date: "2026-07-26",
+        status: "shipped",
+        category: "improvement",
+        title: "404 page with rotating memes",
+        description:
+            "Getting lost is now a feature. Dead links serve a fresh meme on every visit — we can neither confirm nor deny that some team members type bad URLs on purpose.",
+        tags: ["404", "fun"],
+    },
+    {
         id: "profile-public-001",
         date: "2025-07-17",
         status: "shipped",
@@ -230,15 +400,6 @@ export const CHANGELOG: ChangelogEntry[] = [
             "A notification bell in the navbar that surfaces activity like contest start reminders, new problems, and comment replies.",
         tags: ["notifications", "ux"],
     },
-    {
-        id: "editor-themes-001",
-        status: "in-progress",
-        category: "improvement",
-        title: "Code editor theme picker",
-        description:
-            "Let users choose their preferred editor theme (VS Dark, Monokai, Solarised, etc.) and persist the preference.",
-        tags: ["editor", "ux"],
-    },
 
     // ── Planned ───────────────────────────────────────────────────────────────
     {
@@ -287,14 +448,5 @@ export const CHANGELOG: ChangelogEntry[] = [
         description:
             "Progressive Web App version of DWCode for offline problem browsing and code reading on mobile.",
         tags: ["mobile", "pwa"],
-    },
-    {
-        id: "weekly-challenge-001",
-        status: "idea",
-        category: "feature",
-        title: "Weekly challenge",
-        description:
-            "A new featured problem every Monday with a global leaderboard reset, special badges for top finishers, and community voting on the next challenge.",
-        tags: ["community", "gamification"],
     },
 ];

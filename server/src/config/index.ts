@@ -33,6 +33,10 @@ export const config = Object.freeze({
     intervalMs: env.HEALTHCHECK_INTERVAL_MS,
   }),
 
+  weeklyContest: Object.freeze({
+    enabled: env.WEEKLY_CONTEST_ENABLED,
+  }),
+
   gemini: Object.freeze({ apiKey: env.GEMINI_API_KEY }),
 
   github: Object.freeze({

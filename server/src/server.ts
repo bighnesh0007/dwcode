@@ -9,7 +9,7 @@
 import { buildApp } from "./app.ts";
 import { buildContainer } from "./container.ts";
 import { capabilities, config } from "./config/index.ts";
-import { connectDatabase, disconnectDatabase } from "./db/connection.ts";
+import { connectDatabase, disconnectDatabase, isDatabaseConnected } from "./db/connection.ts";
 import { logger } from "./lib/logger.ts";
 
 function reportCapabilities(): void {
@@ -50,6 +50,11 @@ async function main(): Promise<void> {
 
   if (config.healthcheck.enabled) container.upstreamHealth.startHeartbeat();
 
+  // The weekly contest scheduler needs Mongo; without it there is nothing to do.
+  if (config.weeklyContest.enabled && isDatabaseConnected()) {
+    container.weeklyContest.startScheduler();
+  }
+
   let shuttingDown = false;
   const shutdown = (signal: string): void => {
     if (shuttingDown) return;
@@ -57,6 +62,7 @@ async function main(): Promise<void> {
     logger.info({ signal }, "shutting down");
 
     container.upstreamHealth.stopHeartbeat();
+    container.weeklyContest.stopScheduler();
 
     server.close((err) => {
       if (err) {

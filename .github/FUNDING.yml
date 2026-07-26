@@ -6,7 +6,7 @@
 github: [bighnesh0007]
 
 # Uncomment and point at the in-app Razorpay sponsorship page once it is deployed.
-# custom: ["https://dwcode.vercel.app/sponsor"]
+custom: ["https://dwcode.vercel.app/sponsor"]
 
 # Other platforms, left unset:
 # patreon:

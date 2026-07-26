@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import type { CoinTransaction } from "@/lib/types";
 import { getErrorMessage } from "@/lib/errors";
+import { getTier } from "@/lib/ranks";
+import RankAvatar from "@/components/RankAvatar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -252,18 +253,6 @@ function ProgressRing({ value, max, color, size = 80 }: { value: number; max: nu
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-const RANK_TIERS = [
-    { min: 100, label: "Grandmaster", color: "text-red-500", bg: "bg-red-500/10 border-red-500/30", icon: "🏆" },
-    { min: 50, label: "Master", color: "text-purple-500", bg: "bg-purple-500/10 border-purple-500/30", icon: "💎" },
-    { min: 25, label: "Expert", color: "text-blue-500", bg: "bg-blue-500/10 border-blue-500/30", icon: "🔵" },
-    { min: 10, label: "Specialist", color: "text-cyan-500", bg: "bg-cyan-500/10 border-cyan-500/30", icon: "⭐" },
-    { min: 3, label: "Apprentice", color: "text-green-500", bg: "bg-green-500/10 border-green-500/30", icon: "🌱" },
-    { min: 0, label: "Novice", color: "text-muted-foreground", bg: "bg-muted/40 border-border", icon: "🐣" },
-];
-function getTier(score: number) {
-    return RANK_TIERS.find((t) => score >= t.min) ?? RANK_TIERS[RANK_TIERS.length - 1];
-}
-
 export default function ProfilePage() {
     const { user, isSignedIn, isLoaded } = useUser();
     const [data, setData] = useState<ProfileData | null>(null);
@@ -309,16 +298,15 @@ export default function ProfilePage() {
             .catch(() => { });
     }, []);
 
-    // Fetch leaderboard to get rank
+    // Fetch own rank. The leaderboard API is paginated now, so deriving rank via
+    // indexOf over `leaderboard` would break beyond page 1 — it returns the
+    // caller's page-independent row as `me` instead.
     useEffect(() => {
         if (!user) return;
-        fetch("/api/leaderboard")
+        fetch("/api/leaderboard?limit=5")
             .then((r) => r.json())
-            .then((d: { leaderboard?: LeaderboardEntry[] }) => {
-                if (d.leaderboard) {
-                    const idx = d.leaderboard.findIndex((row: { userId: string }) => row.userId === user.id);
-                    if (idx !== -1) { setRank(idx + 1); setScore(d.leaderboard[idx].score); }
-                }
+            .then((d: { me?: (LeaderboardEntry & { rank: number }) | null }) => {
+                if (d.me) { setRank(d.me.rank); setScore(d.me.score); }
             })
             .catch(() => { });
     }, [user]);
@@ -364,13 +352,12 @@ export default function ProfilePage() {
             {/* ── Header ── */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    {user?.imageUrl ? (
-                        <Image unoptimized src={user.imageUrl} width={64} height={64} className="w-16 h-16 rounded-full border-2 border-primary/30" alt={user.fullName || ""} />
-                    ) : (
-                        <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                            <Code2 className="w-7 h-7 text-primary" />
-                        </div>
-                    )}
+                    <RankAvatar
+                        name={user?.fullName || data.username || "My Profile"}
+                        imageUrl={user?.imageUrl}
+                        tierId={tier.id}
+                        size={64}
+                    />
                     <div>
                         <h1 className="text-2xl font-bold tracking-tight">{user?.fullName || "My Profile"}</h1>
                         <p className="text-muted-foreground text-sm mt-0.5">{user?.primaryEmailAddress?.emailAddress}</p>
