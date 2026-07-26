@@ -1,42 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-
-  "//": [
-    "DWCode is a monorepo. The FRONTEND SOURCE DIRECTORY IS `client/`.",
-    "The backend lives in `server/` and is NOT deployed here — it is a long-lived",
-    "Express process (app.listen + Mongo pool + heartbeat) and is deployed to",
-    "Render via ../render.yaml.",
-    "",
-    "IMPORTANT — which file Vercel reads:",
-    "Vercel reads vercel.json from the project's Root Directory setting.",
-    "  • Root Directory = <repo root>  -> THIS file applies (the commands below",
-    "    build client/ from the repo root).",
-    "  • Root Directory = client       -> client/vercel.json applies instead, and",
-    "    this file is ignored.",
-    "The second option is Vercel's supported path for monorepos and needs no custom",
-    "commands; prefer it unless you specifically need the repo root as the context."
-  ],
-
   "framework": "nextjs",
-
-  "//commands": [
-    "Scoped to client/ so Vercel never installs or builds the backend.",
-    "`npm --prefix client ci` uses client/package-lock.json."
-  ],
-  "installCommand": "npm --prefix client ci",
-  "buildCommand": "npm --prefix client run build",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build:shared && npm run build:client",
   "outputDirectory": "client/.next",
-
-  "//ignoreCommand": [
-    "Exit 0 = skip the build, exit 1 = build. A commit that only touches server/,",
-    "render.yaml or docs no longer triggers a frontend redeploy. Mirrors the",
-    "paths-filter job in .github/workflows/main.yml."
-  ],
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- client",
-
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- client packages package.json package-lock.json",
   "headers": [
     {
-      "//": "Defence in depth; the API sets its own headers via helmet.",
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },

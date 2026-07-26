@@ -33,29 +33,56 @@ Three consequences:
 
 ## Vercel (client)
 
-### ⚠️ Required dashboard setting
+### ⚠️ `vercel.json` cannot contain comments
 
-**Settings → General → Root Directory → enable
-"Include source files outside of the Root Directory in the Build Step".**
+Both `vercel.json` files previously used `"//"` keys as pseudo-comments. JSON has
+no comment syntax and Vercel's schema **rejects unknown properties**, so the
+deploy fails before it starts:
 
-This **cannot** be set in `vercel.json` — it is dashboard-only. Without it,
-Vercel uploads only `client/` and the build fails with
-`Cannot find module '@dwcode/shared'`.
+```
+The `vercel.json` schema validation failed with the following message:
+should NOT have additional property `//`
+```
 
-### Recommended configuration
+Fixed. Do not reintroduce them — put the explanation in this file instead.
+
+### Which file Vercel reads
+
+Vercel reads `vercel.json` from the project's **Root Directory**. Both are now
+valid and workspace-aware, so either setting works:
+
+| Root Directory | File used | Install | Build |
+|---|---|---|---|
+| **repo root** *(recommended)* | `vercel.json` | `npm ci` | `npm run build:shared && npm run build:client` |
+| `client` | `client/vercel.json` | `npm ci --prefix ..` | `npm run build:shared --prefix .. && npm run build` |
+
+### Recommended: set Root Directory to the repo root
+
+**This removes the need for the "Include source files outside of the Root
+Directory" dashboard toggle entirely** — with the repo root as the context,
+`packages/shared` is already in scope.
 
 | Setting | Value |
 |---|---|
-| Root Directory | `client` |
-| Include files outside Root Directory | ✅ **enabled** |
-| Install Command | `npm ci --prefix ../` *(or leave default — see below)* |
-| Build Command | `npm run build --prefix ../` |
-| Output Directory | leave as detected (`.next`) |
+| Root Directory | *(empty — the repo root)* |
+| Install / Build / Output | leave empty; `vercel.json` supplies them |
 
-Vercel detects npm workspaces and, with the setting enabled, generally installs
-from the workspace root automatically. If the default install works, leave the
-Install Command empty. If the build reports a missing `@dwcode/shared`, set both
-commands explicitly as above.
+If you keep Root Directory = `client`, you **must** enable
+**Settings → General → Root Directory → "Include source files outside of the
+Root Directory in the Build Step"**. It is dashboard-only and cannot be
+expressed in `vercel.json`. Without it Vercel uploads only `client/` and the
+build fails with `Cannot find module '@dwcode/shared'`.
+
+### Why the commands are what they are
+
+- `build:shared` must run **first** — both packages consume `@dwcode/shared` as
+  compiled `dist/`, not as TypeScript source.
+- `installCommand` runs at the workspace root because that is where the only
+  lockfile lives. `npm --prefix client ci` (the old value) referenced
+  `client/package-lock.json`, deleted by REF-01.
+- `ignoreCommand` now also watches `packages/` and the root lockfile. Previously
+  it watched only `client/`, so a change to the shared package would have
+  skipped the frontend build and shipped a stale bundle.
 
 ### Verifying
 
