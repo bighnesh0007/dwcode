@@ -39,6 +39,11 @@ coverage
 *.pem
 *.key
 !**/public/**/*.key
+# Local credential store for tooling (MCP servers, git push, scripts).
+# Never committed. See .secrets.local.example for the expected shape.
+.secrets.local
+.secrets.local.*
+!.secrets.local.example
 
 # ── caches ────────────────────────────────────────────────────────────────────
 *.tsbuildinfo

@@ -203,16 +203,43 @@ jobs:
           fi
           echo "OK — no tracked env/key files."
 
-      - name: No live API keys in tracked files
+      - name: No live API keys or access tokens in tracked files
         run: |
-          # Live Razorpay / Stripe / Clerk / Google keys must never be committed.
-          # This workflow is excluded so the patterns themselves do not match.
-          if git grep -nIE 'rzp_live_[A-Za-z0-9]{10}|sk_live_[A-Za-z0-9]{10}|pk_live_[A-Za-z0-9]{10}|AIza[0-9A-Za-z_-]{35}' \
-               -- . ':!*.md' ':!.github/workflows/*'; then
-            echo "::error::A live API key appears to be committed."
+          # Credentials that must never be committed. This workflow is excluded
+          # so the patterns themselves do not match.
+          #
+          # GitHub tokens were MISSING from this list until a real one was
+          # nearly pasted into the repo — a committed `ghp_…` would have passed
+          # CI silently. `gh[pousr]_` covers personal, OAuth, user-to-server,
+          # server-to-server and refresh tokens; `github_pat_` covers the
+          # fine-grained format.
+          # Built by concatenation rather than a backslash-continued regex:
+          # a line-continuation inside the quoted pattern leaves a literal
+          # backslash, git grep dies with "Trailing backslash", and the `if`
+          # reads that failure as "nothing found" — a scanner that always passes.
+          PATTERN='gh[pousr]_[A-Za-z0-9]{36}'
+          PATTERN="$PATTERN|github_pat_[A-Za-z0-9_]{22,}"
+          PATTERN="$PATTERN|rzp_live_[A-Za-z0-9]{10}"
+          PATTERN="$PATTERN|sk_live_[A-Za-z0-9]{10}"
+          PATTERN="$PATTERN|pk_live_[A-Za-z0-9]{10}"
+          PATTERN="$PATTERN|sk-[A-Za-z0-9]{20,}"
+          PATTERN="$PATTERN|AIza[0-9A-Za-z_-]{35}"
+          PATTERN="$PATTERN|xox[baprs]-[A-Za-z0-9-]{10,}"
+          PATTERN="$PATTERN|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+
+          # Prove the pattern still matches before trusting a clean result — a
+          # broken regex must fail the job, not silently pass it.
+          CANARY="ghp_$(printf 'A%.0s' $(seq 36))"
+          if ! printf '%s\n' "$CANARY" | grep -qE "$PATTERN"; then
+            echo "::error::Secret-scan self-test FAILED — the pattern no longer matches a known token shape."
             exit 1
           fi
-          echo "OK — no live keys found."
+
+          if git grep -nIE "$PATTERN" -- . ':!*.md' ':!.github/workflows/*'; then
+            echo "::error::A credential appears to be committed. Revoke it, then purge it from history."
+            exit 1
+          fi
+          echo "OK — no credentials found (self-test passed)."
 
       - name: Exactly one lockfile, at the workspace root
         run: |

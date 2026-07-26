@@ -5,6 +5,7 @@
   "description": "DWCode frontend \u2014 Next.js presentation layer.",
   "scripts": {
     "dev": "next dev -p 8000",
+    "prebuild": "npm run build --workspace @dwcode/shared --prefix ..",
     "build": "next build",
     "start": "next start -p 8000",
     "lint": "eslint",
