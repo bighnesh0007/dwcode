@@ -21,7 +21,7 @@
     "test:cov": "vitest run --coverage"
   },
   "dependencies": {
-    "@clerk/backend": "3.8.2",
+    "@clerk/backend": "3.13.1",
     "@dwcode/shared": "*",
     "@google/genai": "^2.8.0",
     "compression": "^1.8.0",
