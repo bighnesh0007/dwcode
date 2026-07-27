@@ -42,16 +42,16 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^26",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/runner": "^4.1.9",
-    "eslint": "^9",
+    "eslint": "^10",
     "eslint-config-next": "16.2.12",
     "fast-check": "^4.8.0",
     "tailwindcss": "^4",
-    "tsx": "4.20.3",
-    "typescript": "^5",
+    "tsx": "4.23.1",
+    "typescript": "^7",
     "typescript-eslint": "^8.64.0",
     "vitest": "^4.1.9"
   }
