@@ -94,7 +94,7 @@ jobs:
 
       # Reused across runs so unchanged pages are not recompiled from scratch.
       - name: Restore Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: client/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('client/**/*.[jt]s', 'client/**/*.[jt]sx', 'packages/**/*.ts') }}
