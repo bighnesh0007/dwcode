@@ -38,8 +38,9 @@ export const fixtures: Record<string, Record<string, unknown>[]> = {
     {
       userId: "u1", balance: 15,
       transactions: [
-        { _id: oid(140), type: "first_solve", amount: 10, description: "" },
-        { _id: oid(141), type: "comment", amount: 5, description: "" },
+        // Newest first, as Mongo's $position: 0 stores them.
+        { _id: oid(140), type: "first_solve", amount: 10, description: "", createdAt: new Date("2026-01-02") },
+        { _id: oid(141), type: "comment", amount: 5, description: "", createdAt: new Date("2026-01-01") },
       ],
     },
   ],
@@ -47,7 +48,7 @@ export const fixtures: Record<string, Record<string, unknown>[]> = {
   contests: [
     {
       _id: CONTEST, title: "Weekly", createdBy: "u1", createdByName: "alice",
-      problems: [P1, P2, DELETED_PROBLEM], startTime: new Date("2026-02-01T10:00Z"),
+      problems: [P1, P2, DELETED_PROBLEM], problemSlugs: ["odd-or-even", "two", "gone"], startTime: new Date("2026-02-01T10:00Z"),
       endTime: new Date("2026-02-01T11:00Z"), duration: 60, inviteCode: "abc123",
       participants: [
         { userId: "u1", userName: "alice", score: 3, solvedProblems: ["odd-or-even"] },
@@ -65,7 +66,8 @@ export const fixtures: Record<string, Record<string, unknown>[]> = {
     { blogSlug: "missing", userId: "u2", value: 1 },
   ],
   comments: [
-    { _id: oid(150), targetType: "problem", targetId: "odd-or-even", userId: "u2", userName: "bob", content: "nice" },
+    // Problem comments are dual-written with problemSlug (migration 002 rollout).
+    { _id: oid(150), targetType: "problem", targetId: "odd-or-even", problemSlug: "odd-or-even", userId: "u2", userName: "bob", content: "nice" },
     { _id: oid(151), problemSlug: "two", userId: "u2", userName: "bob", content: "legacy" },
   ],
   githubintegrations: [{ userId: "u1", githubId: "1", githubUsername: "alice", accessToken: "enc" }],
@@ -73,3 +75,34 @@ export const fixtures: Record<string, Record<string, unknown>[]> = {
 };
 
 export const readFixtures = (c: string) => Promise.resolve(fixtures[c] ?? []);
+
+/**
+ * The fixtures without the rows the copy deliberately cannot represent
+ * (orphans, an invalid contest, an anonymous bookmark, a vote for a missing
+ * post, a pre-migration-002 comment, a duplicated follow). On this set Mongo and Postgres must
+ * agree exactly; `DIRTY` lists what was removed.
+ */
+export const DIRTY = {
+  submissions: [oid(101)],
+  bookmarks: [oid(111)],
+  contests: [oid(21)],
+  comments: [oid(151)],
+};
+
+export function cleanFixtures(): Record<string, Record<string, unknown>[]> {
+  const out: Record<string, Record<string, unknown>[]> = {};
+  for (const [name, docs] of Object.entries(fixtures)) {
+    const drop = new Set<string>(DIRTY[name as keyof typeof DIRTY] ?? []);
+    out[name] = docs.filter((d) => !drop.has(String(d._id)));
+  }
+  out.blogvotes = fixtures.blogvotes.filter((v) => v.blogSlug !== "missing");
+  out.contests = out.contests.map((c) => ({
+    ...c,
+    problems: (c.problems as string[]).filter((id) => id !== DELETED_PROBLEM),
+    problemSlugs: (c.problemSlugs as string[]).filter((s) => s !== "gone"),
+    participants: (c.participants as Record<string, unknown>[]).slice(0, 1),
+  }));
+  // Mongo stores the array as written; the copy de-duplicates and drops self-follows.
+  out.userprofiles = out.userprofiles.map((p) => (p.userId === "u1" ? { ...p, following: ["u2"] } : p));
+  return out;
+}

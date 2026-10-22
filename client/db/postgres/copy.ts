@@ -5,6 +5,7 @@
  * fixture documents (the tests). `applyPlan` upserts by primary key in one
  * transaction, so a re-run converges instead of duplicating.
  */
+import { createHash } from "node:crypto";
 import { getTableColumns, sql, type SQL } from "drizzle-orm";
 import type { PgTable } from "drizzle-orm/pg-core";
 import type { PgDatabase } from "./client";
@@ -138,4 +139,74 @@ export async function countRows(db: PgDatabase, plan: CopyPlan): Promise<Map<str
     counts.set(p.name, r.rows[0].n);
   }
   return counts;
+}
+
+export interface TableVerification {
+  name: string;
+  copied: number;
+  inPostgres: number;
+  /** Copied rows with no row of the same primary key in Postgres. */
+  missing: number;
+  /** Copied rows whose Postgres row differs in a copied column. */
+  different: number;
+  checksumCopied: string;
+  checksumPostgres: string;
+}
+
+/** Stable text for one value: keys sorted, dates as ISO strings. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_k, v: unknown) => {
+    if (v instanceof Date) return v.toISOString();
+    if (v && typeof v === "object" && !Array.isArray(v)) {
+      return Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)));
+    }
+    return v;
+  });
+}
+
+const digest = (lines: string[]) =>
+  createHash("sha256").update(lines.sort().join("\n")).digest("hex").slice(0, 16);
+
+/**
+ * Compare every copied row with its Postgres row, by primary key, over the
+ * columns the copy wrote. Rows Postgres has beyond the copy (written after it)
+ * are counted in `inPostgres` but do not affect the checksums.
+ */
+export async function verifyPlan(db: PgDatabase, plan: CopyPlan): Promise<TableVerification[]> {
+  const out: TableVerification[] = [];
+  for (const p of plan.tables) {
+    const keyOf = (row: Record<string, unknown>) => canonical(p.key.map((k) => row[k]));
+    const stored = new Map<string, Record<string, unknown>>();
+    for (const row of (await db.select().from(p.table)) as Record<string, unknown>[]) {
+      stored.set(keyOf(row), row);
+    }
+    const copiedLines: string[] = [];
+    const storedLines: string[] = [];
+    let missing = 0;
+    let different = 0;
+    for (const row of p.rows) {
+      const cols = Object.keys(row).filter((k) => row[k] !== undefined);
+      const project = (r: Record<string, unknown>) => canonical(Object.fromEntries(cols.map((c) => [c, r[c]])));
+      const a = project(row);
+      copiedLines.push(a);
+      const match = stored.get(keyOf(row));
+      if (!match) {
+        missing++;
+        continue;
+      }
+      const b = project(match);
+      storedLines.push(b);
+      if (a !== b) different++;
+    }
+    out.push({
+      name: p.name,
+      copied: p.rows.length,
+      inPostgres: stored.size,
+      missing,
+      different,
+      checksumCopied: digest(copiedLines),
+      checksumPostgres: digest(storedLines),
+    });
+  }
+  return out;
 }

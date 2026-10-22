@@ -4,6 +4,9 @@
  *   npm run pg:copy               # dry run: read Mongo, map, report. Writes nothing.
  *   npm run pg:copy -- --apply    # upsert into DATABASE_URL in one transaction.
  *
+ * Verification compares every copied row with its Postgres row by primary key
+ * and prints row counts and checksums side by side; any mismatch exits 1.
+ *
  * Repeatable: rows are upserted by primary key, so re-running after more Mongo
  * writes brings Postgres up to date without duplicates. Mongo is only read.
  *
@@ -12,7 +15,7 @@
  */
 import mongoose from "mongoose";
 import { createPgDatabase } from "../../db/postgres/client";
-import { applyPlan, buildPlan, countRows } from "../../db/postgres/copy";
+import { applyPlan, buildPlan, verifyPlan } from "../../db/postgres/copy";
 
 const APPLY = process.argv.includes("--apply");
 
@@ -40,13 +43,15 @@ async function main() {
   const db = createPgDatabase();
   try {
     await applyPlan(db, plan);
-    const counts = await countRows(db, plan);
-    console.log("\nVerify — Postgres row counts:");
-    for (const p of plan.tables) {
-      const n = counts.get(p.name) ?? 0;
-      const ok = n >= p.rows.length;
+    console.log("\nVerify — copied vs Postgres (rows, checksum over copied columns):");
+    for (const v of await verifyPlan(db, plan)) {
+      const ok = v.missing === 0 && v.different === 0;
       if (!ok) process.exitCode = 1;
-      console.log(`  ${ok ? "ok  " : "LOW "} ${p.name.padEnd(22)} ${n} (copied ${p.rows.length})`);
+      console.log(
+        `  ${ok ? "ok  " : "BAD "} ${v.name.padEnd(22)} ${String(v.copied).padStart(7)} → ${String(v.inPostgres).padStart(7)}` +
+          `  ${v.checksumCopied} ${v.checksumCopied === v.checksumPostgres ? "=" : "≠"} ${v.checksumPostgres}` +
+          (ok ? "" : `  (missing ${v.missing}, different ${v.different})`),
+      );
     }
   } finally {
     await db.close();

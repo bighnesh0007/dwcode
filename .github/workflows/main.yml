@@ -72,8 +72,14 @@ jobs:
       run:
         working-directory: client
 
-    # #23 Phase 2: a disposable Postgres for the copy integration test.
+    # #23: disposable databases for the Postgres integration tests and the
+    # Mongo ↔ Postgres parity suite. Each test file creates its own database.
     services:
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'" --health-interval 5s --health-timeout 5s --health-retries 12
       postgres:
         image: postgres:16-alpine
         env:
@@ -128,6 +134,7 @@ jobs:
         run: npm test
         env:
           PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
+          MONGO_TEST_URL: mongodb://localhost:27017/dwcode_parity
 
       # Fails when schema.ts and the committed migrations disagree.
       - name: Postgres migrations match schema
