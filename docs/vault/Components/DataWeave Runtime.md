@@ -38,6 +38,9 @@ assessed, because the sandbox is not here. That is itself the finding.
 - A dead fallback URL was found and replaced ([[W1-R9 Dead Compiler URL]])
 
 ## Plan
+Decided: [[ADR-006 Own JVM Compiler Service]]. Measured baseline:
+[[W2-R1 Compiler Latency Baseline]]. Input contract: [[W2-R2 Client Sends Unserialised Inputs]].
+
 `docs/audit/09-runtime-ownership.md` — Phase A (keep-warm, circuit breaker) is
 1.5 days and separable.
 

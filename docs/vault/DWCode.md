@@ -47,6 +47,8 @@ The red box is the one nobody here owns → [[DataWeave Runtime]]
 - [[Pending Migrations]] — four staged DB steps, **one is urgent**
 - [[DataWeave Runtime]] — unowned third-party service on the critical path
 - [[SEC-21 Move Auth Off Middleware]]
+- [[ADR-006 Own JVM Compiler Service]] — Phase 0 done: [[W2-R1 Compiler Latency Baseline]]
+- [[W2-R2 Client Sends Unserialised Inputs]] — may break object-input submissions in prod
 - [[FEAT-01 Server-Side Grading]] — hidden tests still not executed
 
 ## Source of truth

@@ -66,3 +66,6 @@ lerna-debug.log*
 # Playwright CLI session dumps; useful locally, noise in git.
 .playwright-cli/*.log
 .playwright-cli/*.yml
+
+# ── compiler parity corpus (contains hidden test cases — never commit) ──────
+compiler/parity/out/
