@@ -101,6 +101,11 @@ describe("env: DW_BACKEND=service", () => {
     expect(() => parseEnv({ DW_BACKEND: "service", COMPILER_SERVICE_URL: "http://c", COMPILER_AUTH_TOKEN: "short" })).toThrow(/COMPILER_AUTH_TOKEN/);
   });
 
+  it("accepts a bare host:port (Render private-network hostport) as http", () => {
+    const env = parseEnv({ DW_BACKEND: "service", COMPILER_SERVICE_URL: "dwcode-compiler:10000", COMPILER_AUTH_TOKEN: "t".repeat(40) });
+    expect(env.COMPILER_SERVICE_URL).toBe("http://dwcode-compiler:10000");
+  });
+
   it("defaults to the upstream, so existing deploys are unchanged", () => {
     expect(parseEnv({}).DW_BACKEND).toBe("upstream");
   });

@@ -55,7 +55,13 @@ const envSchema = z.object({
   // Which runtime serves compiles. "upstream" keeps today's third-party URL;
   // "service" uses our own compiler. Rollback is flipping this back — no deploy.
   DW_BACKEND: z.enum(["upstream", "service"]).default("upstream"),
-  COMPILER_SERVICE_URL: z.url().optional(),
+  // Render's private-network `hostport` has no scheme ("dwcode-compiler:10000"),
+  // so a bare host:port is accepted and means plain http on the private network.
+  COMPILER_SERVICE_URL: z
+    .string()
+    .transform((v) => (/^https?:\/\//.test(v) ? v : `http://${v}`))
+    .pipe(z.url())
+    .optional(),
   // Shared secret the compiler requires. Never sent anywhere but COMPILER_SERVICE_URL.
   COMPILER_AUTH_TOKEN: z.string().min(32).optional(),
   // Per-execution budget the compiler enforces by killing the worker. Warm runs

@@ -14,6 +14,15 @@
 # Secrets are declared with `sync: false`, which means "prompt me in the
 # dashboard, never store the value in git".
 
+# ── Shared secret between the API server and the compiler ────────────────────
+# Generated once by Render and injected into BOTH services from this group, so
+# the value never exists in git and cannot drift between the two.
+envVarGroups:
+  - name: dwcode-compiler-shared
+    envVars:
+      - key: COMPILER_AUTH_TOKEN
+        generateValue: true
+
 services:
   - type: web
     name: dwcode-server
@@ -71,6 +80,29 @@ services:
       - key: HEALTHCHECK_ENABLED
         value: "true"
 
+      # ── Own compiler service (ADR-006) ─────────────────────────────────────
+      # Stays "upstream" when this blueprint is applied, so applying it changes
+      # nothing users see. Flip to "service" in the dashboard only after
+      # compiler/parity/check-parity.mjs passes on the full corpus; flipping
+      # back is the rollback.
+      - key: DW_BACKEND
+        value: upstream
+      - key: COMPILER_SERVICE_URL
+        fromService:
+          type: pserv
+          name: dwcode-compiler
+          property: hostport
+      - fromGroup: dwcode-compiler-shared
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: dwcode-redis
+          property: connectionString
+      # Per instance. Each submission grades its cases one at a time, so this
+      # is also the ceiling on concurrent calls from this instance to the compiler.
+      - key: GRADING_CONCURRENCY
+        value: "8"
+
       # ── Weekly contest scheduler ───────────────────────────────────────────
       - key: WEEKLY_CONTEST_ENABLED
         value: "true"
@@ -117,3 +149,48 @@ services:
         sync: false
       - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
+
+  # ── DataWeave compiler (compiler/, ADR-006) ────────────────────────────────
+  # A PRIVATE service: no public URL, reachable only from services in this
+  # account's private network. It runs untrusted code.
+  #
+  # SIZING (measured, docs/vault/Operations/Compiler Capacity Plan.md): each
+  # worker is ~300 MB RSS, the supervisor ~150 MB. "standard" (2 GB, 1 CPU)
+  # holds 2 workers with headroom and served 500 concurrent users at p95 10 ms
+  # in the load test (4 workers, locally). "starter" (512 MB) cannot hold even
+  # one worker at these settings — see the plan before downsizing.
+  #
+  # NOTE: Render does not expose read-only rootfs / cap_drop / pid limits, so
+  # in production the boundary is: engine privileges off + one-process-per-
+  # worker kill switch + empty worker environment + non-root container.
+  - type: pserv
+    name: dwcode-compiler
+    runtime: docker
+    plan: standard
+    region: oregon
+    branch: master
+    dockerfilePath: ./compiler/Dockerfile
+    dockerContext: ./compiler
+    buildFilter:
+      paths:
+        - compiler/**
+    envVars:
+      - key: APP_ENV
+        value: production # makes a missing/short COMPILER_AUTH_TOKEN fatal at boot
+      - fromGroup: dwcode-compiler-shared
+      - key: COMPILER_WORKERS
+        value: "2"
+      - key: COMPILER_WORKER_HEAP_MB
+        value: "256"
+      - key: COMPILER_TIMEOUT_MS
+        value: "5000"
+
+  # ── Redis: shared rate limits, result cache, grading queue ────────────────
+  - type: keyvalue
+    name: dwcode-redis
+    plan: starter
+    region: oregon
+    # Private network only: no address may connect from the internet.
+    ipAllowList: []
+    # BullMQ requires noeviction: an evicted job key is a lost submission.
+    maxmemoryPolicy: noeviction
