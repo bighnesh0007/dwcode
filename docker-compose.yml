@@ -40,5 +40,41 @@ services:
       retries: 5
       start_period: 20s
 
+  # Shared rate limits, result cache and the grading queue (server REDIS_URL).
+  redis:
+    image: redis:7.4-alpine
+    container_name: dwcode_redis
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:6379:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # The DataWeave compiler service (compiler/, ADR-006). Runs untrusted code, so
+  # it is locked down here exactly as in production: read-only root, no
+  # capabilities, bounded processes and memory, no route to anything but itself.
+  compiler:
+    build: ./compiler
+    container_name: dwcode_compiler
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8080:8080'
+    environment:
+      # Local only. Server must send the same value (server/.env COMPILER_AUTH_TOKEN).
+      COMPILER_AUTH_TOKEN: ${COMPILER_AUTH_TOKEN:-local-dev-compiler-token-0123456789abcdef}
+      COMPILER_WORKERS: ${COMPILER_WORKERS:-2}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 1g
+    memswap_limit: 1g
+
 volumes:
   mongodb_data:

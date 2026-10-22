@@ -13,6 +13,7 @@
 import { LegacyCompilerError } from "../../errors/AppError.ts";
 import { contextLogger } from "../../lib/logger.ts";
 import type { FetchLike } from "../../types/ports.ts";
+import type { CompilerServiceClient } from "../compiler/compilerService.client.ts";
 
 export interface LegacyInput {
   name: unknown;
@@ -32,9 +33,15 @@ interface CompilerResponseBody {
 }
 
 export class DataWeaveClient {
+  /**
+   * @param service when given (DW_BACKEND=service), compiles run on our own
+   *   compiler instead of `opts.url`. Validation, input serialisation and output
+   *   unwrapping stay here, so the frozen contract is identical either way.
+   */
   constructor(
     private readonly opts: DataWeaveClientOptions,
     private readonly fetchImpl: FetchLike = fetch,
+    private readonly service?: CompilerServiceClient,
   ) {}
 
   get url(): string {
@@ -73,6 +80,8 @@ export class DataWeaveClient {
       }),
       version: this.opts.version,
     };
+
+    if (this.service) return this.executeOnService(this.service, body.script, body.inputs);
 
     log.debug(
       {
@@ -136,6 +145,24 @@ export class DataWeaveClient {
     // value when it is not parseable JSON.
     try {
       return JSON.parse(result.output as string);
+    } catch {
+      return result.output;
+    }
+  }
+
+  private async executeOnService(
+    service: CompilerServiceClient,
+    script: string,
+    inputs: { name: string; value: string; mimeType: string }[],
+  ): Promise<unknown> {
+    const result = await service.execute({ script, inputs });
+    if (!result.ok) {
+      // The engine's own message, verbatim — the UI prints it, exactly as it
+      // printed the upstream's `error` string.
+      throw new LegacyCompilerError(result.error.message);
+    }
+    try {
+      return JSON.parse(result.output);
     } catch {
       return result.output;
     }

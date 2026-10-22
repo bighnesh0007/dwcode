@@ -27,6 +27,15 @@ export const config = Object.freeze({
     timeoutMs: env.DW_TIMEOUT_MS,
   }),
 
+  compiler: Object.freeze({
+    backend: env.DW_BACKEND,
+    serviceUrl: env.COMPILER_SERVICE_URL,
+    authToken: env.COMPILER_AUTH_TOKEN,
+    timeoutMs: env.COMPILER_TIMEOUT_MS,
+  }),
+
+  redisUrl: env.REDIS_URL,
+
   healthcheck: Object.freeze({
     url: env.HEALTHCHECK_URL,
     enabled: env.HEALTHCHECK_ENABLED,

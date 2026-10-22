@@ -128,6 +128,19 @@ export class UpstreamError extends AppError {
   }
 }
 
+/**
+ * The compiler could not run the script — overloaded or unavailable. Distinct
+ * from a user's compile error on purpose: callers must retry, and nothing about
+ * it may be recorded against the user (docs/audit/09-runtime-ownership.md §5.1).
+ */
+export class CompilerUnavailableError extends AppError {
+  readonly retryAfterSeconds: number;
+  constructor(message: string, retryAfterSeconds: number) {
+    super({ code: ErrorCode.COMPILER_UNAVAILABLE, message, status: 503, expose: true });
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 export class InternalError extends AppError {
   constructor(message = "Internal server error.", cause?: unknown) {
     super({

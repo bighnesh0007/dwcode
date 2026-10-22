@@ -47,6 +47,22 @@ const envSchema = z.object({
   HEALTHCHECK_ENABLED: booleanish.default(true),
   HEALTHCHECK_INTERVAL_MS: z.coerce.number().int().positive().default(3 * 60 * 1000),
 
+  // ── DataWeave compiler service (compiler/, ADR-006) ────────────────────────
+  // Which runtime serves compiles. "upstream" keeps today's third-party URL;
+  // "service" uses our own compiler. Rollback is flipping this back — no deploy.
+  DW_BACKEND: z.enum(["upstream", "service"]).default("upstream"),
+  COMPILER_SERVICE_URL: z.url().optional(),
+  // Shared secret the compiler requires. Never sent anywhere but COMPILER_SERVICE_URL.
+  COMPILER_AUTH_TOKEN: z.string().min(32).optional(),
+  // Per-execution budget the compiler enforces by killing the worker. Warm runs
+  // take milliseconds, so this only ever bounds hostile or runaway scripts.
+  COMPILER_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(5_000),
+
+  // ── Redis (rate limits, result cache, grading queue) ───────────────────────
+  // Optional so local dev and the legacy deploy run without it; every consumer
+  // falls back to process memory, which is correct only for a single instance.
+  REDIS_URL: z.string().regex(/^rediss?:\/\//, "must be a redis:// or rediss:// URL").optional(),
+
   // ── Weekly contest scheduler ───────────────────────────────────────────────
   WEEKLY_CONTEST_ENABLED: booleanish.default(true),
 
@@ -81,6 +97,17 @@ const envSchema = z.object({
   LOG_PRETTY: booleanish.optional(),
 });
 
+/** Cross-field rules a per-field schema cannot express. */
+const validatedEnvSchema = envSchema.superRefine((env, ctx) => {
+  if (env.DW_BACKEND === "service") {
+    for (const key of ["COMPILER_SERVICE_URL", "COMPILER_AUTH_TOKEN"] as const) {
+      if (env[key] === undefined) {
+        ctx.addIssue({ code: "custom", path: [key], message: "required when DW_BACKEND=service" });
+      }
+    }
+  }
+});
+
 export type Env = z.infer<typeof envSchema>;
 
 function formatIssues(error: z.ZodError): string {
@@ -91,7 +118,7 @@ function formatIssues(error: z.ZodError): string {
 
 /** Parse the given record, or throw with every problem listed. */
 export function parseEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const result = envSchema.safeParse(source);
+  const result = validatedEnvSchema.safeParse(source);
   if (!result.success) {
     throw new Error(
       `Invalid environment configuration:\n${formatIssues(result.error)}`,

@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Container } from "../../container.ts";
 import { createLimiter } from "../../middleware/rateLimit.ts";
 import { v1Cors } from "../../middleware/security.ts";
+import { compilerRoutes } from "./compiler.routes.ts";
 import { sponsorshipRoutes } from "./sponsorship.routes.ts";
 
 /**
@@ -21,6 +22,8 @@ export function v1Routes(container: Container): Router {
     "/sponsorship",
     sponsorshipRoutes(container.sponsorshipController, container.tokenVerifier),
   );
+
+  router.use("/compiler", compilerRoutes(container.compilerController, container.tokenVerifier));
 
   return router;
 }

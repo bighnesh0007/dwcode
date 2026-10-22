@@ -3,6 +3,11 @@
  * Latency baseline for a DataWeave compiler endpoint (Phase 0, OPS-07).
  *
  *     node compiler/parity/bench-latency.mjs [--url <base>] [--n 30]
+ *     node compiler/parity/bench-latency.mjs --api v1 --url http://localhost:8080 [--token …]
+ *
+ * `--api legacy` (default) speaks the upstream's /api/transform; `--api v1` speaks
+ * the new compiler service's /v1/execute. Same script, same check, so the two
+ * numbers are comparable.
  *
  * Records two things separately, because they have different causes:
  *  - FIRST: the very first request, which pays any cold start (Render free tier
@@ -26,17 +31,26 @@ const arg = (name, fallback) => {
 
 const BASE = arg("url", process.env.DWL_BACKEND_URL || "https://dataweave-playground-h1p7.onrender.com").replace(/\/$/, "");
 const N = Number(arg("n", "30"));
+const API = arg("api", "legacy");
+const TOKEN = arg("token", process.env.COMPILER_AUTH_TOKEN ?? "");
 const SCRIPT = "%dw 2.0\noutput application/json\n---\npayload map ($ * 2)";
 const INPUT = [1, 2, 3];
 
 async function once() {
   const t0 = performance.now();
-  const res = await fetch(`${BASE}/api/transform`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script: SCRIPT, inputs: [{ name: "payload", value: JSON.stringify(INPUT), mimeType: "application/json" }] }),
-    signal: AbortSignal.timeout(120_000),
-  });
+  const res = API === "v1"
+    ? await fetch(`${BASE}/v1/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}) },
+        body: JSON.stringify({ script: SCRIPT, inputs: [{ name: "payload", value: JSON.stringify(INPUT), mimeType: "application/json" }] }),
+        signal: AbortSignal.timeout(120_000),
+      })
+    : await fetch(`${BASE}/api/transform`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script: SCRIPT, inputs: [{ name: "payload", value: JSON.stringify(INPUT), mimeType: "application/json" }] }),
+        signal: AbortSignal.timeout(120_000),
+      });
   const body = await res.json();
   const ms = performance.now() - t0;
   const out = body.output ?? body.result;

@@ -17,11 +17,19 @@
  * The output contains HIDDEN test cases, so it is gitignored and must never be
  * committed — the repository is public.
  */
-import { writeFile, mkdir } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import mongoose from "mongoose";
-import { COMPILER_URL, casesOf, formatCompilerOutput, normalizeOutput } from "../../client/scripts/lib/compiler.mjs";
+import { casesOf, formatCompilerOutput, normalizeOutput } from "../../client/scripts/lib/compiler.mjs";
+
+/**
+ * The reference runtime, named explicitly. Deliberately NOT DWL_BACKEND_URL:
+ * client/.env.local points that at a local dev server, and a corpus captured
+ * from the wrong runtime is worse than none. Override with --compiler <url>.
+ */
+const flag = process.argv.indexOf("--compiler");
+const COMPILER_URL = (flag > -1 ? process.argv[flag + 1] : "https://dataweave-playground-h1p7.onrender.com").replace(/\/$/, "");
 
 /**
  * Sends `value` as a JSON string, exactly as server/ does (dataweave.client.ts).
@@ -74,27 +82,60 @@ if (problems.length === 0) {
 }
 await mongoose.disconnect();
 
+// Resumable: progress is saved after every problem, so an interrupted run
+// (closed terminal, upstream outage) continues instead of starting over — a
+// full capture against the ~5s/request upstream takes hours.
+const PARTIAL = OUT + ".partial";
 const entries = [];
-let errors = 0;
-let mismatches = 0;
-for (const p of problems) {
-  for (const c of casesOf(p)) {
-    let output = null;
-    let error = null;
+try {
+  entries.push(...JSON.parse(await readFile(PARTIAL, "utf8")).entries);
+} catch {
+  // no partial run to resume
+}
+const done = new Set(entries.map((e) => e.slug));
+if (done.size) console.log(`resuming: ${done.size} problems already captured`);
+await mkdir(dirname(OUT), { recursive: true });
+
+/**
+ * A transport failure is not the runtime's answer and must not enter the corpus
+ * as one — it would demand the new runtime reproduce an outage. Retry it; if it
+ * persists, mark it `transport` so the parity check skips it. A non-JSON body
+ * (SyntaxError) is the platform's error page during a cold start or deploy.
+ */
+async function capture(script, input) {
+  for (let attempt = 1; ; attempt++) {
     try {
-      output = await runScript(p.solution, c.input);
+      return { output: await runScript(script, input), error: null, transport: false };
     } catch (err) {
-      error = err.message;
-      errors++;
+      const isTransport = err.name === "SyntaxError" || err.name === "TimeoutError" || err.name === "AbortError" || err.message === "fetch failed" || /^HTTP 5\d\d$/.test(err.message);
+      if (!isTransport) return { output: null, error: err.message, transport: false };
+      if (attempt === 3) return { output: null, error: err.message, transport: true };
+      await new Promise((r) => setTimeout(r, 2000 * attempt));
     }
-    const matchesStored = output !== null && normalizeOutput(output) === normalizeOutput(c.expected ?? "");
-    if (output !== null && !matchesStored) mismatches++;
-    entries.push({ slug: p.slug, case: c.label, kind: c.kind, script: p.solution, input: c.input, output, error, matchesStored });
   }
-  process.stdout.write(".");
 }
 
-await mkdir(dirname(OUT), { recursive: true });
+const CONCURRENCY = 2; // gentle: the upstream is a single free-tier instance
+const todo = problems.filter((p) => !done.has(p.slug));
+let next = 0;
+async function lane() {
+  while (next < todo.length) {
+    const p = todo[next++];
+    for (const c of casesOf(p)) {
+      const r = await capture(p.solution, c.input);
+      const matchesStored = r.output !== null && normalizeOutput(r.output) === normalizeOutput(c.expected ?? "");
+      entries.push({ slug: p.slug, case: c.label, kind: c.kind, script: p.solution, input: c.input, ...r, matchesStored });
+    }
+    await writeFile(PARTIAL, JSON.stringify({ entries }));
+    process.stdout.write(".");
+  }
+}
+await Promise.all(Array.from({ length: CONCURRENCY }, lane));
+
+entries.sort((a, b) => a.slug.localeCompare(b.slug) || a.case.localeCompare(b.case));
 await writeFile(OUT, JSON.stringify({ compiler: COMPILER_URL, capturedAt: new Date().toISOString(), entries }, null, 2));
+await rm(PARTIAL, { force: true });
+
+const count = (f) => entries.filter(f).length;
 console.log(`\n\n${problems.length} problems, ${entries.length} cases → ${OUT}`);
-console.log(`runtime errors: ${errors}   output ≠ stored expectation: ${mismatches}`);
+console.log(`runtime errors: ${count((e) => e.error && !e.transport)}   transport failures: ${count((e) => e.transport)}   output ≠ stored expectation: ${count((e) => e.output !== null && !e.matchesStored)}`);

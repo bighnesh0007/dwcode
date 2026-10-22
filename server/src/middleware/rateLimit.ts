@@ -6,7 +6,7 @@
  * container, with no change to any policy or route.
  */
 import rateLimitImport, { ipKeyGenerator } from "express-rate-limit";
-import type { Options, RateLimitRequestHandler } from "express-rate-limit";
+import type { Options, RateLimitRequestHandler, Store } from "express-rate-limit";
 import { RATE_LIMIT_POLICIES, type RateLimitPolicyName } from "../config/constants.ts";
 import { RateLimitError } from "../errors/AppError.ts";
 import { logEvent } from "../lib/logger.ts";
@@ -21,6 +21,17 @@ type RateLimitFactory = (options?: Partial<Options>) => RateLimitRequestHandler;
 const rateLimit = interopDefault<RateLimitFactory>(rateLimitImport);
 
 /**
+ * Where counters live. Unset = express-rate-limit's in-process memory store,
+ * which is per instance. The container sets a Redis factory when REDIS_URL is
+ * configured, once, before any route builds its limiters.
+ */
+let storeFactory: ((policy: RateLimitPolicyName) => Store) | undefined;
+
+export function useRateLimitStore(factory: (policy: RateLimitPolicyName) => Store): void {
+  storeFactory = factory;
+}
+
+/**
  * Build a limiter from a named policy.
  *
  * `keyBy: "user"` keys on the authenticated user id and falls back to IP for
@@ -33,6 +44,15 @@ export function createLimiter(name: RateLimitPolicyName): RateLimitRequestHandle
   return rateLimit({
     windowMs: policy.windowMs,
     limit: policy.limit,
+    ...(storeFactory
+      ? {
+          store: storeFactory(name),
+          // Fail OPEN if Redis is unreachable: a cache outage must not take every
+          // endpoint down with it. The compiler's own admission queue still caps
+          // load, so this cannot turn into unbounded work.
+          passOnStoreError: true,
+        }
+      : {}),
     standardHeaders: "draft-8",
     legacyHeaders: false,
     keyGenerator: (req) => {
