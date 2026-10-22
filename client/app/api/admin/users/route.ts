@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/adminCheck";
-import connectToDatabase from "@/lib/db";
-import { Submission } from "@/models/Submission";
-import { Comment } from "@/models/Comment";
-import { UserRole } from "@/models/UserRole";
-import { UserCoins } from "@/models/UserCoins";
-import { UserProfile } from "@/models/UserProfile";
+import * as coins from "@/lib/repositories/coins";
+import * as comments from "@/lib/repositories/comments";
+import * as profiles from "@/lib/repositories/profiles";
+import * as roles from "@/lib/repositories/roles";
+import * as submissions from "@/lib/repositories/submissions";
+import type { CommentUserStats } from "@/lib/repositories/comments";
+import type { SubmissionUserStats } from "@/lib/repositories/submissions";
 import { getErrorMessage } from "@/lib/errors";
 
 /**
@@ -21,23 +22,8 @@ import { getErrorMessage } from "@/lib/errors";
  * Activity stats are left-joined on top, defaulting to zero.
  */
 
-interface SubmissionUserAggregate {
-    _id: string;
-    userName?: string;
-    userImageUrl?: string;
-    totalSubmissions: number;
-    accepted: number;
-    firstSeenAt?: Date;
-    lastActiveAt?: Date;
-    solvedSlugs: string[];
-}
-
-interface CommentUserAggregate {
-    _id: string;
-    count: number;
-    userName?: string;
-    userImageUrl?: string;
-}
+type SubmissionUserAggregate = SubmissionUserStats;
+type CommentUserAggregate = CommentUserStats;
 
 export interface AdminUserRow {
     userId: string;
@@ -61,40 +47,12 @@ export async function GET() {
         const admin = await requireAdmin();
         if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        await connectToDatabase();
-
-        const [profiles, submissionUsers, commentUsers, coins, roles] = await Promise.all([
-            UserProfile.find().select("userId username createdAt").lean(),
-            Submission.aggregate<SubmissionUserAggregate>([
-                {
-                    $group: {
-                        _id: "$userId",
-                        userName: { $last: "$userName" },
-                        userImageUrl: { $last: "$userImageUrl" },
-                        totalSubmissions: { $sum: 1 },
-                        accepted: { $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] } },
-                        firstSeenAt: { $min: "$createdAt" },
-                        lastActiveAt: { $max: "$createdAt" },
-                        solvedSlugs: {
-                            $addToSet: {
-                                $cond: [{ $eq: ["$status", "Accepted"] }, "$problemSlug", "$$REMOVE"],
-                            },
-                        },
-                    },
-                },
-            ]),
-            Comment.aggregate<CommentUserAggregate>([
-                {
-                    $group: {
-                        _id: "$userId",
-                        count: { $sum: 1 },
-                        userName: { $last: "$userName" },
-                        userImageUrl: { $last: "$userImageUrl" },
-                    },
-                },
-            ]),
-            UserCoins.find().select("userId balance").lean(),
-            UserRole.find({ role: "admin" }).select("userId").lean(),
+        const [profileRows, submissionUsers, commentUsers, balances, adminIds] = await Promise.all([
+            profiles.listAllSummaries(),
+            submissions.statsByUser(),
+            comments.statsByUser(),
+            coins.listBalances(),
+            roles.listAdminUserIds(),
         ]);
 
         const submissionMap = new Map<string, SubmissionUserAggregate>();
@@ -104,17 +62,17 @@ export async function GET() {
         for (const row of commentUsers) if (row._id) commentMap.set(row._id, row);
 
         const coinMap = new Map<string, number>();
-        for (const row of coins) coinMap.set(row.userId, row.balance);
+        for (const row of balances) coinMap.set(row.userId, row.balance);
 
         const profileMap = new Map<string, { username: string; createdAt?: Date }>();
-        for (const row of profiles) {
+        for (const row of profileRows) {
             profileMap.set(row.userId, {
                 username: row.username,
                 ...(row.createdAt ? { createdAt: row.createdAt } : {}),
             });
         }
 
-        const adminSet = new Set(roles.map((role) => role.userId));
+        const adminSet = new Set(adminIds);
         const superAdminId = process.env.SUPER_ADMIN_USER_ID ?? "";
 
         // Union every source that knows about a user. An empty-string userId is a

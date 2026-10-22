@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import mongoose from "mongoose";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
-import { ProblemReport } from "@/models/ProblemReport";
+import * as problems from "@/lib/repositories/problems";
+import * as reports from "@/lib/repositories/reports";
+import { isValidId } from "@/lib/repositories/shared";
 import {
   REPORT_REASONS,
   REPORT_STATUSES,
@@ -22,10 +21,6 @@ import { getErrorMessage } from "@/lib/errors";
  */
 
 const MAX_DETAILS = REPORT_DETAILS_MAX_LENGTH;
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
-}
 
 /**
  * GET /api/problems/report?problemId=…  — the caller's own report, if any.
@@ -50,24 +45,16 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "invalid status" }, { status: 400 });
       }
 
-      await connectToDatabase();
-      const reports = await ProblemReport.find({ status })
-        .sort({ createdAt: -1 })
-        .limit(200)
-        .lean();
-      return NextResponse.json({ reports });
+      return NextResponse.json({ reports: await reports.listByStatus(status, 200) });
     }
 
     // ── The caller's own report for one problem ──────────────────────────────
     const problemId = searchParams.get("problemId");
-    if (!problemId || !mongoose.Types.ObjectId.isValid(problemId)) {
+    if (!isValidId(problemId)) {
       return NextResponse.json({ error: "valid problemId required" }, { status: 400 });
     }
 
-    await connectToDatabase();
-    const mine = await ProblemReport.findOne({ problemId, userId, status: "open" })
-      .select("reason details status createdAt")
-      .lean();
+    const mine = await reports.findOwnOpen(userId, problemId);
 
     return NextResponse.json({ report: mine ?? null });
   } catch (error) {
@@ -86,7 +73,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { problemId, reason } = body ?? {};
 
-    if (!problemId || !mongoose.Types.ObjectId.isValid(problemId)) {
+    if (!isValidId(problemId)) {
       return NextResponse.json({ error: "valid problemId required" }, { status: 400 });
     }
     if (!isReason(reason)) {
@@ -98,40 +85,30 @@ export async function POST(req: Request) {
     const details =
       typeof body?.details === "string" ? body.details.trim().slice(0, MAX_DETAILS) : "";
 
-    await connectToDatabase();
-
     // The problem must exist — otherwise the queue fills with reports against
     // ids that were deleted or never existed.
-    const problem = await Problem.findById(problemId).select("slug").lean();
-    if (!problem) {
+    const problemSlug = await problems.findSlugById(problemId);
+    if (!problemSlug) {
       return NextResponse.json({ error: "Problem not found" }, { status: 404 });
     }
 
     const user = await currentUser();
 
-    try {
-      const report = await ProblemReport.create({
-        problemId,
-        problemSlug: problem.slug,
-        userId,
-        userName: user?.fullName || user?.username || "Anonymous",
-        reason,
-        details,
-        status: "open",
-      });
-      return NextResponse.json({ success: true, report });
-    } catch (error) {
-      // The partial unique index rejected a second OPEN report from the same
-      // user. That is the intended outcome, not a failure — report it as
-      // "already reported" rather than a 500.
-      if (isDuplicateKeyError(error)) {
-        return NextResponse.json(
-          { success: true, alreadyReported: true },
-          { status: 200 },
-        );
-      }
-      throw error;
+    const report = await reports.create({
+      problemId,
+      problemSlug,
+      userId,
+      userName: user?.fullName || user?.username || "Anonymous",
+      reason,
+      details,
+    });
+    // The partial unique index rejected a second OPEN report from the same
+    // user. That is the intended outcome, not a failure — report it as
+    // "already reported" rather than a 500.
+    if (report === "duplicate") {
+      return NextResponse.json({ success: true, alreadyReported: true }, { status: 200 });
     }
+    return NextResponse.json({ success: true, report });
   } catch (error) {
     return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
@@ -146,7 +123,7 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const { id, status } = body ?? {};
 
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    if (!isValidId(id)) {
       return NextResponse.json({ error: "valid id required" }, { status: 400 });
     }
     if (!isStatus(status)) {
@@ -162,20 +139,13 @@ export async function PATCH(req: Request) {
         : "";
     const isClosing = status === "resolved" || status === "rejected";
 
-    await connectToDatabase();
-    const updated = await ProblemReport.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          status,
-          resolutionNote,
-          ...(isClosing
-            ? { resolvedBy: admin.userId, resolvedAt: new Date() }
-            : { resolvedBy: "", resolvedAt: null }),
-        },
-      },
-      { returnDocument: "after", runValidators: true },
-    );
+    const updated = await reports.updateById(id, {
+      status,
+      resolutionNote,
+      ...(isClosing
+        ? { resolvedBy: admin.userId, resolvedAt: new Date() }
+        : { resolvedBy: "", resolvedAt: null }),
+    });
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     return NextResponse.json({ success: true, report: updated });

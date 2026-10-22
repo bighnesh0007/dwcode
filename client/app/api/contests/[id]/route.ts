@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Contest } from "@/models/Contest";
+import * as contests from "@/lib/repositories/contests";
 import { getErrorMessage } from "@/lib/errors";
 
 // GET /api/contests/:id
@@ -9,10 +8,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     try {
         const { userId } = await auth();
         const { id } = await params;
-        await connectToDatabase();
-        const contest = await Contest.findById(id)
-            .populate("problems", "title slug difficulty tags")
-            .lean();
+        const contest = await contests.findWithProblems(id);
         if (!contest) return NextResponse.json({ error: "Not found" }, { status: 404 });
         const isCreator = contest.createdBy === userId;
         const isParticipant = Boolean(
@@ -49,8 +45,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         const { searchParams } = new URL(req.url);
         const action = searchParams.get("action");
 
-        await connectToDatabase();
-        const contest = await Contest.findById(id);
+        const contest = await contests.findById(id);
         if (!contest) return NextResponse.json({ error: "Contest not found" }, { status: 404 });
 
         const now = new Date();
@@ -72,26 +67,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
                 return NextResponse.json({ error: "Contest is full" }, { status: 400 });
             }
             const user = await currentUser();
-            contest.participants.push({
+            await contests.addParticipant(contest._id, {
                 userId,
                 userName: user?.fullName || user?.username || "Anonymous",
                 userImageUrl: user?.imageUrl || "",
-                score: 0,
-                solvedProblems: [],
-                joinedAt: new Date(),
             });
-            await contest.save();
             return NextResponse.json({ success: true });
         }
 
         if (action === "leave") {
-            const participantIndex = contest.participants.findIndex(
-                (participant) => participant.userId === userId
-            );
-            if (participantIndex !== -1) {
-                contest.participants.splice(participantIndex, 1);
-            }
-            await contest.save();
+            await contests.removeParticipant(contest._id, userId);
             return NextResponse.json({ success: true });
         }
 
@@ -108,13 +93,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { id } = await params;
-        await connectToDatabase();
-        const contest = await Contest.findById(id);
+        const contest = await contests.findById(id);
         if (!contest) return NextResponse.json({ error: "Not found" }, { status: 404 });
         if (contest.createdBy !== userId) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        await Contest.findByIdAndDelete(id);
+        await contests.deleteById(id);
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });

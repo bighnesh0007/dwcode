@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
+import * as problems from "@/lib/repositories/problems";
+import { pickWritableProblemFields, slugify } from "@/lib/problemFields";
 import { DEFAULT_DIFFICULTY, isDifficulty } from "@dwcode/shared";
 import { requireAdmin } from "@/lib/adminCheck";
 import { getErrorMessage } from "@/lib/errors";
@@ -113,19 +113,16 @@ Questions should test real DataWeave skills. Avoid trivial questions. Include Mu
     }
 
     // Create a slug from the title
-    const slug = generatedData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const slug = slugify(generatedData.title);
 
-    await connectToDatabase();
-
-    const newProblem = new Problem({
-      ...generatedData,
+    // Model output is untrusted: keep only writable fields.
+    const newProblem = await problems.create({
+      ...pickWritableProblemFields(generatedData),
       slug,
       difficulty,
       category,
       createdByAI: true,
     });
-
-    await newProblem.save();
 
     return NextResponse.json({ success: true, problem: newProblem });
   } catch (error) {

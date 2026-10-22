@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { UserProfile } from "@/models/UserProfile";
+import * as profiles from "@/lib/repositories/profiles";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function POST(req: Request) {
@@ -14,26 +13,22 @@ export async function POST(req: Request) {
 
     if (!targetUsername) return NextResponse.json({ error: "Missing target username" }, { status: 400 });
 
-    await connectToDatabase();
-
-    const targetUser = await UserProfile.findOne({ username: targetUsername });
+    const targetUser = await profiles.findByUsername(targetUsername);
     if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
     if (targetUser.userId === userId) return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
 
-    const currentUserProfile = await UserProfile.findOne({ userId });
+    const currentUserProfile = await profiles.findByUserId(userId);
     if (!currentUserProfile) return NextResponse.json({ error: "Your profile not found" }, { status: 404 });
 
     const isFollowing = currentUserProfile.following.includes(targetUser.userId);
 
     if (isFollowing) {
       // Unfollow
-      await UserProfile.updateOne({ userId }, { $pull: { following: targetUser.userId } });
-      await UserProfile.updateOne({ userId: targetUser.userId }, { $pull: { followers: userId } });
+      await profiles.unfollow(userId, targetUser.userId);
       return NextResponse.json({ message: "Unfollowed successfully", following: false });
     } else {
       // Follow
-      await UserProfile.updateOne({ userId }, { $addToSet: { following: targetUser.userId } });
-      await UserProfile.updateOne({ userId: targetUser.userId }, { $addToSet: { followers: userId } });
+      await profiles.follow(userId, targetUser.userId);
       return NextResponse.json({ message: "Followed successfully", following: true });
     }
   } catch (error) {

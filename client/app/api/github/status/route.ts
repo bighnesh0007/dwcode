@@ -1,7 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import connectToDatabase from "@/lib/db";
-import { GitHubIntegration } from "@/models/GitHubIntegration";
+import * as githubIntegrations from "@/lib/repositories/githubIntegrations";
 
 export async function GET() {
   const { userId } = await auth();
@@ -9,10 +8,7 @@ export async function GET() {
     return NextResponse.json({ connected: false }, { status: 401 });
   }
 
-  await connectToDatabase();
-  const integration = await GitHubIntegration.findOne({ userId })
-    .select("githubUsername repoName repoPrivate defaultBranch")
-    .lean();
+  const integration = await githubIntegrations.findSettings(userId);
 
   return NextResponse.json({
     connected: Boolean(integration),

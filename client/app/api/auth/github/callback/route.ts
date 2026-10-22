@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { GitHubIntegration } from "@/models/GitHubIntegration";
+import * as githubIntegrations from "@/lib/repositories/githubIntegrations";
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
@@ -79,18 +78,7 @@ export async function GET(req: Request) {
     }
 
     // 3. Save to database
-    await connectToDatabase();
-    await GitHubIntegration.findOneAndUpdate(
-      { userId },
-      {
-        userId,
-        githubId: userData.id.toString(),
-        githubUsername: userData.login,
-        accessToken,
-        updatedAt: new Date(),
-      },
-      { upsert: true, returnDocument: "after" }
-    );
+    await githubIntegrations.saveConnection(userId, userData.id.toString(), userData.login, accessToken);
 
     const destination = new URL(returnTo, req.url);
     destination.searchParams.set("github", "connected");

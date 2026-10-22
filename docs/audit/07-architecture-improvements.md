@@ -116,6 +116,14 @@ generates the OpenAPI spec (DOC-02).
 
 ### 3.2 Repository layer (REF-06)
 
+> **Status: done for the client.** Every client data access now goes through
+> `client/lib/repositories/` (one module per collection), and ESLint
+> `no-restricted-imports` rejects `@/models/*`, `mongoose` and `@/lib/db`
+> anywhere else. The leaderboard still aggregates in JavaScript — moving that into
+> a `$group` pipeline is now a change to one repository function. This is phase 1
+> of issue #23 (MongoDB → PostgreSQL): a database swap now means reimplementing
+> the repositories, not editing 36 route handlers.
+
 Three repositories exist already
 ([problem](../../server/src/repositories/problem.repository.ts),
 [contest](../../server/src/repositories/contest.repository.ts),

@@ -1,7 +1,7 @@
-import { GitHubIntegration } from "@/models/GitHubIntegration";
-import connectToDatabase from "@/lib/db";
-import { Submission } from "@/models/Submission";
-import { Problem, type ProblemSchema } from "@/models/Problem";
+import type { ProblemSchema } from "@/models/Problem";
+import * as githubIntegrations from "@/lib/repositories/githubIntegrations";
+import * as problems from "@/lib/repositories/problems";
+import * as submissions from "@/lib/repositories/submissions";
 import type { InferSchemaType } from "mongoose";
 
 const REPO_NAME = "dwcode-solutions";
@@ -166,8 +166,7 @@ export async function publishPlaygroundToGitHub(
   userId: string,
   input: PlaygroundPublishInput
 ) {
-  await connectToDatabase();
-  const integration = await GitHubIntegration.findOne({ userId });
+  const integration = await githubIntegrations.findByUserId(userId);
   if (!integration) throw new Error("Connect GitHub before publishing.");
 
   const repoName = integration.repoName || "dwcode-workspace";
@@ -244,8 +243,7 @@ export async function pushSolutionToGithub(
   code: string
 ) {
   try {
-    await connectToDatabase();
-    const integration = await GitHubIntegration.findOne({ userId });
+    const integration = await githubIntegrations.findByUserId(userId);
     if (!integration) return;
 
     const token = integration.accessToken;
@@ -334,16 +332,14 @@ export async function pushSolutionToGithub(
 
 async function updateReadme(userId: string, token: string, username: string) {
   try {
-    const allSubmissions = await Submission.find({ userId }).lean();
+    const allSubmissions = await submissions.listByUser(userId);
     const acceptedSlugs = new Set(
       allSubmissions
         .filter((submission) => submission.status === "Accepted")
         .map((submission) => submission.problemSlug)
     );
     
-    const solvedProblems = await Problem.find({ slug: { $in: Array.from(acceptedSlugs) } })
-      .select("title slug difficulty")
-      .lean();
+    const solvedProblems = await problems.summariesForSlugs(Array.from(acceptedSlugs));
     
     const easyCount = solvedProblems.filter((problem) => problem.difficulty === "Easy").length;
     const mediumCount = solvedProblems.filter((problem) => problem.difficulty === "Medium").length;

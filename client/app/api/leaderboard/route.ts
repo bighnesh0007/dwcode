@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Submission } from "@/models/Submission";
-import { Problem } from "@/models/Problem";
-import { UserProfile } from "@/models/UserProfile";
+import * as problems from "@/lib/repositories/problems";
+import * as profiles from "@/lib/repositories/profiles";
+import * as submissions from "@/lib/repositories/submissions";
 import { getErrorMessage } from "@/lib/errors";
 import { computeScore } from "@/lib/ranks";
 
@@ -58,24 +57,18 @@ export async function GET(req: Request) {
         );
         const requestedPage = parsePositiveInt(searchParams.get("page"), 1);
 
-        await connectToDatabase();
-
         // Aggregate per-user stats from submissions
-        const submissions = await Submission.find().lean();
+        const allSubmissions = await submissions.listAll();
 
-        const totalProblems = await Problem.countDocuments();
+        const totalProblems = await problems.count();
         const [easyCount, mediumCount, hardCount] = await Promise.all([
-            Problem.countDocuments({ difficulty: "Easy" }),
-            Problem.countDocuments({ difficulty: "Medium" }),
-            Problem.countDocuments({ difficulty: "Hard" }),
+            problems.count({ difficulty: "Easy" }),
+            problems.count({ difficulty: "Medium" }),
+            problems.count({ difficulty: "Hard" }),
         ]);
 
         // Difficulty map: slug → difficulty
-        const problems = await Problem.find().select("slug difficulty").lean();
-        const diffMap: Record<string, string> = {};
-        for (const problem of problems) {
-            diffMap[problem.slug] = problem.difficulty;
-        }
+        const diffMap = await problems.difficultyBySlug();
 
         // Group by userId
         const userMap: Record<
@@ -90,7 +83,7 @@ export async function GET(req: Request) {
             }
         > = {};
 
-        for (const sub of submissions) {
+        for (const sub of allSubmissions) {
             if (!sub.userId) continue; // skip old submissions without userId
             const existing = userMap[sub.userId];
             if (existing && PLACEHOLDER_NAMES.has(existing.userName) && !PLACEHOLDER_NAMES.has(sub.userName ?? "")) {
@@ -116,15 +109,7 @@ export async function GET(req: Request) {
 
         // One batched lookup for public-profile usernames — never per-row (N+1).
         const userIds = Object.keys(userMap);
-        const profiles = userIds.length
-            ? await UserProfile.find({ userId: { $in: userIds } })
-                  .select("userId username")
-                  .lean()
-            : [];
-        const usernameByUserId = new Map<string, string>();
-        for (const profile of profiles) {
-            usernameByUserId.set(profile.userId, profile.username);
-        }
+        const usernameByUserId = await profiles.usernamesByUserId(userIds);
 
         // Build rows
         const rows = Object.values(userMap).map((u) => {

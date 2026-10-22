@@ -1,13 +1,11 @@
 import Workspace from "./Workspace";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
+import { findForWorkspace } from "@/lib/repositories/problems";
 import { notFound } from "next/navigation";
 
 export default async function ProblemPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   
-  await connectToDatabase();
-  const problemDoc = await Problem.findOne({ slug }).lean();
+  const problemDoc = await findForWorkspace(slug);
   
   if (!problemDoc) {
     notFound();

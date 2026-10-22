@@ -1,5 +1,5 @@
-import connectToDatabase from "@/lib/db";
-import { UserCoins } from "@/models/UserCoins";
+import { credit } from "@/lib/repositories/coins";
+import { hasAdminRole } from "@/lib/repositories/roles";
 
 /**
  * Award coins to a user. Silently logs errors — never throws.
@@ -12,21 +12,7 @@ export async function awardCoins(
 ) {
     if (!userId || amount === 0) return;
     try {
-        await connectToDatabase();
-        await UserCoins.findOneAndUpdate(
-            { userId },
-            {
-                $inc: { balance: amount },
-                $push: {
-                    transactions: {
-                        $each: [{ type, amount, description, createdAt: new Date() }],
-                        $position: 0,   // prepend so newest is first
-                        $slice: 200,    // keep last 200 transactions
-                    },
-                },
-            },
-            { upsert: true }
-        );
+        await credit(userId, { type, amount, description });
     } catch (err) {
         console.error("[awardCoins] failed:", err);
     }
@@ -39,10 +25,7 @@ export async function isAdmin(userId: string): Promise<boolean> {
     if (!userId) return false;
     if (userId === process.env.SUPER_ADMIN_USER_ID) return true;
     try {
-        await connectToDatabase();
-        const { UserRole } = await import("@/models/UserRole");
-        const role = await UserRole.findOne({ userId, role: "admin" }).lean();
-        return Boolean(role);
+        return await hasAdminRole(userId);
     } catch {
         return false;
     }

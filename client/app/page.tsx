@@ -5,10 +5,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
-import { Submission } from "@/models/Submission";
-import { Bookmark } from "@/models/Bookmark";
+import * as problems from "@/lib/repositories/problems";
+import * as submissions from "@/lib/repositories/submissions";
+import * as bookmarks from "@/lib/repositories/bookmarks";
 import { Heatmap, ProgressRing } from "@/components/Charts";
 import { Code2, Zap, Trophy, Star, BarChart2, Flame, TrendingUp } from "lucide-react";
 import type { ProblemSummary } from "@/lib/types";
@@ -25,36 +24,35 @@ export default async function Home() {
   const activityData: { date: string; count: number }[] = [];
 
   try {
-    await connectToDatabase();
     [total, easy, medium, hard] = await Promise.all([
-      Problem.countDocuments(),
-      Problem.countDocuments({ difficulty: "Easy" }),
-      Problem.countDocuments({ difficulty: "Medium" }),
-      Problem.countDocuments({ difficulty: "Hard" }),
+      problems.count(),
+      problems.count({ difficulty: "Easy" }),
+      problems.count({ difficulty: "Medium" }),
+      problems.count({ difficulty: "Hard" }),
     ]);
 
     if (userId) {
       // Solved = any problem that has an Accepted submission
-      const acceptedSlugs = await Submission.distinct("problemSlug", { userId, status: "Accepted" });
-      const attemptedSlugs = await Submission.distinct("problemSlug", { userId, status: { $ne: "Accepted" } });
+      const { accepted: acceptedSlugs, notAccepted: attemptedSlugs } =
+        await submissions.slugsByOutcome(userId);
       solved = acceptedSlugs.length;
       attempted = attemptedSlugs.filter((s: string) => !acceptedSlugs.includes(s)).length;
 
-      bookmarked = await Bookmark.countDocuments({ userId });
+      bookmarked = await bookmarks.countByUser(userId);
 
       if (bookmarked > 0) {
-        const bmarks = await Bookmark.find({ userId }).lean();
+        const bmarks = await bookmarks.listByUser(userId);
         const bIds = bmarks.map((bookmark) => bookmark.problemId);
-        const bDocs = await Problem.find({ _id: { $in: bIds } }).limit(3).lean();
+        const bDocs = await problems.findByIds(bIds, 3);
         bookmarkedProblems = JSON.parse(JSON.stringify(bDocs));
       }
 
-      const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
+      const allSubmissions = await submissions.listByUser(userId);
       totalSubmissions = allSubmissions.length;
       const acceptedCount = allSubmissions.filter((submission) => submission.status === "Accepted").length;
       acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
 
-      const solvedProbs = await Problem.find({ slug: { $in: acceptedSlugs } }).select("difficulty").lean();
+      const solvedProbs = await problems.summariesForSlugs(acceptedSlugs);
       solvedEasy = solvedProbs.filter((problem) => problem.difficulty === "Easy").length;
       solvedMedium = solvedProbs.filter((problem) => problem.difficulty === "Medium").length;
       solvedHard = solvedProbs.filter((problem) => problem.difficulty === "Hard").length;
@@ -83,7 +81,7 @@ export default async function Home() {
         else if (i > 0) break;
       }
 
-      const recentDocs = await Problem.find({ createdBy: userId }).sort({ createdAt: -1 }).limit(4).lean();
+      const recentDocs = await problems.recentByCreator(userId, 4);
       recentProblems = JSON.parse(JSON.stringify(recentDocs));
     }
 

@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import mongoose from "mongoose";
-import connectToDatabase from "@/lib/db";
-import { Submission } from "@/models/Submission";
-import { Problem } from "@/models/Problem";
+import * as problems from "@/lib/repositories/problems";
+import * as submissions from "@/lib/repositories/submissions";
+import { isValidId } from "@/lib/repositories/shared";
 import { COIN_RULES, coinRewardFor } from "@dwcode/shared";
 import { awardCoins } from "@/lib/coins";
 import { gradeSubmission } from "@/lib/grading";
@@ -17,9 +16,7 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json([]);
     }
-    await connectToDatabase();
-    const submissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
-    return NextResponse.json(submissions);
+    return NextResponse.json(await submissions.listByUser(userId));
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
@@ -63,19 +60,15 @@ export async function POST(req: Request) {
 
     const { problemId, code, input } = body ?? {};
 
-    if (!problemId || !mongoose.Types.ObjectId.isValid(problemId)) {
+    if (!isValidId(problemId)) {
       return NextResponse.json({ success: false, error: "invalid problemId" }, { status: 400 });
     }
     if (typeof code !== "string" || !code.trim()) {
       return NextResponse.json({ success: false, error: "code is required" }, { status: 400 });
     }
 
-    await connectToDatabase();
-
     // Test cases come from the database, never from the client.
-    const problem = await Problem.findById(problemId)
-      .select("title slug difficulty testCases examples hiddenTestCases")
-      .lean();
+    const problem = await problems.findForGrading(problemId);
     if (!problem) {
       return NextResponse.json({ success: false, error: "Problem not found" }, { status: 404 });
     }
@@ -88,7 +81,7 @@ export async function POST(req: Request) {
     );
 
     const user = await currentUser();
-    const submission = new Submission({
+    const submission = await submissions.create({
       problemId,
       problemSlug: problem.slug,
       userId,
@@ -100,19 +93,11 @@ export async function POST(req: Request) {
       status: grade.status,
       executionTime: grade.executionTime,
     });
-    await submission.save();
 
     // Coins are awarded against the SERVER's verdict.
     if (grade.status === "Accepted") {
       try {
-        const prevAccepted = await Submission.countDocuments({
-          userId,
-          problemId,
-          status: "Accepted",
-          _id: { $ne: submission._id },
-        });
-
-        if (prevAccepted === 0) {
+        if (!(await submissions.hasOtherAccepted(userId, problemId, submission._id))) {
           await awardCoins(
             userId,
             COIN_RULES.firstSolve,

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Blog } from "@/models/Blog";
+import * as blog from "@/lib/repositories/blog";
 import { awardCoins } from "@/lib/coins";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -11,9 +10,7 @@ function makeSlug(title: string) {
 
 export async function GET() {
     try {
-        await connectToDatabase();
-        const posts = await Blog.find({ published: true }).sort({ createdAt: -1 }).lean();
-        return NextResponse.json(posts);
+        return NextResponse.json(await blog.listPublished());
     } catch (error) {
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
@@ -31,17 +28,15 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "title and content required" }, { status: 400 });
         }
 
-        await connectToDatabase();
-
         // Ensure unique slug
         const baseSlug = makeSlug(title);
         let slug = baseSlug;
         let suffix = 1;
-        while (await Blog.findOne({ slug })) {
+        while (await blog.slugExists(slug)) {
             slug = `${baseSlug}-${suffix++}`;
         }
 
-        const post = new Blog({
+        const post = await blog.create({
             title: title.trim(),
             slug,
             content: content.trim(),
@@ -51,7 +46,6 @@ export async function POST(req: Request) {
             tags: Array.isArray(tags) ? tags : (tags || "").split(",").map((t: string) => t.trim()).filter(Boolean),
             published: true,
         });
-        await post.save();
 
         // Award 2 coins
         await awardCoins(userId, 2, "blog_post", `Published blog: ${title}`);

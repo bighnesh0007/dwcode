@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import connectToDatabase from "@/lib/db";
-import { PlaygroundSnippet } from "@/models/PlaygroundSnippet";
+import * as snippets from "@/lib/repositories/snippets";
 
 const MAX_SCRIPT_LENGTH = 50_000;
 const MAX_FILE_COUNT = 12;
@@ -18,10 +17,6 @@ type IncomingTestCase = {
   name?: unknown;
   files?: unknown;
   expectedOutput?: unknown;
-};
-
-type MongoDuplicateKeyError = Error & {
-  code?: number;
 };
 
 function makeSlug() {
@@ -103,31 +98,17 @@ export async function POST(request: Request) {
             : "",
       }));
 
-    await connectToDatabase();
+    // Retries on a slug collision (up to 5 attempts).
+    const slug = await snippets.createWithUniqueSlug(makeSlug, { script, files, testCases });
 
-    let snippet = null;
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      try {
-        snippet = await PlaygroundSnippet.create({
-          slug: makeSlug(),
-          script,
-          files,
-          testCases,
-        });
-        break;
-      } catch (error: unknown) {
-        if ((error as MongoDuplicateKeyError).code !== 11000) throw error;
-      }
-    }
-
-    if (!snippet) {
+    if (!slug) {
       return NextResponse.json(
         { error: "Could not create share link." },
         { status: 500 }
       );
     }
 
-    return NextResponse.json({ id: snippet.slug });
+    return NextResponse.json({ id: slug });
   } catch (error: unknown) {
     return NextResponse.json(
       { error: getErrorMessage(error, "Could not save snippet.") },
@@ -148,9 +129,7 @@ export async function GET(request: Request) {
       );
     }
 
-    await connectToDatabase();
-
-    const snippet = await PlaygroundSnippet.findOne({ slug: id }).lean();
+    const snippet = await snippets.findBySlug(id);
 
     if (!snippet) {
       return NextResponse.json(

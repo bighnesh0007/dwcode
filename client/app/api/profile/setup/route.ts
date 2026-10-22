@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { UserProfile } from "@/models/UserProfile";
+import * as profiles from "@/lib/repositories/profiles";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function POST() {
@@ -12,9 +11,7 @@ export async function POST() {
     const user = await currentUser();
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    await connectToDatabase();
-
-    const existingProfile = await UserProfile.findOne({ userId });
+    const existingProfile = await profiles.findByUserId(userId);
     if (existingProfile) {
       return NextResponse.json({ message: "Profile already exists", profile: existingProfile });
     }
@@ -26,16 +23,12 @@ export async function POST() {
     // Ensure uniqueness
     let username = baseUsername;
     let counter = 1;
-    while (await UserProfile.findOne({ username })) {
+    while (await profiles.usernameExists(username)) {
       username = `${baseUsername}${counter}`;
       counter++;
     }
 
-    const newProfile = await UserProfile.create({
-      userId,
-      username,
-      bio: "",
-    });
+    const newProfile = await profiles.create(userId, username);
 
     return NextResponse.json({ message: "Profile created", profile: newProfile });
   } catch (error) {

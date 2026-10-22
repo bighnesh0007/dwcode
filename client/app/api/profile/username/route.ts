@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { UserProfile } from "@/models/UserProfile";
+import * as profiles from "@/lib/repositories/profiles";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function PUT(req: Request) {
@@ -16,19 +15,13 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Invalid username. Must be 3-20 characters, alphanumeric and underscores only." }, { status: 400 });
     }
 
-    await connectToDatabase();
-
     // Check if another user has this username
-    const existing = await UserProfile.findOne({ username: { $regex: new RegExp(`^${username}$`, "i") } });
+    const existing = await profiles.findByUsernameIgnoreCase(username);
     if (existing && existing.userId !== userId) {
       return NextResponse.json({ error: "Username is already taken" }, { status: 409 });
     }
 
-    const updated = await UserProfile.findOneAndUpdate(
-      { userId },
-      { username, bio },
-      { returnDocument: "after", upsert: true }
-    );
+    const updated = await profiles.upsertUsernameAndBio(userId, username, bio);
 
     return NextResponse.json({ message: "Profile updated", profile: updated });
   } catch (error) {

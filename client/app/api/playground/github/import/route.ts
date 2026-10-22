@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { GitHubIntegration } from "@/models/GitHubIntegration";
+import * as githubIntegrations from "@/lib/repositories/githubIntegrations";
 import { getErrorMessage } from "@/lib/errors";
 
 interface GitHubContentFile {
@@ -44,8 +43,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Missing 'repo' or 'path' query param." }, { status: 400 });
         }
 
-        await connectToDatabase();
-        const integration = await GitHubIntegration.findOne({ userId });
+        const integration = await githubIntegrations.findByUserId(userId);
         if (!integration) {
             return NextResponse.json({ error: "GitHub not connected. Connect via the playground toolbar." }, { status: 403 });
         }
@@ -99,8 +97,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing 'repo'." }, { status: 400 });
         }
 
-        await connectToDatabase();
-        const integration = await GitHubIntegration.findOne({ userId });
+        const integration = await githubIntegrations.findByUserId(userId);
         if (!integration) {
             return NextResponse.json({ error: "GitHub not connected." }, { status: 403 });
         }

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Bookmark } from "@/models/Bookmark";
+import * as bookmarks from "@/lib/repositories/bookmarks";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function GET() {
@@ -10,9 +9,7 @@ export async function GET() {
     if (!userId) {
       return NextResponse.json([]);
     }
-    await connectToDatabase();
-    const bookmarks = await Bookmark.find({ userId }).lean();
-    return NextResponse.json(bookmarks);
+    return NextResponse.json(await bookmarks.listByUser(userId));
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
@@ -25,17 +22,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const { problemId, problemSlug } = await req.json();
-    await connectToDatabase();
-
-    const existing = await Bookmark.findOne({ problemId, userId });
-    if (existing) {
-      await Bookmark.deleteOne({ problemId, userId });
-      return NextResponse.json({ success: true, bookmarked: false });
-    } else {
-      const bookmark = new Bookmark({ problemId, problemSlug, userId });
-      await bookmark.save();
-      return NextResponse.json({ success: true, bookmarked: true });
-    }
+    const bookmarked = await bookmarks.toggle(userId, problemId, problemSlug);
+    return NextResponse.json({ success: true, bookmarked });
   } catch (error) {
     return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }

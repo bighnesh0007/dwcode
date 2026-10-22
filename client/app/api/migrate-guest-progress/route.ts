@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Submission } from "@/models/Submission";
-import { Problem } from "@/models/Problem";
+import * as problems from "@/lib/repositories/problems";
+import * as submissions from "@/lib/repositories/submissions";
 import { GUEST_MIGRATION_ENABLED } from "@/lib/config";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -47,8 +46,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ migrated: 0 });
     }
 
-    await connectToDatabase();
-
     // Record the user's real name, as /api/submissions does — a placeholder
     // here is what the leaderboard used to display (issue #43).
     const user = await currentUser();
@@ -57,14 +54,13 @@ export async function POST(req: Request) {
 
     let count = 0;
     for (const slug of slugs) {
-      const exists = await Submission.exists({ userId, problemSlug: slug, status: "Accepted" });
-      if (exists) continue;
+      if (await submissions.hasAcceptedForSlug(userId, slug)) continue;
 
-      const problem = await Problem.findOne({ slug });
-      if (!problem) continue;
+      const problemId = await problems.findIdBySlug(slug);
+      if (!problemId) continue;
 
-      const submission = new Submission({
-        problemId: problem._id,
+      await submissions.create({
+        problemId,
         problemSlug: slug,
         userId,
         userName,
@@ -75,7 +71,6 @@ export async function POST(req: Request) {
         status: "Accepted",
         executionTime: "0ms",
       });
-      await submission.save();
       count++;
     }
 
