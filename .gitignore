@@ -22,8 +22,6 @@ next-env.d.ts
 # server/ (tsc -> dist)
 dist/
 build
-# repo-level seed/util scripts, intentionally untracked
-scripts
 
 # ── testing ───────────────────────────────────────────────────────────────────
 coverage

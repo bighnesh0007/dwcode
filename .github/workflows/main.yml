@@ -42,7 +42,7 @@ jobs:
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -71,10 +71,10 @@ jobs:
         working-directory: client
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -94,7 +94,7 @@ jobs:
 
       # Reused across runs so unchanged pages are not recompiled from scratch.
       - name: Restore Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: client/.next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('client/**/*.[jt]s', 'client/**/*.[jt]sx', 'packages/**/*.ts') }}
@@ -144,10 +144,10 @@ jobs:
         working-directory: server
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -193,11 +193,13 @@ jobs:
     name: Secret hygiene
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: No secret-bearing files are tracked
         run: |
-          if git ls-files | grep -E '(^|/)\.env($|\.)|(^|/)\.clerk/|\.pem$|\.key$'; then
+          # `.env.example` templates are allowed; real env files are not.
+          if git ls-files | grep -vE '(^|/)\.env\.example$' \
+              | grep -E '(^|/)\.env($|\.)|(^|/)\.clerk/|\.pem$|\.key$'; then
             echo "::error::A secret-bearing file is tracked in git (listed above)."
             exit 1
           fi
@@ -266,9 +268,9 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -293,7 +295,7 @@ jobs:
         run: |
           for dir in client server; do
             echo "── $dir (full tree) ──────────────────────────────────────"
-            npm --prefix "$dir" audit --audit-level=critical || \
+            npm audit --workspace "dwcode-$dir" --audit-level=critical || \
               echo "::warning::Advisories present in $dir dev tree — review, not blocking."
           done
 
@@ -307,12 +309,12 @@ jobs:
     needs: changes
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Build (no push)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false

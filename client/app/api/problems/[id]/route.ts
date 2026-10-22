@@ -120,7 +120,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       updated = await Problem.findByIdAndUpdate(
         id,
         { $set: update },
-        { new: true, runValidators: true },
+        { returnDocument: "after", runValidators: true },
       );
     } catch (error) {
       // Another problem already owns the derived slug.

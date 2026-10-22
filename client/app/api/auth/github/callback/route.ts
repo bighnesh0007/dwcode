@@ -89,7 +89,7 @@ export async function GET(req: Request) {
         accessToken,
         updatedAt: new Date(),
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     const destination = new URL(returnTo, req.url);

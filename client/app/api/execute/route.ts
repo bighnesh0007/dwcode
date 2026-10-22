@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DWL_BACKEND_URL } from "@/lib/config";
 import { getErrorMessage } from "@/lib/errors";
+import { formatCompilerOutput } from "@/lib/grading";
 
 /**
  * Proxy to the DataWeave compiler backend.
@@ -77,9 +78,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      output: typeof (data.output ?? data.result) === "string"
-        ? (data.output ?? data.result)
-        : JSON.stringify(data.output ?? data.result, null, 2),
+      output: formatCompilerOutput(data.output ?? data.result, code),
       time: `${executionTime}ms`,
     });
   } catch (error) {

@@ -174,7 +174,7 @@ export async function PATCH(req: Request) {
             : { resolvedBy: "", resolvedAt: null }),
         },
       },
-      { new: true, runValidators: true },
+      { returnDocument: "after", runValidators: true },
     );
     if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
 

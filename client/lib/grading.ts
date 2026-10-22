@@ -19,6 +19,10 @@
  * verdict changes as a result of moving the computation server-side. What
  * changes is only who is trusted to compute it.
  *
+ * One deliberate exception since: top-level JSON string outputs are now
+ * re-quoted before comparison (see formatCompilerOutput), because without it
+ * those problems could not be passed at all (issue #12).
+ *
  * `hiddenTestCases` are still NOT executed. Grading against them would make
  * problems genuinely harder than they were yesterday, which is a product
  * decision rather than a security fix, and it belongs to FEAT-01 along with the
@@ -77,6 +81,41 @@ export function normalizeOutput(value: string): string {
   }
 }
 
+/** `output application/json` or `output json` in the script header. */
+const JSON_OUTPUT_DIRECTIVE = /^\s*output\s+(?:application\/json|json)\b/m;
+
+/**
+ * Turn the compiler proxy's `output` field back into the text the script produced.
+ *
+ * The proxy JSON-parses the compiler's output, so a top-level JSON string such
+ * as `"Alice, Bob"` arrives here as the bare value `Alice, Bob`. Passing that
+ * through verbatim dropped the quotes, and it could then never equal a correct
+ * `expectedOutput` of `"Alice, Bob"` (issue #12).
+ *
+ * So for a JSON-output script, a string that is not itself valid JSON text is
+ * re-encoded. A string that already parses is left alone: it is either a
+ * backend that returns unparsed JSON text, or a string whose content happens to
+ * be JSON — both are shown exactly as before. Non-JSON outputs (XML, CSV, plain
+ * text) are raw documents and are never touched.
+ */
+export function formatCompilerOutput(raw: unknown, script: string): string {
+  if (typeof raw === "string") {
+    const header = script.split(/^---\s*$/m)[0] ?? "";
+    if (!JSON_OUTPUT_DIRECTIVE.test(header) || isJsonText(raw)) return raw;
+    return JSON.stringify(raw);
+  }
+  return JSON.stringify(raw, null, 2);
+}
+
+function isJsonText(value: string): boolean {
+  try {
+    JSON.parse(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 interface CompilerResult {
   success: boolean;
   output: string;
@@ -120,10 +159,9 @@ async function runOnce(code: string, input: string, signal: AbortSignal): Promis
     };
   }
 
-  const raw = data.output ?? data.result;
   return {
     success: true,
-    output: typeof raw === "string" ? raw : JSON.stringify(raw, null, 2),
+    output: formatCompilerOutput(data.output ?? data.result, code),
   };
 }
 

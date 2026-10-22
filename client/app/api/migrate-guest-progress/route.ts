@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import connectToDatabase from "@/lib/db";
 import { Submission } from "@/models/Submission";
 import { Problem } from "@/models/Problem";
@@ -49,6 +49,12 @@ export async function POST(req: Request) {
 
     await connectToDatabase();
 
+    // Record the user's real name, as /api/submissions does — a placeholder
+    // here is what the leaderboard used to display (issue #43).
+    const user = await currentUser();
+    const userName = user?.fullName || user?.username || "Anonymous";
+    const userImageUrl = user?.imageUrl || "";
+
     let count = 0;
     for (const slug of slugs) {
       const exists = await Submission.exists({ userId, problemSlug: slug, status: "Accepted" });
@@ -61,7 +67,8 @@ export async function POST(req: Request) {
         problemId: problem._id,
         problemSlug: slug,
         userId,
-        userName: "Migrated",
+        userName,
+        userImageUrl,
         code: "// migrated from guest session",
         input: "{}",
         output: "",

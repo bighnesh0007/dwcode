@@ -12,8 +12,6 @@
 .git
 .github
 .agents
-.kiro
-.vscode
 .playwright-cli
 Dockerfile
 .dockerignore

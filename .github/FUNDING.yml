@@ -5,7 +5,7 @@
 # (https://github.com/sponsors). Until then the button stays hidden.
 github: [bighnesh0007]
 
-# Uncomment and point at the in-app Razorpay sponsorship page once it is deployed.
+# The in-app Razorpay sponsorship page.
 custom: ["https://dwcode.vercel.app/sponsor"]
 
 # Other platforms, left unset:
