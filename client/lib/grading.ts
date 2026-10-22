@@ -23,10 +23,12 @@
  * re-quoted before comparison (see formatCompilerOutput), because without it
  * those problems could not be passed at all (issue #12).
  *
- * `hiddenTestCases` are still NOT executed. Grading against them would make
- * problems genuinely harder than they were yesterday, which is a product
- * decision rather than a security fix, and it belongs to FEAT-01 along with the
- * warm compiler pool that makes running 24 tests per submission affordable.
+ * `hiddenTestCases` run only when GRADE_HIDDEN_TESTS is on (issue #10). Visible
+ * test cases ship to the browser with their expected outputs, so with only
+ * those, pasting the expected output is always Accepted. Hidden cases close
+ * that, but a wrong hidden expectation would make a problem unpassable, so the
+ * flag stays off until `npm run audit:problems` reports every solution passing.
+ * Hidden results never reveal their input, expected output or actual output.
  */
 import { LIMITS } from "@dwcode/shared";
 import { DWL_BACKEND_URL } from "@/lib/config";
@@ -49,6 +51,8 @@ export interface TestCase {
 export interface TestResult {
   index: number;
   passed: boolean;
+  /** A hidden test: `expected` and `actual` are always empty. */
+  hidden?: boolean;
   /** Present only when the compiler itself failed on this case. */
   error?: string;
   expected: string;
@@ -176,6 +180,7 @@ export async function gradeSubmission(
   code: string,
   testCases: TestCase[],
   examples: { input: string; output: string }[] = [],
+  hiddenTestCases: TestCase[] = [],
 ): Promise<GradeResult> {
   const started = Date.now();
 
@@ -198,12 +203,16 @@ export async function gradeSubmission(
     };
   }
 
-  const cases: TestCase[] =
+  const visible: TestCase[] =
     testCases.length > 0
-      ? testCases.slice(0, MAX_TESTS)
+      ? testCases
       : examples.length > 0
         ? [{ input: examples[0].input, expectedOutput: examples[0].output }]
         : [];
+  const cases: (TestCase & { hidden: boolean })[] = [
+    ...visible.map((tc) => ({ ...tc, hidden: false })),
+    ...hiddenTestCases.map((tc) => ({ ...tc, hidden: true })),
+  ].slice(0, MAX_TESTS);
 
   if (cases.length === 0) {
     return {
@@ -238,15 +247,27 @@ export async function gradeSubmission(
     if (!result.success) {
       // Preserves the previous behaviour: a compiler error ends grading
       // immediately and the whole submission is an Error, not a wrong answer.
+      // A hidden case's error message can echo its input, so it is withheld.
       allPassed = false;
       status = "Error";
-      results.push({ index: i, passed: false, error: result.output, expected: tc.expectedOutput, actual: "" });
-      lines.push(`Test ${i + 1}: ✗ Error — ${result.output}`);
+      if (tc.hidden) {
+        results.push({ index: i, passed: false, hidden: true, error: "Error on a hidden test.", expected: "", actual: "" });
+        lines.push(`Hidden test ${i + 1}: ✗ Error — your code failed on a hidden input.`);
+      } else {
+        results.push({ index: i, passed: false, error: result.output, expected: tc.expectedOutput, actual: "" });
+        lines.push(`Test ${i + 1}: ✗ Error — ${result.output}`);
+      }
       break;
     }
 
     const passed = normalizeOutput(result.output) === normalizeOutput(tc.expectedOutput);
     if (!passed) allPassed = false;
+
+    if (tc.hidden) {
+      results.push({ index: i, passed, hidden: true, expected: "", actual: "" });
+      lines.push(`Hidden test ${i + 1}: ${passed ? "✓ Passed" : "✗ Failed"}`);
+      continue;
+    }
 
     results.push({
       index: i,

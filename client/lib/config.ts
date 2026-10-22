@@ -37,6 +37,7 @@ const RAW = {
     // isServer branch below so they never appear in a client bundle at all.
     DWL_BACKEND_URL: process.env.DWL_BACKEND_URL,
     GUEST_MIGRATION_ENABLED: process.env.GUEST_MIGRATION_ENABLED,
+    GRADE_HIDDEN_TESTS: process.env.GRADE_HIDDEN_TESTS,
     // Public (inlined into the browser bundle)
     NEXT_PUBLIC_MAINTENANCE_MODE: process.env.NEXT_PUBLIC_MAINTENANCE_MODE,
     NEXT_PUBLIC_SHOW_ADMIN: process.env.NEXT_PUBLIC_SHOW_ADMIN,
@@ -140,6 +141,17 @@ export const GUEST_MIGRATION_ENABLED = booleanish(
     "GUEST_MIGRATION_ENABLED",
     RAW.GUEST_MIGRATION_ENABLED,
 );
+
+/**
+ * Run each problem's hidden test cases when grading a submission. OFF by default.
+ *
+ * Without them a submission is graded only on test cases the browser can see,
+ * expected outputs included, so pasting the expected output passes (issue #10).
+ * Turn on only after `npm --prefix client run audit:problems` reports that every
+ * stored solution passes its hidden cases; a wrong hidden expectation would
+ * otherwise make a problem impossible to solve.
+ */
+export const GRADE_HIDDEN_TESTS = booleanish("GRADE_HIDDEN_TESTS", RAW.GRADE_HIDDEN_TESTS);
 
 // ── Capability reporting ─────────────────────────────────────────────────────
 

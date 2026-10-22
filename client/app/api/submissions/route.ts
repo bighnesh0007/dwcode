@@ -7,6 +7,7 @@ import { Problem } from "@/models/Problem";
 import { COIN_RULES, coinRewardFor } from "@dwcode/shared";
 import { awardCoins } from "@/lib/coins";
 import { gradeSubmission } from "@/lib/grading";
+import { GRADE_HIDDEN_TESTS } from "@/lib/config";
 import { pushSolutionToGithub } from "@/lib/github";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -73,13 +74,18 @@ export async function POST(req: Request) {
 
     // Test cases come from the database, never from the client.
     const problem = await Problem.findById(problemId)
-      .select("title slug difficulty testCases examples")
+      .select("title slug difficulty testCases examples hiddenTestCases")
       .lean();
     if (!problem) {
       return NextResponse.json({ success: false, error: "Problem not found" }, { status: 404 });
     }
 
-    const grade = await gradeSubmission(code, problem.testCases ?? [], problem.examples ?? []);
+    const grade = await gradeSubmission(
+      code,
+      problem.testCases ?? [],
+      problem.examples ?? [],
+      GRADE_HIDDEN_TESTS ? (problem.hiddenTestCases ?? []) : [],
+    );
 
     const user = await currentUser();
     const submission = new Submission({
