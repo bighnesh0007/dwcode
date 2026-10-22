@@ -5,7 +5,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Play, Send, RotateCcw, Star, Eye, EyeOff, Timer, PauseCircle, PlayCircle } from "lucide-react";
+import { Play, Send, RotateCcw, Star, Eye, EyeOff, Timer, PauseCircle, PlayCircle, Copy, Check, FileInput } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
 import { Comments } from "@/components/Comments";
@@ -53,6 +53,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
 
   // Submissions
   const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
+  const [copiedSubmission, setCopiedSubmission] = useState<number | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 767px)");
@@ -417,7 +418,40 @@ export default function Workspace({ problem }: { problem: Problem }) {
                         </span>
                         <span className="text-muted-foreground">{s.executionTime} · {new Date(s.createdAt).toLocaleTimeString()}</span>
                       </div>
-                      <pre className="bg-muted/50 rounded p-2 text-xs overflow-auto max-h-24 font-mono whitespace-pre-wrap break-words">{formatPayload(s.output).slice(0, 500)}</pre>
+                      {/* The submitted code, so a solved problem can be revisited or
+                          reused as a starting point (issue #44). */}
+                      <pre className="bg-muted/50 rounded p-2 text-xs overflow-auto max-h-48 font-mono whitespace-pre">{s.code}</pre>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1"
+                          onClick={() => {
+                            void navigator.clipboard.writeText(s.code).then(() => {
+                              setCopiedSubmission(i);
+                              setTimeout(() => setCopiedSubmission(null), 2000);
+                            });
+                          }}
+                        >
+                          {copiedSubmission === i ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                          {copiedSubmission === i ? "Copied" : "Copy"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs gap-1"
+                          onClick={() => {
+                            if (code !== s.code && !window.confirm("Replace the code in the editor with this submission?")) return;
+                            setCode(s.code);
+                          }}
+                        >
+                          <FileInput className="w-3 h-3" /> Load into editor
+                        </Button>
+                      </div>
+                      <details>
+                        <summary className="cursor-pointer text-muted-foreground select-none">Output</summary>
+                        <pre className="mt-1.5 bg-muted/50 rounded p-2 text-xs overflow-auto max-h-24 font-mono whitespace-pre-wrap break-words">{formatPayload(s.output).slice(0, 500)}</pre>
+                      </details>
                     </div>
                   ))}
                 </div>
