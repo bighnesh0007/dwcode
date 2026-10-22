@@ -26,6 +26,7 @@ import { SampleLibrary } from "./components/SampleLibrary";
 import { GitHubImport } from "./components/GitHubImport";
 import { PlaygroundSettings } from "./components/PlaygroundSettings";
 import { registerDataWeaveLanguage } from "./monarch";
+import { InputParseError, parseJsonInput } from "./jsonInput";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -116,9 +117,9 @@ function buildTransformInputs(files: PlaygroundFile[]) {
   return files.map((f) => ({
     name: getInputName(f),
     mimeType: LANGUAGE_MIME[f.language],
-    value: f.language === "json"
-      ? (() => { try { return JSON.parse(f.content); } catch { return f.content; } })()
-      : f.content,
+    // Lenient: DataWeave-style `{ key: "v" }` is accepted (issue #18). Throws
+    // InputParseError instead of sending unparseable text labelled as JSON.
+    value: f.language === "json" ? parseJsonInput(f.name, f.content) : f.content,
   }));
 }
 
@@ -362,6 +363,14 @@ export default function PlaygroundPage() {
     } catch (e: unknown) {
       // Superseded by a newer run. Not a failure — must not trip the backoff.
       if (e instanceof DOMException && e.name === "AbortError") return;
+
+      // An input file the user is still typing. Reported, never sent, and not
+      // a compiler failure — so it must not trip the backoff either.
+      if (e instanceof InputParseError) {
+        setStatus("error");
+        setOutput(e.message);
+        return;
+      }
 
       const rateLimited = e instanceof RateLimitedError;
       liveFailuresRef.current += 1;
