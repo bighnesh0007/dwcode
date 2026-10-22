@@ -31,6 +31,9 @@ Solve real problems. Race the clock. Climb the leaderboard. Let AI throw new cha
 
 ![Open Source](https://img.shields.io/badge/OPEN_SOURCE-💜_our_gift_to_the_community-8B5CF6?style=for-the-badge)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-00A0DF?style=for-the-badge)
+
+[![CI](https://github.com/bighnesh0007/dwcode/actions/workflows/main.yml/badge.svg)](https://github.com/bighnesh0007/dwcode/actions/workflows/main.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Made for Muleys](https://img.shields.io/badge/🐴_Made_for-Muleys-061A3A?style=for-the-badge)
 
 </div>
@@ -67,7 +70,7 @@ The main event. A clean split-pane battle station:
 Never run out of problems again.
 
 - **One-click generation** via Google Gemini 2.5 Flash
-- Configure **difficulty** (Easy / Medium / Hard), **category**, and an optional **topic**
+- Configure **difficulty** (Easy / Medium / Hard / Expert), **category**, and an optional **topic**
 - Returns a *full* problem: description, examples, constraints, starter code, test cases, hidden test cases, hints, and a reference solution
 - Problems are saved immediately to the database and appear in the problem list
 
@@ -75,7 +78,7 @@ Never run out of problems again.
 - Create time-boxed contests with any subset of problems
 - **Public** or **invite-code-only** visibility
 - Auto-computed status: `upcoming` → `active` → `ended`
-- Participant scoring: **Hard ×5, Medium ×3, Easy ×1**
+- Participant scoring: **Expert ×8, Hard ×5, Medium ×3, Easy ×1**
 
 ### 📊 Leaderboard — _the wall of legends_
 - Global ranking based on weighted score across all accepted submissions
@@ -112,6 +115,7 @@ Every piece was chosen to keep the loop tight: **write DataWeave → run against
 | Layer | Technology |
 |---|---|
 | Framework | Next.js 16 (App Router) |
+| Backend | Express 5 + TypeScript (`server/`) |
 | Language | TypeScript 5 |
 | UI | Tailwind CSS v4, shadcn/ui, Lucide Icons |
 | Editor | Monaco Editor (`@monaco-editor/react`) |
@@ -120,133 +124,89 @@ Every piece was chosen to keep the loop tight: **write DataWeave → run against
 | AI | Google Gemini 2.5 Flash (`@google/genai`) |
 | State | Zustand |
 | Compiler Backend | DataWeave runtime (Docker / external service) |
-| Containerisation | Docker Compose |
+| Containerisation | Docker, Docker Compose |
+| Tooling | npm workspaces, Vitest, ESLint, GitHub Actions |
 | Font | Geist (via `next/font`) |
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 🚀 Getting Started
 
-> From `git clone` to green checkmarks in five steps.
+> From `git clone` to a running app in five steps.
 
 ### Prerequisites
 
-- **Node.js** ≥ 18
-- **Docker** (for MongoDB and optional DataWeave compiler backend)
+- **Node.js** ≥ 22 (`.nvmrc` pins it — run `nvm use`)
+- **Docker**, for the local MongoDB
 - A **Clerk** account — [clerk.com](https://clerk.com)
-- A **Google Gemini** API key — [ai.google.dev](https://ai.google.dev)
+- Optional: a **Google Gemini** API key — [ai.google.dev](https://ai.google.dev) — for AI problem generation
 
-### 1. Clone & Install
+### 1. Clone and install
 
-The Next.js application lives in the **`client/`** directory; there is no root `package.json`.
-All npm commands below run from `client/`.
-
-```bash
-git clone https://github.com/your-username/dwcode.git
-cd dwcode/client
-npm install
-```
-
-### 2. Environment Variables
-
-Create `client/.env.local` and fill in your values:
+This is an **npm workspace**. Install once, from the repository root — never inside `client/` or `server/`.
 
 ```bash
-# from the repo root
-touch client/.env.local
+git clone https://github.com/bighnesh0007/dwcode.git
+cd dwcode
+npm run setup        # npm install + build the shared package
 ```
 
-```env
-# client/.env.local
+### 2. Configure
 
-# MongoDB connection string
-MONGODB_URI=mongodb://localhost:27017/dwcode
-
-# Google Gemini API key (for AI problem generation)
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Clerk authentication keys (from your Clerk dashboard)
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
-
-# Clerk redirect paths
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+```bash
+cp client/.env.example client/.env.local
+cp server/.env.example server/.env
 ```
+
+Fill in your Clerk keys. Everything else has a working local default, and optional
+features report themselves as disabled until configured.
 
 ### 3. Start MongoDB
 
-From the **repo root** (`docker-compose.yml` lives there, not in `client/`):
-
 ```bash
-docker-compose up -d
+npm run db:up        # MongoDB 8 on 127.0.0.1:27017, with credentials
 ```
 
-This spins up a MongoDB instance at `localhost:27017` with a persistent volume.
+The connection string in the example env files already matches `docker-compose.yml`.
 
-### 4. Start the DataWeave Compiler Backend
-
-The code execution engine is a separate DataWeave runtime service. By default the app points to `https://dwlbackend.onrender.com`. To run it locally, start the companion Docker container and update `DATAWEAVE_BACKEND_URL` in your env file accordingly.
-
-### 5. Run the Development Server
+### 4. Run
 
 ```bash
-cd client
-npm run dev
+npm run dev          # client on :8000, server on :4000
 ```
 
-The app starts on **[http://localhost:8000](http://localhost:8000)** — open it, pick a problem, and start transforming. 🎉
+Open **[http://localhost:8000](http://localhost:8000)**, pick a problem, and start transforming. 🎉
+
+### 5. Verify before you push
+
+```bash
+npm run typecheck && npm run lint && npm test && npm run build
+```
+
+This is the same gate CI runs on every pull request.
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
 ## 📂 Project Structure
 
-The repo root holds infrastructure and docs; the entire Next.js application lives in `client/`.
-
 ```
 dwcode/
-├── client/                     # ◀ THE NEXT.JS APP (run npm here)
-│   ├── app/                    # App Router pages & API routes
-│   │   ├── api/                # REST API handlers
-│   │   │   ├── execute/        # DataWeave code execution proxy
-│   │   │   ├── transform/      # Playground execution proxy (multi-input)
-│   │   │   ├── generate/       # AI problem generation (Gemini)
-│   │   │   ├── problems/       # Problem CRUD
-│   │   │   ├── submissions/    # Submission tracking
-│   │   │   ├── contests/       # Contest management
-│   │   │   ├── leaderboard/    # Score aggregation
-│   │   │   ├── bookmarks/      # Bookmark toggle
-│   │   │   ├── notes/          # Per-problem notes
-│   │   │   ├── coins/          # Gamification coins
-│   │   │   ├── blog/           # Blog posts
-│   │   │   ├── comments/       # Problem discussion threads
-│   │   │   ├── profile/        # Profile, username, follow
-│   │   │   ├── auth/github/    # GitHub OAuth flow
-│   │   │   ├── playground/     # Share, AI insights, GitHub import/push
-│   │   │   └── admin/          # Admin: users & roles
-│   │   ├── problems/[slug]/    # Problem workspace (split-pane editor)
-│   │   ├── playground/         # Free DataWeave playground
-│   │   ├── contests/           # Contest list & detail
-│   │   ├── leaderboard/        # Global leaderboard
-│   │   ├── blog/               # Blog list, detail & editor
-│   │   ├── profile/            # User profile page
-│   │   ├── create/             # Manual problem creation form
-│   │   └── admin/              # Admin dashboard
-│   ├── components/             # Shared UI components (Navbar, Comments, etc.)
-│   ├── models/                 # Mongoose schemas (Problem, Submission, Contest…)
-│   ├── lib/                    # Database connection, config, utilities
-│   ├── public/                 # Static assets
-│   ├── __tests__/              # Vitest property-based tests
-│   ├── proxy.ts                # Clerk middleware (Next.js 16 naming)
-│   ├── package.json            # Dependencies & scripts
-│   ├── next.config.ts          # output: "standalone"
-│   ├── tsconfig.json           # "@/*" → client root
-│   └── .env.local              # Local secrets (gitignored)
-├── .github/workflows/          # CI (runs with working-directory: client)
-├── .agents/ · .kiro/           # Agent skills & feature specs
-├── docker-compose.yml          # MongoDB container
-├── Dockerfile                  # App image (build context = repo root)
-└── README.md
+├── client/                 # Next.js 16 app — pages, API routes, UI (deployed to Vercel)
+│   ├── app/                # App Router pages and route handlers
+│   ├── components/         # Shared UI components
+│   ├── lib/                # Config, grading, markdown, utilities
+│   ├── models/             # Mongoose schemas (server-only)
+│   └── __tests__/          # Vitest unit, property and security tests
+├── server/                 # Express 5 + TypeScript backend (deployed to Render)
+│   ├── src/                # Layered: routes → controllers → services → repositories
+│   └── tests/              # Unit and contract tests
+├── packages/shared/        # @dwcode/shared — difficulty registry, scoring, limits
+├── docs/                   # Architecture audit, runbooks, plans, knowledge vault
+├── scripts/                # Repository tooling (CI dependency audit gate)
+├── .github/                # CI workflow, issue/PR templates, Dependabot
+├── docker-compose.yml      # Local MongoDB
+├── Dockerfile              # Production image for the client
+└── render.yaml             # Render blueprint for the server
 ```
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
@@ -271,22 +231,14 @@ dwcode/
 
 ## 🐳 Docker
 
-Start only MongoDB (from the repo root):
+Build and run the client image from the **repo root** (the build context is the whole workspace):
 
 ```bash
-docker-compose up -d
-```
-
-Build and run the full app in Docker. The build context is the **repo root** (the Dockerfile
-copies from `client/`), so run this from the root, not from `client/`:
-
-```bash
-docker build -t dwcode .
+docker build -t dwcode --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_... .
 docker run -p 3000:3000 --env-file client/.env.local dwcode
 ```
 
-> **Note:** the image listens on port **3000** (`ENV PORT 3000` in the Dockerfile), whereas
-> `npm run dev` and `npm start` use port **8000**. Map ports accordingly.
+> The image listens on port **3000**; `npm run dev` uses **8000**.
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
