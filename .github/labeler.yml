@@ -1,0 +1,46 @@
+# Path → label rules for .github/workflows/pr-checks.yml (actions/labeler v5).
+# Every label here must exist in .github/labels.yml.
+
+area/client:
+  - changed-files:
+      - any-glob-to-any-file: client/**
+
+area/server:
+  - changed-files:
+      - any-glob-to-any-file: server/**
+
+area/shared:
+  - changed-files:
+      - any-glob-to-any-file: packages/shared/**
+
+area/playground:
+  - changed-files:
+      - any-glob-to-any-file: [client/app/playground/**, client/app/api/transform/**, client/app/api/playground/**]
+
+area/grading:
+  - changed-files:
+      - any-glob-to-any-file: [client/lib/grading.ts, client/lib/compilerErrors.ts, client/app/api/execute/**, client/app/api/submissions/**]
+
+area/database:
+  - changed-files:
+      - any-glob-to-any-file: [client/models/**, client/lib/repositories/**, client/scripts/**, server/src/models/**, server/src/repositories/**]
+
+migration:
+  - changed-files:
+      - any-glob-to-any-file: client/scripts/migrations/**
+
+area/infra:
+  - changed-files:
+      - any-glob-to-any-file: [Dockerfile, docker-compose.yml, render.yaml, "**/vercel.json", .github/**]
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: .github/workflows/**
+
+area/docs:
+  - changed-files:
+      - any-glob-to-any-file: [docs/**, "*.md"]
+
+documentation:
+  - changed-files:
+      - all-globs-to-all-files: ["**/*.md"]

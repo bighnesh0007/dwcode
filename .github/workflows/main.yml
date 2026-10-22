@@ -38,6 +38,7 @@ jobs:
   changes:
     name: Detect changed areas
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
@@ -66,6 +67,7 @@ jobs:
     name: Frontend · client
     needs: changes
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: client
@@ -139,6 +141,7 @@ jobs:
     name: Backend · server
     needs: changes
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: server
@@ -192,6 +195,7 @@ jobs:
   security:
     name: Secret hygiene
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
 
@@ -267,6 +271,7 @@ jobs:
   dependencies:
     name: Dependency audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -308,6 +313,7 @@ jobs:
     name: Docker image builds
     needs: changes
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 

@@ -102,6 +102,27 @@ a whole new tier is one entry in that array — everything else derives from it.
 
 ---
 
+## How work is organised
+
+- **Issues** use the templates (bug, feature, new problem, task). New issues get
+  `needs-triage`; a maintainer adds a type, an `area/*` label, a priority
+  (`P0-critical` … `P3-low`) and, when scheduled, a **milestone**.
+- **Labels** are defined in [`.github/labels.yml`](.github/labels.yml) and
+  **milestones** in [`.github/milestones.yml`](.github/milestones.yml). Change
+  them there, in a PR — a workflow applies them on merge.
+- Looking for something to pick up? Filter by
+  [`good first issue`](https://github.com/bighnesh0007/dwcode/labels/good%20first%20issue)
+  or [`help wanted`](https://github.com/bighnesh0007/dwcode/labels/help%20wanted),
+  and comment before starting so work isn't duplicated.
+- **PR titles** follow [Conventional Commits](https://www.conventionalcommits.org/)
+  (`feat(playground): …`, `fix(grading): …`). CI checks this; the title becomes the
+  squash-commit message and the release-notes entry. `area/*` labels are added
+  automatically from the files you touch.
+- Mention **`@claude`** in an issue or PR (maintainers and collaborators only) to
+  have an agent answer a question, review a change or draft a fix.
+
+---
+
 ## Code conventions
 
 - **TypeScript strict.** `any` needs a comment explaining why.

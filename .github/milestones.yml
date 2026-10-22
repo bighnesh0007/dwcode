@@ -1,0 +1,42 @@
+# Milestones, as code. Applied by .github/workflows/repo-sync.yml.
+#
+# A milestone is created if missing (matched by title) and its description and
+# due date are kept in sync. `issues` are assigned to it, and labels listed in
+# `labels` are added to those issues. Nothing is ever removed or closed here.
+#
+# The PostgreSQL migration (issue #23) is staged as phases: see ROADMAP.md.
+
+- title: "v1.1 · Data integrity"
+  description: >-
+    Make every problem passable and un-cheatable. Run migration 003 (#54), run
+    `npm --prefix client run audit:problems`, fix every MISMATCH with a
+    generated migration (#9), then enable GRADE_HIDDEN_TESTS (#10).
+  issues: [54, 9, 10]
+  labels: [content]
+
+- title: "Postgres · Phase 1 — repository layer"
+  description: >-
+    All client data access behind client/lib/repositories, enforced by ESLint
+    (REF-06). Done on the branch; closes when merged.
+  issues: []
+
+- title: "Postgres · Phase 2 — schema and tooling"
+  description: >-
+    Drizzle schema, foreign keys, unique constraints and indexes; versioned
+    Drizzle Kit migrations; DATABASE_URL config; a local Postgres in
+    docker-compose; schema tests against a throwaway database. No app traffic.
+  issues: [23]
+  labels: [migration, area/database]
+
+- title: "Postgres · Phase 3 — data migration and dual-read"
+  description: >-
+    Repeatable, idempotent Mongo → Postgres copy script with ID mapping and a
+    --dry-run; row-count and checksum verification; repositories reimplemented
+    on Drizzle behind a feature flag, compared against Mongo in shadow reads.
+  issues: []
+
+- title: "Postgres · Phase 4 — cutover and Mongo removal"
+  description: >-
+    Maintenance-window cutover with a written rollback; flip the flag; verify;
+    then remove Mongoose, the models and MONGODB_URI after a soak period.
+  issues: []
