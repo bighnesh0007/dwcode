@@ -33,6 +33,8 @@ Solve real problems. Race the clock. Climb the leaderboard. Let AI throw new cha
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-00A0DF?style=for-the-badge)
 
 [![CI](https://github.com/bighnesh0007/dwcode/actions/workflows/main.yml/badge.svg)](https://github.com/bighnesh0007/dwcode/actions/workflows/main.yml)
+[![CodeQL](https://github.com/bighnesh0007/dwcode/actions/workflows/codeql.yml/badge.svg)](https://github.com/bighnesh0007/dwcode/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/bighnesh0007/dwcode/badge)](https://scorecard.dev/viewer/?uri=github.com/bighnesh0007/dwcode)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Made for Muleys](https://img.shields.io/badge/🐴_Made_for-Muleys-061A3A?style=for-the-badge)
 
@@ -373,6 +375,14 @@ the rule about never hand-writing a problem's expected output, database
 migration conventions, and the gotchas that bite newcomers.
 
 Please also read our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+| | |
+|---|---|
+| 🗺 Where the project is going | [ROADMAP.md](ROADMAP.md) · [Milestones](https://github.com/bighnesh0007/dwcode/milestones) |
+| 📝 What changed | [CHANGELOG.md](CHANGELOG.md) · [Releases](https://github.com/bighnesh0007/dwcode/releases) |
+| 💬 Getting help | [SUPPORT.md](SUPPORT.md) · [Discussions](https://github.com/bighnesh0007/dwcode/discussions) |
+| 🏛 How decisions are made | [GOVERNANCE.md](GOVERNANCE.md) |
+| 🔐 Reporting a vulnerability | [SECURITY.md](SECURITY.md) |
 
 Every contribution — a single test case or a whole new feature — makes the whole community sharper. 🙌
 

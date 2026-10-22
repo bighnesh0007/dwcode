@@ -1,0 +1,89 @@
+name: Repo sync
+
+# Applies .github/labels.yml and .github/milestones.yml to the repository.
+# Creates and updates; never deletes labels or closes milestones, so a mistake
+# here cannot destroy triage history.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/labels.yml
+      - .github/milestones.yml
+      - .github/workflows/repo-sync.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: repo-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Labels and milestones
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      # yq ships on GitHub's Ubuntu runners; JSON keeps the script dependency-free.
+      - name: Convert config to JSON
+        run: |
+          yq -o=json .github/labels.yml > "$RUNNER_TEMP/labels.json"
+          yq -o=json .github/milestones.yml > "$RUNNER_TEMP/milestones.json"
+
+      - name: Apply
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("node:fs");
+            const dir = process.env.RUNNER_TEMP;
+            const labels = JSON.parse(fs.readFileSync(`${dir}/labels.json`, "utf8"));
+            const milestones = JSON.parse(fs.readFileSync(`${dir}/milestones.json`, "utf8"));
+            const repo = context.repo;
+
+            // ── Labels ──────────────────────────────────────────────────────
+            const existing = await github.paginate(github.rest.issues.listLabelsForRepo, { ...repo, per_page: 100 });
+            const byName = new Map(existing.map((l) => [l.name.toLowerCase(), l]));
+            for (const label of labels) {
+              const color = String(label.color).replace(/^#/, "");
+              const description = label.description ?? "";
+              const current = byName.get(label.name.toLowerCase());
+              if (!current) {
+                await github.rest.issues.createLabel({ ...repo, name: label.name, color, description });
+                core.info(`created label  ${label.name}`);
+              } else if (current.color !== color || (current.description ?? "") !== description || current.name !== label.name) {
+                await github.rest.issues.updateLabel({ ...repo, name: current.name, new_name: label.name, color, description });
+                core.info(`updated label  ${label.name}`);
+              }
+            }
+
+            // ── Milestones ──────────────────────────────────────────────────
+            const all = await github.paginate(github.rest.issues.listMilestones, { ...repo, state: "all", per_page: 100 });
+            const byTitle = new Map(all.map((m) => [m.title, m]));
+            for (const ms of milestones) {
+              const fields = { description: ms.description ?? "", ...(ms.due_on ? { due_on: ms.due_on } : {}) };
+              let milestone = byTitle.get(ms.title);
+              if (!milestone) {
+                ({ data: milestone } = await github.rest.issues.createMilestone({ ...repo, title: ms.title, ...fields }));
+                core.info(`created milestone  ${ms.title}`);
+              } else if ((milestone.description ?? "") !== fields.description || (ms.due_on && milestone.due_on !== ms.due_on)) {
+                await github.rest.issues.updateMilestone({ ...repo, milestone_number: milestone.number, ...fields });
+                core.info(`updated milestone  ${ms.title}`);
+              }
+
+              for (const number of ms.issues ?? []) {
+                const { data: issue } = await github.rest.issues.get({ ...repo, issue_number: number });
+                if (issue.state !== "open") continue;
+                if (issue.milestone?.number !== milestone.number) {
+                  await github.rest.issues.update({ ...repo, issue_number: number, milestone: milestone.number });
+                  core.info(`#${number} → ${ms.title}`);
+                }
+                const have = new Set(issue.labels.map((l) => (typeof l === "string" ? l : l.name)));
+                const add = (ms.labels ?? []).filter((l) => !have.has(l));
+                if (add.length) await github.rest.issues.addLabels({ ...repo, issue_number: number, labels: add });
+              }
+            }

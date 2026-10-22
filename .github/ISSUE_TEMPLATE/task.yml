@@ -1,0 +1,31 @@
+name: 🧰 Task
+description: Planned work for maintainers — refactors, migrations, chores
+labels: ["needs-triage"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should be true when this is done, and why it matters.
+    validations: { required: true }
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Files, routes or collections involved. What is explicitly out of scope.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Checkable acceptance criteria.
+      value: |
+        - [ ]
+    validations: { required: true }
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Touches production data?
+      options:
+        - "No"
+        - "Yes — needs a dry-run-able migration (docs/runbooks/database-migrations.md)"
+    validations: { required: true }

@@ -1,0 +1,59 @@
+# Release notes template for .github/workflows/release-drafter.yml.
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+
+categories:
+  - title: "⚠️ Breaking changes"
+    labels: [breaking-change]
+  - title: "🔐 Security"
+    labels: [security]
+  - title: "✨ Features"
+    labels: [enhancement]
+  - title: "🐛 Fixes"
+    labels: [bug]
+  - title: "🗄️ Data and migrations"
+    labels: [migration, content]
+  - title: "⚡ Performance"
+    labels: [performance]
+  - title: "📖 Documentation"
+    labels: [documentation]
+  - title: "🧰 Maintenance"
+    labels: [refactor, chore, ci, dependencies]
+
+exclude-labels: [invalid, duplicate, wontfix]
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+no-changes-template: "No user-facing changes."
+
+version-resolver:
+  major:
+    labels: [breaking-change]
+  minor:
+    labels: [enhancement, migration]
+  default: patch
+
+# Conventional-commit titles also label the PR, so categories work even when
+# nobody labels it by hand.
+autolabeler:
+  - label: bug
+    title: ["/^fix(\\(.+\\))?!?:/i"]
+  - label: enhancement
+    title: ["/^feat(\\(.+\\))?!?:/i"]
+  - label: documentation
+    title: ["/^docs(\\(.+\\))?!?:/i"]
+  - label: refactor
+    title: ["/^refactor(\\(.+\\))?!?:/i"]
+  - label: performance
+    title: ["/^perf(\\(.+\\))?!?:/i"]
+  - label: ci
+    title: ["/^ci(\\(.+\\))?!?:/i"]
+  - label: chore
+    title: ["/^(chore|build|test)(\\(.+\\))?!?:/i"]
+  - label: breaking-change
+    title: ["/^\\w+(\\(.+\\))?!:/"]
+
+template: |
+  ## What's changed
+
+  $CHANGES
+
+  **Full changelog:** https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
