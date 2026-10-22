@@ -19,7 +19,11 @@
     "seed:expert": "tsx --env-file-if-exists=.env.local scripts/seed-expert-problems.ts",
     "migrate:comments": "node --env-file-if-exists=.env.local scripts/migrations/002-generalise-comments.mjs",
     "migrate:odd-even": "node --env-file-if-exists=.env.local scripts/migrations/003-fix-odd-even-solution.mjs",
-    "audit:problems": "node --env-file-if-exists=.env.local scripts/audit-problems.mjs"
+    "audit:problems": "node --env-file-if-exists=.env.local scripts/audit-problems.mjs",
+    "pg:generate": "drizzle-kit generate",
+    "pg:migrate": "drizzle-kit migrate",
+    "pg:check": "drizzle-kit check",
+    "pg:copy": "tsx --env-file-if-exists=.env.local scripts/pg/copy-from-mongo.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -30,11 +34,13 @@
     "@vercel/speed-insights": "^2.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.4",
     "json5": "^2.2.3",
     "lucide-react": "^1.21.0",
     "mongoose": "^9.8.0",
     "next": "16.4.2",
     "next-themes": "^0.4.6",
+    "pg": "^8.23.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "react-resizable-panels": "^4.11.2",
@@ -45,9 +51,11 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/runner": "^4.1.9",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "fast-check": "^4.8.0",

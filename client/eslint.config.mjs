@@ -54,7 +54,7 @@ const eslintConfig = defineConfig([
   // erased at compile time.
   {
     files: typeScriptFiles,
-    ignores: ["lib/repositories/**", "models/**", "lib/db.ts", "scripts/**", "__tests__/**"],
+    ignores: ["lib/repositories/**", "models/**", "lib/db.ts", "db/**", "scripts/**", "__tests__/**"],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",
@@ -64,6 +64,11 @@ const eslintConfig = defineConfig([
               group: ["@/models/*", "mongoose", "@/lib/db"],
               allowTypeImports: true,
               message: "Use a repository from @/lib/repositories instead of reaching the database directly.",
+            },
+            {
+              group: ["@/db/*", "drizzle-orm", "drizzle-orm/*", "pg"],
+              allowTypeImports: true,
+              message: "PostgreSQL is reached only through @/lib/repositories (issue #23).",
             },
           ],
         },

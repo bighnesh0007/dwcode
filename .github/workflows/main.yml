@@ -72,6 +72,17 @@ jobs:
       run:
         working-directory: client
 
+    # #23 Phase 2: a disposable Postgres for the copy integration test.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dwcode_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+
     steps:
       - uses: actions/checkout@v7
 
@@ -115,6 +126,13 @@ jobs:
       - name: Test
         if: needs.changes.outputs.client == 'true'
         run: npm test
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
+
+      # Fails when schema.ts and the committed migrations disagree.
+      - name: Postgres migrations match schema
+        if: needs.changes.outputs.client == 'true'
+        run: npx drizzle-kit check
 
       - name: Build
         if: needs.changes.outputs.client == 'true'
