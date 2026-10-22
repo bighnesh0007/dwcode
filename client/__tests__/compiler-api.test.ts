@@ -4,7 +4,7 @@
  * flaky poll must not abandon a submission that is still being graded.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runViaApi, submitViaApi } from "@/lib/compilerApi";
+import { playgroundRunViaApi, runViaApi, submitViaApi } from "@/lib/compilerApi";
 
 const token = () => Promise.resolve("tok");
 const noSleep = () => Promise.resolve();
@@ -97,5 +97,34 @@ describe("submitViaApi", () => {
     stubFetch([fail("RATE_LIMITED", 429)]);
     const r = await submitViaApi(body, token, () => {}, noSleep);
     expect(r.kind).toBe("error");
+  });
+});
+
+describe("playgroundRunViaApi", () => {
+  it("serialises parsed JSON inputs back to text and keeps other formats raw", async () => {
+    const calls = stubFetch([ok({ ok: true, output: "1", timeMs: 2, cached: false })]);
+    const r = await playgroundRunViaApi("s", [
+      { name: "payload", value: { a: [1] }, mimeType: "application/json" },
+      { name: "doc", value: "<a/>", mimeType: "application/xml" },
+    ], token);
+    expect(r).toEqual({ kind: "answer", success: true, output: "1", time: "2ms" });
+    const sent = JSON.parse(calls[0].init?.body as string).inputs;
+    expect(JSON.parse(sent[0].value)).toEqual({ a: [1] });
+    expect(sent[1].value).toBe("<a/>");
+  });
+
+  it("returns a user's compile error as an answer, so live compile does not back off", async () => {
+    stubFetch([ok({ ok: false, error: { kind: "COMPILE", message: "bad" }, timeMs: 1, cached: false })]);
+    expect(await playgroundRunViaApi("s", [], token)).toMatchObject({ kind: "answer", success: false });
+  });
+
+  it("reports a rate limit so the page can pause live compile", async () => {
+    stubFetch([fail("RATE_LIMITED", 429)]);
+    expect(await playgroundRunViaApi("s", [], token)).toEqual({ kind: "rate-limited" });
+  });
+
+  it("throws on our outage, which the page counts as a transport failure", async () => {
+    stubFetch([fail("COMPILER_UNAVAILABLE", 503)]);
+    await expect(playgroundRunViaApi("s", [], token)).rejects.toThrow();
   });
 });

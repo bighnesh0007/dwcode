@@ -6,7 +6,16 @@ import { LIMITS } from "../config/constants.ts";
  * client's own checks and this one cannot drift apart. The compiler service
  * enforces its own (larger) hard caps behind this.
  */
-export const MIME_TYPES = ["application/json", "application/xml", "application/csv", "text/plain"] as const;
+// Matches the compiler's own allowlist (compiler/…/HttpApi.java). Not
+// application/java: that is the engine's Java-object bridge.
+export const MIME_TYPES = [
+  "application/json",
+  "application/xml",
+  "application/csv",
+  "text/plain",
+  "application/yaml",
+  "application/x-ndjson",
+] as const;
 
 export const runSchema = z
   .object({

@@ -8,6 +8,9 @@ import {
   GitBranch, History, Bookmark, LayoutPanelTop, Loader2, MoreHorizontal, Play,
   RotateCcw, Share2, Terminal,
 } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import { COMPILER_VIA_API } from "@/lib/config";
+import { playgroundRunViaApi } from "@/lib/compilerApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -149,6 +152,7 @@ function saveLS(key: string, value: unknown) {
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function PlaygroundPage() {
+  const { getToken } = useAuth();
   const { resolvedTheme } = useTheme();
 
   // User preferences (persisted). Loaded after mount to avoid a hydration mismatch.
@@ -293,6 +297,11 @@ export default function PlaygroundPage() {
   const runTransform = useCallback(async (
     runScript: string, runFiles: PlaygroundFile[], signal?: AbortSignal,
   ) => {
+    if (COMPILER_VIA_API) {
+      const answer = await playgroundRunViaApi(runScript, buildTransformInputs(runFiles), () => getToken(), signal);
+      if (answer.kind === "rate-limited") throw new RateLimitedError(null);
+      return answer;
+    }
     const r = await fetch("/api/transform", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -308,7 +317,7 @@ export default function PlaygroundPage() {
       throw new RateLimitedError(Number.isFinite(retryAfter) ? retryAfter : null);
     }
     return r.json();
-  }, []);
+  }, [getToken]);
 
   /**
    * Run the current script.

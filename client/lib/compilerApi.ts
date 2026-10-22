@@ -56,6 +56,57 @@ export async function runViaApi(code: string, input: string, getToken: GetToken)
   }
 }
 
+/** The playground's wire shape, kept so the page's live-compile logic is untouched. */
+export type PlaygroundAnswer =
+  | { kind: "answer"; success: boolean; output: string; time: string }
+  | { kind: "rate-limited" };
+
+/**
+ * Playground run via server/. A user's compile error is an ANSWER (success:
+ * false) — half-typed scripts fail constantly while live compiling and must not
+ * trip the page's backoff. Our outages THROW, which the page counts as
+ * transport failures; a 429 is returned so the page can pause live compile.
+ */
+export async function playgroundRunViaApi(
+  script: string,
+  inputs: { name: string; value: unknown; mimeType: string }[],
+  getToken: GetToken,
+  signal?: AbortSignal,
+): Promise<PlaygroundAnswer> {
+  let data: RunData;
+  try {
+    data = await apiRequest<RunData>("/api/v1/compiler/run", {
+      method: "POST",
+      token: await tokenOrNull(getToken),
+      // The playground hands JSON inputs over already parsed (its lenient
+      // DataWeave-style parser); the compiler takes the document as text.
+      body: {
+        script,
+        inputs: inputs.map((i) => ({
+          name: i.name,
+          mimeType: i.mimeType,
+          value: typeof i.value === "string" ? i.value : JSON.stringify(i.value, null, 2),
+        })),
+      },
+      ...(signal ? { signal } : {}),
+    });
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "RATE_LIMITED") return { kind: "rate-limited" };
+    if (err instanceof ApiError && err.status < 500 && err.code === "VALIDATION_FAILED") {
+      return { kind: "answer", success: false, output: err.message, time: "0ms" };
+    }
+    throw err;
+  }
+  return data.ok
+    ? { kind: "answer", success: true, output: data.output ?? "", time: `${data.timeMs}ms` }
+    : {
+        kind: "answer",
+        success: false,
+        output: explainCompilerError(data.error?.message ?? "Execution failed."),
+        time: `${data.timeMs}ms`,
+      };
+}
+
 export type SubmitOutcome =
   | { kind: "graded"; result: GradeResult & { submissionId: string } }
   | { kind: "error"; message: string }
