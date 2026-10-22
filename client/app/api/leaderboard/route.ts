@@ -5,6 +5,7 @@ import { Submission } from "@/models/Submission";
 import { Problem } from "@/models/Problem";
 import { UserProfile } from "@/models/UserProfile";
 import { getErrorMessage } from "@/lib/errors";
+import { computeScore } from "@/lib/ranks";
 
 /**
  * GET /api/leaderboard?page=1&limit=25&sort=score|solved|acceptance
@@ -25,6 +26,14 @@ import { getErrorMessage } from "@/lib/errors";
  */
 
 const DEFAULT_LIMIT = 25;
+
+/**
+ * Names written by system code rather than taken from the user's Clerk profile.
+ * Guest-progress migration used to store "Migrated", and that row is usually a user's
+ * OLDEST submission, so taking the first name seen put "Migrated" on the
+ * leaderboard (issue #43). A real name from any submission wins over these.
+ */
+const PLACEHOLDER_NAMES = new Set(["", "Anonymous", "Migrated"]);
 const MIN_LIMIT = 5;
 const MAX_LIMIT = 100;
 
@@ -83,10 +92,15 @@ export async function GET(req: Request) {
 
         for (const sub of submissions) {
             if (!sub.userId) continue; // skip old submissions without userId
-            if (!userMap[sub.userId]) {
+            const existing = userMap[sub.userId];
+            if (existing && PLACEHOLDER_NAMES.has(existing.userName) && !PLACEHOLDER_NAMES.has(sub.userName ?? "")) {
+                existing.userName = sub.userName;
+                existing.userImageUrl = sub.userImageUrl || existing.userImageUrl;
+            }
+            if (!existing) {
                 userMap[sub.userId] = {
                     userId: sub.userId,
-                    userName: sub.userName || "Anonymous",
+                    userName: PLACEHOLDER_NAMES.has(sub.userName ?? "") ? "Anonymous" : sub.userName,
                     userImageUrl: sub.userImageUrl || "",
                     solvedSlugs: new Set(),
                     totalSubmissions: 0,
@@ -115,11 +129,14 @@ export async function GET(req: Request) {
         // Build rows
         const rows = Object.values(userMap).map((u) => {
             const solved = Array.from(u.solvedSlugs);
-            const easy = solved.filter((s) => diffMap[s] === "Easy").length;
-            const medium = solved.filter((s) => diffMap[s] === "Medium").length;
-            const hard = solved.filter((s) => diffMap[s] === "Hard").length;
-            // Score: hard=5, medium=3, easy=1
-            const score = hard * 5 + medium * 3 + easy;
+            const byDifficulty: Record<string, number> = {};
+            for (const slug of solved) {
+                const difficulty = diffMap[slug];
+                if (difficulty) byDifficulty[difficulty] = (byDifficulty[difficulty] ?? 0) + 1;
+            }
+            // Weights come from the shared registry, so every tier (Expert
+            // included) scores — the hardcoded formula gave Expert solves 0.
+            const score = computeScore(byDifficulty);
             const acceptanceRate =
                 u.totalSubmissions > 0
                     ? Math.round((u.accepted / u.totalSubmissions) * 100)
@@ -131,9 +148,10 @@ export async function GET(req: Request) {
                 // null = no public profile to link to
                 username: usernameByUserId.get(u.userId) ?? null,
                 totalSolved: solved.length,
-                easy,
-                medium,
-                hard,
+                byDifficulty,
+                easy: byDifficulty.Easy ?? 0,
+                medium: byDifficulty.Medium ?? 0,
+                hard: byDifficulty.Hard ?? 0,
                 score,
                 totalSubmissions: u.totalSubmissions,
                 acceptanceRate,
