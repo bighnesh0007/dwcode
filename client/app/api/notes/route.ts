@@ -75,7 +75,7 @@ export async function PUT(req: Request) {
     const note = await Note.findOneAndUpdate(
       { userId, problemId },
       { userId, problemId, problemSlug, content, updatedAt: new Date() },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
     return NextResponse.json({ success: true, note });
   } catch (error) {

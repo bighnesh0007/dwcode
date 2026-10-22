@@ -122,7 +122,7 @@ export async function POST(req: Request) {
                     },
                 },
             },
-            { new: true },
+            { returnDocument: "after" },
         );
 
         if (!debited) {

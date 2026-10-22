@@ -52,7 +52,7 @@ export class SponsorshipRepository {
     return (await Sponsorship.findOneAndUpdate(
       { orderId, status: { $ne: "paid" } },
       { $set: { status: "paid", paymentId, verifiedVia: via, paidAt: at } },
-      { new: true },
+      { returnDocument: "after" },
     ).lean()) as SponsorshipRecord | null;
   }
 

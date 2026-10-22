@@ -27,7 +27,7 @@ export async function PUT(req: Request) {
     const updated = await UserProfile.findOneAndUpdate(
       { userId },
       { username, bio },
-      { new: true, upsert: true }
+      { returnDocument: "after", upsert: true }
     );
 
     return NextResponse.json({ message: "Profile updated", profile: updated });
