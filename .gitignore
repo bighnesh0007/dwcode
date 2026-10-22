@@ -69,3 +69,5 @@ lerna-debug.log*
 
 # ── compiler parity corpus (contains hidden test cases — never commit) ──────
 compiler/parity/out/
+# compiler/ (Maven)
+compiler/target/
