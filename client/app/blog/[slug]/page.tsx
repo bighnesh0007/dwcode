@@ -10,19 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, Tag, Trash2, Loader2, Share2, Check } from "lucide-react";
 import { BlogVoteButtons } from "@/components/BlogVoteButtons";
 import { Comments } from "@/components/Comments";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderBlogContent } from "@/lib/embeds";
 import type { BlogPost } from "@/lib/types";
-
-/**
- * Wrap iframes in a responsive container so they don't overflow on mobile.
- * LinkedIn embed iframes have no width/height constraints by default.
- */
-function wrapIframes(html: string): string {
-    return html.replace(
-        /<iframe([^>]*)>/gi,
-        "<div class='relative w-full overflow-hidden rounded-lg my-4 not-prose' style='max-width:552px;margin-inline:auto'><iframe$1 style='width:100%;border:none;'>"
-    ).replace(/<\/iframe>/gi, "</iframe></div>");
-}
 
 // ---------------------------------------------------------------------------
 
@@ -94,9 +83,7 @@ export default function BlogPostPage() {
         );
     }
 
-    const renderedContent = wrapIframes(
-        `<p class='mb-3'>${renderMarkdown(post.content)}</p>`
-    );
+    const renderedContent = renderBlogContent(post.content);
 
     return (
         <div className="container max-w-screen-md mx-auto py-10 px-4 space-y-6">
