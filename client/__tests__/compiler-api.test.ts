@@ -47,6 +47,14 @@ describe("runViaApi", () => {
     expect((await runViaApi("x", "{}", token)).kind).toBe("unavailable");
   });
 
+  it("does not hang when Clerk never yields a token: runs anonymously", async () => {
+    const calls = stubFetch([ok({ ok: true, output: "1", timeMs: 1, cached: false })]);
+    const never = () => new Promise<string | null>(() => {});
+    const r = await runViaApi("x", "{}", never);
+    expect(r.kind).toBe("ok");
+    expect((calls[0].init?.headers as Record<string, string>).Authorization).toBeUndefined();
+  });
+
   it("reports an unreachable API as unavailable", async () => {
     stubFetch([new TypeError("Failed to fetch")]);
     expect((await runViaApi("x", "{}", token)).kind).toBe("unavailable");

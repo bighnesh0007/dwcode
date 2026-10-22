@@ -15,6 +15,20 @@ import { explainCompilerError } from "./compilerErrors";
 
 type GetToken = () => Promise<string | null>;
 
+/**
+ * Clerk's getToken() never settles while Clerk is still loading or failed to
+ * load (blocked CDN, extension, flaky network). Run is allowed signed out, so it
+ * must not hang on that: give up after a moment and go anonymous. Submit then
+ * gets a clean 401 instead of a frozen button.
+ */
+const TOKEN_WAIT_MS = 1_500;
+function tokenOrNull(getToken: GetToken): Promise<string | null> {
+  return Promise.race([
+    getToken().catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), TOKEN_WAIT_MS)),
+  ]);
+}
+
 interface RunData {
   ok: boolean;
   output?: string;
@@ -32,7 +46,7 @@ export async function runViaApi(code: string, input: string, getToken: GetToken)
   try {
     const data = await apiRequest<RunData>("/api/v1/compiler/run", {
       method: "POST",
-      token: await getToken(),
+      token: await tokenOrNull(getToken),
       body: { script: code, inputs: [{ name: "payload", value: input || "{}" }] },
     });
     if (data.ok) return { kind: "ok", output: data.output ?? "", timeMs: data.timeMs };
@@ -68,7 +82,7 @@ export async function submitViaApi(
   try {
     ({ jobId } = await apiRequest<{ jobId: string }>("/api/v1/submissions", {
       method: "POST",
-      token: await getToken(),
+      token: await tokenOrNull(getToken),
       body,
     }));
   } catch (err) {
@@ -81,7 +95,7 @@ export async function submitViaApi(
     let job: JobData;
     try {
       // A fresh token per poll: Clerk session tokens live ~60s.
-      job = await apiRequest<JobData>(`/api/v1/submissions/jobs/${jobId}`, { token: await getToken() });
+      job = await apiRequest<JobData>(`/api/v1/submissions/jobs/${jobId}`, { token: await tokenOrNull(getToken) });
     } catch (err) {
       // A failed poll is not a failed submission; keep waiting until the deadline.
       if (err instanceof ApiError && err.status === 404) return { kind: "error", message: "Submission not found." };

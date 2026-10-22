@@ -49,6 +49,17 @@
       <artifactId>core-modules</artifactId>
       <version>${weave.version}</version>
     </dependency>
+    <!-- Input/output formats the playground offers beyond the core set. -->
+    <dependency>
+      <groupId>org.mule.weave</groupId>
+      <artifactId>yaml-module</artifactId>
+      <version>${weave.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mule.weave</groupId>
+      <artifactId>ndjson-module</artifactId>
+      <version>${weave.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>

@@ -40,6 +40,19 @@ class EngineTest {
     }
 
     @Test
+    void readsYamlAndNdjsonInputs() {
+        ExecuteResult yaml = engine.execute("%dw 2.0\noutput application/json\n---\npayload.items",
+                List.of(new Input("payload", "items:\n  - 1\n  - 2\n", "application/yaml")));
+        assertTrue(yaml.ok(), () -> String.valueOf(yaml.error()));
+        assertEquals("[1,2]", compact(yaml.output()));
+
+        ExecuteResult nd = engine.execute("%dw 2.0\noutput application/json\n---\npayload map $.a",
+                List.of(new Input("payload", "{\"a\":1}\n{\"a\":2}\n", "application/x-ndjson")));
+        assertTrue(nd.ok(), () -> String.valueOf(nd.error()));
+        assertEquals("[1,2]", compact(nd.output()));
+    }
+
+    @Test
     void supportsThenWhichTheOldUpstreamLacked() {
         assertEquals("3", compact(run("payload then sizeOf($)", "[1,2,3]").output()));
     }

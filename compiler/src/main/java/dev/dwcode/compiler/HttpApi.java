@@ -33,8 +33,15 @@ import java.util.regex.Pattern;
 public final class HttpApi {
     private static final Logger LOG = Logger.getLogger(HttpApi.class.getName());
     private static final Pattern INPUT_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]{0,63}");
-    /** Formats the bundled core-modules can read. Others fail inside the engine with a worse message. */
-    private static final Set<String> MIME_TYPES = Set.of("application/json", "application/xml", "application/csv", "text/plain");
+    /**
+     * Input formats the bundled modules can read. Deliberately NOT application/java:
+     * that is the engine's Java-object bridge, and untrusted input has no business
+     * near it. Anything else is refused here with a clear message rather than
+     * failing inside the engine with a worse one.
+     */
+    private static final Set<String> MIME_TYPES = Set.of(
+            "application/json", "application/xml", "application/csv", "text/plain",
+            "application/yaml", "application/x-ndjson");
 
     private final Config config;
     private final WorkerPool pool;
