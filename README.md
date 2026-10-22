@@ -187,6 +187,27 @@ This is the same gate CI runs on every pull request.
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
 
+## ⚙️ DataWeave Engine
+
+Code runs on a hosted compiler service, not in the browser. Requests ask for
+DataWeave language version **2.3.0** (`DW_VERSION` in `server/src/config/env.ts`;
+the compiler URL is `DW_COMPILER_URL` on the server and `DWL_BACKEND_URL` on the
+client).
+
+That service runs the **open-source DataWeave runtime**, which differs from the
+runtime inside Mule in a few places:
+
+- **`then` is not available.** Bind the value with `do { var v = … --- f(v) }`
+  or a local `fun` instead.
+- `dw::Runtime::version()` is not available, so the running version cannot be
+  queried from a script.
+
+When a script calls a function the engine does not have, the error
+`Unable to resolve reference of <name>` now comes with a hint explaining this.
+Found another gap? Please [open an issue](https://github.com/bighnesh0007/dwcode/issues).
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0:00A0DF,100:00C9D6&height=3&section=header" width="100%"/>
+
 ## 📂 Project Structure
 
 ```
