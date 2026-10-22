@@ -4,6 +4,7 @@ import { createLimiter } from "../../middleware/rateLimit.ts";
 import { v1Cors } from "../../middleware/security.ts";
 import { compilerRoutes } from "./compiler.routes.ts";
 import { sponsorshipRoutes } from "./sponsorship.routes.ts";
+import { submissionRoutes } from "./submission.routes.ts";
 
 /**
  * The `/api/v1` surface.
@@ -24,6 +25,9 @@ export function v1Routes(container: Container): Router {
   );
 
   router.use("/compiler", compilerRoutes(container.compilerController, container.tokenVerifier));
+  if (container.submissionController) {
+    router.use("/submissions", submissionRoutes(container.submissionController, container.tokenVerifier));
+  }
 
   return router;
 }

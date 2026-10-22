@@ -27,6 +27,10 @@ const envSchema = z.object({
   // ── Database ───────────────────────────────────────────────────────────────
   // Optional so the legacy transform-only deployment keeps booting without Mongo.
   MONGODB_URI: z.string().min(1).optional(),
+  // Let Mongoose build indexes when models load. OFF unless asked for: with it
+  // on, a dev server pointed at the production URI (as MONGODB_URI often is)
+  // builds indexes on production collections. Use `npm run indexes` deliberately.
+  MONGO_AUTO_INDEX: booleanish.default(false),
 
   // ── Clerk ──────────────────────────────────────────────────────────────────
   CLERK_SECRET_KEY: z.string().min(1).optional(),
@@ -62,6 +66,17 @@ const envSchema = z.object({
   // Optional so local dev and the legacy deploy run without it; every consumer
   // falls back to process memory, which is correct only for a single instance.
   REDIS_URL: z.string().regex(/^rediss?:\/\//, "must be a redis:// or rediss:// URL").optional(),
+
+  // ── Grading ────────────────────────────────────────────────────────────────
+  // Run hidden test cases (issue #10). Off until `npm run audit:problems` is
+  // clean — a wrong hidden expectation makes a problem unpassable. Mirrors the
+  // client's GRADE_HIDDEN_TESTS; set both the same during the migration.
+  GRADE_HIDDEN_TESTS: booleanish.default(false),
+  // Submissions graded at once per server instance. Each runs its cases one by
+  // one, so this is also the instance's ceiling on concurrent compiler calls.
+  GRADING_CONCURRENCY: z.coerce.number().int().min(1).max(128).default(8),
+  // Spike guard: refuse new submissions (503) past this many waiting.
+  GRADING_MAX_QUEUED: z.coerce.number().int().min(1).max(1_000_000).default(5_000),
 
   // ── Weekly contest scheduler ───────────────────────────────────────────────
   WEEKLY_CONTEST_ENABLED: booleanish.default(true),

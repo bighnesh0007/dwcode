@@ -12,6 +12,7 @@ export const config = Object.freeze({
   port: env.PORT,
 
   mongoUri: env.MONGODB_URI,
+  mongoAutoIndex: env.MONGO_AUTO_INDEX,
 
   clerk: Object.freeze({
     secretKey: env.CLERK_SECRET_KEY,
@@ -35,6 +36,12 @@ export const config = Object.freeze({
   }),
 
   redisUrl: env.REDIS_URL,
+
+  grading: Object.freeze({
+    hiddenTests: env.GRADE_HIDDEN_TESTS,
+    concurrency: env.GRADING_CONCURRENCY,
+    maxQueued: env.GRADING_MAX_QUEUED,
+  }),
 
   healthcheck: Object.freeze({
     url: env.HEALTHCHECK_URL,
