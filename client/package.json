@@ -17,7 +17,8 @@
     "migrate:notes": "node --env-file-if-exists=.env.local scripts/migrations/001-scope-notes-to-user.mjs",
     "indexes": "tsx --env-file-if-exists=.env.local scripts/ensure-indexes.ts",
     "seed:expert": "tsx --env-file-if-exists=.env.local scripts/seed-expert-problems.ts",
-    "migrate:comments": "node --env-file-if-exists=.env.local scripts/migrations/002-generalise-comments.mjs"
+    "migrate:comments": "node --env-file-if-exists=.env.local scripts/migrations/002-generalise-comments.mjs",
+    "migrate:odd-even": "node --env-file-if-exists=.env.local scripts/migrations/003-fix-odd-even-solution.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

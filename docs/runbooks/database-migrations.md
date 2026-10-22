@@ -14,6 +14,7 @@ includes the registry entry.
 | 3 | Comments → generalised | `npm --prefix client run migrate:comments` | No (additive) | 25 to backfill, 0 orphans |
 | 4 | Indexes | `npm --prefix client run indexes` | No (additive) | 14 missing |
 | 5 | Seed Expert problems | `npm --prefix client run seed:expert` | No (upsert) | 10 problems, 39 cases verified |
+| 6 | Fix odd/even solution (#54) | `npm --prefix client run migrate:odd-even` | No (one field, verified first) | 1 problem; every case must PASS before it writes |
 
 Every one supports `-- --dry-run`. Run each dry first; the numbers above are what
 you should see.
