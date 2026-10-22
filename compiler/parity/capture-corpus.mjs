@@ -52,6 +52,26 @@ const problems = await mongoose.connection.db
   .find({ solution: { $exists: true, $ne: "" } }, { projection: { slug: 1, solution: 1, examples: 1, testCases: 1, hiddenTestCases: 1 } })
   .sort({ slug: 1 })
   .toArray();
+
+// An empty corpus makes every later parity check pass vacuously, so refuse it
+// and say where we looked. A URI with no path silently selects the "test" db.
+if (problems.length === 0) {
+  const db = mongoose.connection.db;
+  const total = await db.collection("problems").countDocuments();
+  console.error(`No solved problems in database "${db.databaseName}" (problems collection holds ${total} documents).`);
+  try {
+    const { databases } = await db.admin().listDatabases({ nameOnly: true });
+    for (const { name } of databases) {
+      // System dbs (admin, local) can refuse the count; skip them, keep looking.
+      const n = await mongoose.connection.client.db(name).collection("problems").estimatedDocumentCount().catch(() => 0);
+      if (n) console.error(`  database "${name}" has ${n} problems → put it in the URI path: ...mongodb.net/${name}?...`);
+    }
+  } catch {
+    console.error("  (this user cannot list databases — check the database name in the URI)");
+  }
+  await mongoose.disconnect();
+  process.exit(1);
+}
 await mongoose.disconnect();
 
 const entries = [];

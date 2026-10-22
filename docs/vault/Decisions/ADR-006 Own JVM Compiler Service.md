@@ -18,8 +18,21 @@ submission path ([[DataWeave Runtime]]). Measured baseline:
 | Engine | Open-source DataWeave runtime **embedded** in a warm JVM | Wrapping the CLI per request: pays JVM start on every call, which is probably what the upstream does now (an inference, not verified) |
 | Scope | Compiler (Phases 1–2) before route migration | Strict order: leaves the core loop broken for weeks longer |
 
-**Gate before Phase 1:** confirm the runtime's licence and how closely it matches
-language 2.3.0. If either fails, fall back to the CLI behind a warm process pool.
+| Run vs Submit (2026-10-23) | Run → compiler directly; Submit → Redis queue (BullMQ) → workers | All-queued: every Run pays queue latency. Nothing queued: a spike rejects users instead of making them wait |
+| Redis (2026-10-23) | Render Key Value, same private network | Upstash: second provider, reached over the public internet |
+| Design load (2026-10-23) | **500 concurrent users**, see [[Compiler Capacity Plan]] | — |
+
+**Licence gate — passed 2026-10-23.** `org.mule.weave:runtime`, `core`, `wlang`
+and `debugger` 2.12.2 declare *The Apache License, Version 2.0* in their POMs at
+`repository.mulesoft.org/nexus/content/repositories/releases/`. The engine's
+source is **not** public (the `mulesoft-labs/data-weave-cli` README: "in the
+process of being open-sourced"); we consume published binaries. Published
+runtime versions include 2.3.0–2.3.2 and 2.12.0–2.13.0.
+
+**Which runtime version** is decided by the parity corpus, not by preference.
+`then` (missing upstream, issue #8) suggests the upstream runs a pre-2.4 runtime.
+2.12.x would add `then` but may change other outputs. Run the corpus against both
+and pick from the diff.
 
 **Gate before switch-over:** 100% parity with the captured corpus, and latency
 at least as good as the baseline.
