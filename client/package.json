@@ -18,7 +18,8 @@
     "indexes": "tsx --env-file-if-exists=.env.local scripts/ensure-indexes.ts",
     "seed:expert": "tsx --env-file-if-exists=.env.local scripts/seed-expert-problems.ts",
     "migrate:comments": "node --env-file-if-exists=.env.local scripts/migrations/002-generalise-comments.mjs",
-    "migrate:odd-even": "node --env-file-if-exists=.env.local scripts/migrations/003-fix-odd-even-solution.mjs"
+    "migrate:odd-even": "node --env-file-if-exists=.env.local scripts/migrations/003-fix-odd-even-solution.mjs",
+    "audit:problems": "node --env-file-if-exists=.env.local scripts/audit-problems.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

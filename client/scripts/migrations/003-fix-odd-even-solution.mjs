@@ -23,11 +23,10 @@
  * review. It never edits them.
  */
 import mongoose from "mongoose";
+import { COMPILER_URL, casesOf, checkCases } from "../lib/compiler.mjs";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const TITLE = /^check if a number is odd or even$/i;
-const COMPILER_URL = (process.env.DWL_BACKEND_URL || "https://dataweave-playground-h1p7.onrender.com").replace(/\/$/, "");
-
 const NEW_SOLUTION = `%dw 2.0
 output application/json
 ---
@@ -35,51 +34,6 @@ output application/json
   number: payload.number,
   "type": if (isOdd(payload.number)) "Odd" else "Even"
 }`;
-
-// Same normalisation and output formatting as client/lib/grading.ts, so a pass
-// here means a pass for a user submitting this solution.
-function normalizeOutput(value) {
-  try {
-    return JSON.stringify(JSON.parse(value.trim()));
-  } catch {
-    return value.trim();
-  }
-}
-
-function formatCompilerOutput(raw, script) {
-  if (typeof raw === "string") {
-    const header = script.split(/^---\s*$/m)[0] ?? "";
-    const isJsonOutput = /^\s*output\s+(?:application\/json|json)\b/m.test(header);
-    let isJsonText = true;
-    try {
-      JSON.parse(raw);
-    } catch {
-      isJsonText = false;
-    }
-    return !isJsonOutput || isJsonText ? raw : JSON.stringify(raw);
-  }
-  return JSON.stringify(raw, null, 2);
-}
-
-async function run(script, input) {
-  let value = {};
-  try {
-    value = JSON.parse(input || "{}");
-  } catch {
-    value = input || {};
-  }
-  const response = await fetch(`${COMPILER_URL}/api/transform`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ script, inputs: [{ name: "payload", value }] }),
-    signal: AbortSignal.timeout(90_000),
-  });
-  const data = await response.json();
-  if (!response.ok || data.error) {
-    throw new Error(String(data.error || data.message || `HTTP ${response.status}`));
-  }
-  return formatCompilerOutput(data.output ?? data.result, script);
-}
 
 /** Heuristic flags for the two defects in #54, used only for the review list. */
 function suspectPatterns(solution = "") {
@@ -111,24 +65,13 @@ async function main() {
   if (problem.solution === NEW_SOLUTION) {
     console.log("Already carries the corrected solution — nothing to do.");
   } else {
-    const cases = [
-      ...(problem.examples ?? []).map((e, i) => ({ label: `example ${i + 1}`, input: e.input, expected: e.output })),
-      ...(problem.testCases ?? []).map((t, i) => ({ label: `test ${i + 1}`, input: t.input, expected: t.expectedOutput })),
-      ...(problem.hiddenTestCases ?? []).map((t, i) => ({ label: `hidden ${i + 1}`, input: t.input, expected: t.expectedOutput })),
-    ];
+    const cases = casesOf(problem);
     if (cases.length === 0) throw new Error("Problem has no examples or test cases to verify against.");
 
-    let failures = 0;
-    for (const c of cases) {
-      let actual;
-      try {
-        actual = await run(NEW_SOLUTION, c.input);
-      } catch (err) {
-        actual = `<compiler error: ${err.message}>`;
-      }
-      const ok = normalizeOutput(actual) === normalizeOutput(c.expected);
-      if (!ok) failures++;
-      console.log(`  ${ok ? "PASS" : "FAIL"} ${c.label}${ok ? "" : `\n       expected ${c.expected}\n       got      ${actual}`}`);
+    const results = await checkCases(NEW_SOLUTION, cases);
+    const failures = results.filter((r) => !r.passed).length;
+    for (const r of results) {
+      console.log(`  ${r.passed ? "PASS" : "FAIL"} ${r.label}${r.passed ? "" : `\n       expected ${r.expected}\n       got      ${r.actual}`}`);
     }
 
     if (failures > 0) {
