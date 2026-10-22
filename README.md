@@ -254,6 +254,9 @@ The two halves deploy independently.
 **The backend cannot run on Vercel.** It calls `app.listen()`, holds a MongoDB
 connection pool, and runs a periodic upstream heartbeat — none of which survive a
 serverless runtime that freezes between invocations.
+[server/vercel.json](server/vercel.json) makes Vercel skip every build of
+`server/`, so a Vercel project pointed at it never attempts a deploy that
+cannot work.
 
 ### Frontend → Vercel
 

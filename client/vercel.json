@@ -3,7 +3,7 @@
   "framework": "nextjs",
   "installCommand": "npm ci --prefix ..",
   "buildCommand": "npm run build:shared --prefix .. && npm run build",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ../packages ../package.json ../package-lock.json",
+  "ignoreCommand": "[ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ../packages ../package.json ../package-lock.json",
   "headers": [
     {
       "source": "/(.*)",
