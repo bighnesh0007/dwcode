@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DWL_BACKEND_URL } from "@/lib/config";
 import { getErrorMessage } from "@/lib/errors";
+import { explainCompilerError } from "@/lib/compilerErrors";
 
 /**
  * Proxy to the DataWeave compiler backend.
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 {
                     success: false,
-                    output: data.error || data.message || `Compilation failed (HTTP ${response.status})`,
+                    output: explainCompilerError(data.error || data.message || `Compilation failed (HTTP ${response.status})`),
                     time: data.time ?? "0ms",
                 },
                 { status: response.ok ? 200 : response.status }

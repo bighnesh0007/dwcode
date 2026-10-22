@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DWL_BACKEND_URL } from "@/lib/config";
 import { getErrorMessage } from "@/lib/errors";
+import { explainCompilerError } from "@/lib/compilerErrors";
 import { formatCompilerOutput } from "@/lib/grading";
 
 /**
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
     if (!response.ok || data.error) {
       return NextResponse.json({
         success: false,
-        output: data.error || data.message || `Compilation failed (HTTP ${response.status})`,
+        output: explainCompilerError(data.error || data.message || `Compilation failed (HTTP ${response.status})`),
         time: `${executionTime}ms`,
       });
     }

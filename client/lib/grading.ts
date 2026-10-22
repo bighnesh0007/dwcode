@@ -33,6 +33,7 @@
 import { LIMITS } from "@dwcode/shared";
 import { DWL_BACKEND_URL } from "@/lib/config";
 import { getErrorMessage } from "@/lib/errors";
+import { explainCompilerError } from "@/lib/compilerErrors";
 
 // Grading limits now come from the shared package (REF-01 closed audit risk
 // M1-R5 — these were previously hand-copied from server/src/config/constants.ts).
@@ -159,7 +160,7 @@ async function runOnce(code: string, input: string, signal: AbortSignal): Promis
   if (!response.ok || data.error) {
     return {
       success: false,
-      output: data.error || data.message || `Compilation failed (HTTP ${response.status})`,
+      output: explainCompilerError(data.error || data.message || `Compilation failed (HTTP ${response.status})`),
     };
   }
 
