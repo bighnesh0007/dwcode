@@ -29,3 +29,10 @@ updates:
     schedule: { interval: monthly }
     labels: ["dependencies", "ci"]
     commit-message: { prefix: "ci(deps)" }
+
+  # The Dockerfile's node base image — keeps the CI image job honest.
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: monthly }
+    labels: ["dependencies", "area/infra"]
+    commit-message: { prefix: "build(deps)" }
