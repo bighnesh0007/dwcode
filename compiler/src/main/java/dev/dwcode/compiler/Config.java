@@ -7,6 +7,7 @@ import java.util.Map;
  * environment: a bad value fails the boot, not the thousandth request.
  */
 public record Config(
+        String host,
         int port,
         String authToken,
         int workers,
@@ -24,6 +25,9 @@ public record Config(
     public static Config fromEnv(Map<String, String> env) {
         int cores = Runtime.getRuntime().availableProcessors();
         Config c = new Config(
+                // Loopback by default: the only legitimate caller is the API
+                // server on this machine. Set COMPILER_HOST=0.0.0.0 in a container.
+                env.getOrDefault("COMPILER_HOST", "127.0.0.1"),
                 integer(env, "PORT", 8080, 1, 65535),
                 env.getOrDefault("COMPILER_AUTH_TOKEN", ""),
                 // One worker per core: each runs one script at a time, so more

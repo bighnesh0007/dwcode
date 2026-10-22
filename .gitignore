@@ -71,3 +71,6 @@ lerna-debug.log*
 compiler/parity/out/
 # compiler/ (Maven)
 compiler/target/
+
+# local stack runtime (scripts/up.mjs): logs, redis data
+.run/

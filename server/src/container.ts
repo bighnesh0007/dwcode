@@ -262,10 +262,13 @@ function bullConnection(url: string): Redis {
 
 function connectRedis(url: string): Redis {
   const redis = new Redis(url, {
-    // Fail a command fast instead of queueing it forever while disconnected;
+    // Queue commands until the first connect: rate-limit-redis loads its Lua
+    // scripts the moment a limiter is built, before the socket is open, and
+    // with the queue off those loads failed and the limiters started broken.
+    // maxRetriesPerRequest still fails a command fast once Redis is down, and
     // every caller degrades gracefully (rate limits fail open, cache misses).
     maxRetriesPerRequest: 1,
-    enableOfflineQueue: false,
+    enableOfflineQueue: true,
     connectTimeout: 5_000,
   });
   redis.on("error", (err) => logger.warn({ err }, "redis error"));

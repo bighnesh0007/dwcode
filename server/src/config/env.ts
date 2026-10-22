@@ -23,6 +23,9 @@ const csv = z
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(4000),
+  // Interface to bind. scripts/up.mjs sets 127.0.0.1: behind the tunnel only
+  // the Next.js proxy on this machine should reach the API.
+  HOST: z.string().min(1).default("0.0.0.0"),
 
   // ── Database ───────────────────────────────────────────────────────────────
   // Optional so the legacy transform-only deployment keeps booting without Mongo.

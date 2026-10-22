@@ -66,6 +66,7 @@ services:
       # Local only. Server must send the same value (server/.env COMPILER_AUTH_TOKEN).
       COMPILER_AUTH_TOKEN: ${COMPILER_AUTH_TOKEN:-local-dev-compiler-token-0123456789abcdef}
       COMPILER_WORKERS: ${COMPILER_WORKERS:-2}
+      COMPILER_HOST: 0.0.0.0 # inside the container; the port is published on loopback only
     read_only: true
     tmpfs:
       - /tmp:size=64m,noexec,nosuid,nodev

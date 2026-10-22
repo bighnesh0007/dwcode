@@ -61,7 +61,7 @@ public final class HttpApi {
         // Nagle on, the body waits for the client's delayed ACK, adding a fixed
         // ~40ms to every response (measured: p50 44ms with it, see load test).
         System.setProperty("sun.net.httpserver.nodelay", "true");
-        server = HttpServer.create(new InetSocketAddress(config.port()), 512);
+        server = HttpServer.create(new InetSocketAddress(config.host(), config.port()), 512);
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         server.createContext("/v1/execute", this::execute);
         server.createContext("/health", ex -> send(ex, 200, "text/plain", "ok"));
@@ -72,7 +72,7 @@ public final class HttpApi {
         server.createContext("/metrics", ex -> send(ex, 200, "text/plain; version=0.0.4", metrics.render(pool)));
         server.start();
         if (token.length == 0) LOG.warning("COMPILER_AUTH_TOKEN is empty: /v1/execute accepts unauthenticated calls (dev only)");
-        LOG.info("compiler listening on :" + config.port() + " with " + pool.liveWorkers() + " workers");
+        LOG.info("compiler listening on " + config.host() + ":" + config.port() + " with " + pool.liveWorkers() + " workers");
     }
 
     public void stop() {

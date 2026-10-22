@@ -25,7 +25,7 @@ COPY --from=build /src/target/dwcode-compiler.jar ./
 COPY --from=build /src/target/lib ./lib
 USER dwc
 
-ENV PORT=8080
+ENV PORT=8080 COMPILER_HOST=0.0.0.0
 EXPOSE 8080
 # The supervisor itself is light: workers carry the heap (COMPILER_WORKER_HEAP_MB each).
 # /tmp is the only writable path the JVM needs; mount it as tmpfs.

@@ -10,6 +10,7 @@ export const config = Object.freeze({
   isProduction: env.NODE_ENV === "production",
   isTest: env.NODE_ENV === "test",
   port: env.PORT,
+  host: env.HOST,
 
   mongoUri: env.MONGODB_URI,
   mongoAutoIndex: env.MONGO_AUTO_INDEX,

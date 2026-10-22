@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   const container = buildContainer();
   const app = buildApp(container);
 
-  const server = app.listen(config.port, () => {
+  const server = app.listen(config.port, config.host, () => {
     logger.info(
       {
         // `env` is already on every record via the logger's `base`.
