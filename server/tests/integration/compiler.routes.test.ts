@@ -93,8 +93,16 @@ describe("POST /api/transform on the compiler service (DW_BACKEND=service)", () 
 });
 
 describe("env: DW_BACKEND=service", () => {
-  it("refuses to boot without the compiler URL and token", () => {
-    expect(() => parseEnv({ DW_BACKEND: "service" })).toThrow(/COMPILER_SERVICE_URL[\s\S]*COMPILER_AUTH_TOKEN/);
+  it("refuses to boot in production without the compiler token", () => {
+    expect(() => parseEnv({ NODE_ENV: "production", DW_BACKEND: "service" })).toThrow(/COMPILER_AUTH_TOKEN/);
+  });
+
+  it("refuses the upstream backend without naming its URL (the Render default is gone)", () => {
+    expect(() => parseEnv({ DW_BACKEND: "upstream" })).toThrow(/DW_COMPILER_URL/);
+  });
+
+  it("accepts TRUST_PROXY=loopback", () => {
+    expect(parseEnv({ TRUST_PROXY: "loopback" }).TRUST_PROXY).toBe("loopback");
   });
 
   it("refuses a short auth token", () => {
@@ -106,7 +114,9 @@ describe("env: DW_BACKEND=service", () => {
     expect(env.COMPILER_SERVICE_URL).toBe("http://dwcode-compiler:10000");
   });
 
-  it("defaults to the upstream, so existing deploys are unchanged", () => {
-    expect(parseEnv({}).DW_BACKEND).toBe("upstream");
+  it("defaults to the local compiler service", () => {
+    const env = parseEnv({});
+    expect(env.DW_BACKEND).toBe("service");
+    expect(env.COMPILER_SERVICE_URL).toBe("http://127.0.0.1:8080");
   });
 });

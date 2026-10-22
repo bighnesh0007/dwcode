@@ -5,7 +5,10 @@ import type { FetchLike } from "../../src/types/ports.ts";
 
 /** Build the real app with fakes injected. No port is bound. */
 export function buildTestApp(overrides: ContainerOverrides = {}): Application {
-  return buildApp(buildContainer(overrides));
+  // The legacy contract tests fake the old upstream's wire shape, so the
+  // default here is the upstream path; tests of the compiler service pass
+  // `compiler` explicitly.
+  return buildApp(buildContainer({ compiler: null, ...overrides }));
 }
 
 /** A `fetch` stub that returns a canned JSON response. */

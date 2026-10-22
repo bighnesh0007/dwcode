@@ -50,8 +50,8 @@ import {
 
 export interface ContainerOverrides {
   fetchImpl?: FetchLike;
-  /** Force the compiler backend in tests, independent of env. */
-  compiler?: { url: string; authToken: string; timeoutMs?: number; cacheTtlMs?: number };
+  /** Force the compiler backend in tests, independent of env. `null` forces the legacy upstream path. */
+  compiler?: { url: string; authToken: string; timeoutMs?: number; cacheTtlMs?: number } | null;
   clock?: Clock;
   store?: KeyValueStore;
   tokenVerifier?: TokenVerifier;
@@ -113,10 +113,12 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
 
   // ── DataWeave ──────────────────────────────────────────────────────────────
   const compilerSettings =
-    overrides.compiler ??
-    (config.compiler.backend === "service" && config.compiler.serviceUrl && config.compiler.authToken
-      ? { url: config.compiler.serviceUrl, authToken: config.compiler.authToken, timeoutMs: config.compiler.timeoutMs }
-      : undefined);
+    overrides.compiler === null
+      ? undefined
+      : (overrides.compiler ??
+        (config.compiler.backend === "service"
+          ? { url: config.compiler.serviceUrl, authToken: config.compiler.authToken, timeoutMs: config.compiler.timeoutMs }
+          : undefined));
   const compilerService = compilerSettings
     ? new CompilerServiceClient(
         {

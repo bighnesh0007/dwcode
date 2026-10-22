@@ -23,7 +23,7 @@ export const config = Object.freeze({
   superAdminUserId: env.SUPER_ADMIN_USER_ID,
 
   dataweave: Object.freeze({
-    compilerUrl: env.DW_COMPILER_URL,
+    compilerUrl: env.DW_COMPILER_URL ?? "",
     version: env.DW_VERSION,
     timeoutMs: env.DW_TIMEOUT_MS,
   }),
@@ -31,7 +31,7 @@ export const config = Object.freeze({
   compiler: Object.freeze({
     backend: env.DW_BACKEND,
     serviceUrl: env.COMPILER_SERVICE_URL,
-    authToken: env.COMPILER_AUTH_TOKEN,
+    authToken: env.COMPILER_AUTH_TOKEN ?? "",
     timeoutMs: env.COMPILER_TIMEOUT_MS,
   }),
 
@@ -44,7 +44,9 @@ export const config = Object.freeze({
   }),
 
   healthcheck: Object.freeze({
-    url: env.HEALTHCHECK_URL,
+    url:
+      env.HEALTHCHECK_URL ??
+      (env.DW_BACKEND === "service" ? `${env.COMPILER_SERVICE_URL.replace(/\/$/, "")}/ready` : (env.DW_COMPILER_URL ?? "")),
     enabled: env.HEALTHCHECK_ENABLED,
     intervalMs: env.HEALTHCHECK_INTERVAL_MS,
   }),

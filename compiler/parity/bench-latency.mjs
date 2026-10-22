@@ -29,9 +29,9 @@ const arg = (name, fallback) => {
   return i > -1 ? process.argv[i + 1] : fallback;
 };
 
-const BASE = arg("url", process.env.DWL_BACKEND_URL || "https://dataweave-playground-h1p7.onrender.com").replace(/\/$/, "");
+const BASE = arg("url", "http://127.0.0.1:8080").replace(/\/$/, "");
 const N = Number(arg("n", "30"));
-const API = arg("api", "legacy");
+const API = arg("api", "v1");
 const TOKEN = arg("token", process.env.COMPILER_AUTH_TOKEN ?? "");
 const SCRIPT = "%dw 2.0\noutput application/json\n---\npayload map ($ * 2)";
 const INPUT = [1, 2, 3];

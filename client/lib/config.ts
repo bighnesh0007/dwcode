@@ -102,7 +102,10 @@ function httpUrl(name: string, value: string | undefined, fallback: string): str
  * sleeps after 15 minutes idle and takes 30–60s to wake, against a 15s timeout.
  * See docs/audit/09-runtime-ownership.md.
  */
-const DEFAULT_COMPILER_URL = "https://dataweave-playground-h1p7.onrender.com";
+// Everything runs on this machine now (ADR-006): the default is this repo's own
+// server, whose legacy /api/transform proxy runs on the local compiler service.
+// The Render-hosted upstream is retired; nothing here calls it any more.
+const DEFAULT_COMPILER_URL = "http://127.0.0.1:4000";
 
 export const DWL_BACKEND_URL = httpUrl(
     "DWL_BACKEND_URL",

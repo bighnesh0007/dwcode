@@ -41,27 +41,28 @@ const envSchema = z.object({
   // ── Authorization ──────────────────────────────────────────────────────────
   SUPER_ADMIN_USER_ID: z.string().min(1).optional(),
 
-  // ── DataWeave compiler (legacy contract) ───────────────────────────────────
-  DW_COMPILER_URL: z.url()
-    .default("https://dataweave-playground-h1p7.onrender.com/api/transform"),
+  // ── Legacy third-party compiler (DW_BACKEND=upstream only) ─────────────────
+  // No default: the old Render-hosted upstream is retired (everything runs on
+  // this machine). Setting DW_BACKEND=upstream now requires naming a URL.
+  DW_COMPILER_URL: z.url().optional(),
   DW_VERSION: z.string().min(1).default("2.3.0"),
   DW_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
-  HEALTHCHECK_URL: z.url()
-    .default("https://dataweave-playground-h1p7.onrender.com/healthCheck"),
+  // Heartbeat target. Defaults to the compiler service's /ready (see config).
+  HEALTHCHECK_URL: z.url().optional(),
   HEALTHCHECK_ENABLED: booleanish.default(true),
   HEALTHCHECK_INTERVAL_MS: z.coerce.number().int().positive().default(3 * 60 * 1000),
 
   // ── DataWeave compiler service (compiler/, ADR-006) ────────────────────────
   // Which runtime serves compiles. "upstream" keeps today's third-party URL;
   // "service" uses our own compiler. Rollback is flipping this back — no deploy.
-  DW_BACKEND: z.enum(["upstream", "service"]).default("upstream"),
+  DW_BACKEND: z.enum(["upstream", "service"]).default("service"),
   // Render's private-network `hostport` has no scheme ("dwcode-compiler:10000"),
   // so a bare host:port is accepted and means plain http on the private network.
   COMPILER_SERVICE_URL: z
     .string()
     .transform((v) => (/^https?:\/\//.test(v) ? v : `http://${v}`))
     .pipe(z.url())
-    .optional(),
+    .default("http://127.0.0.1:8080"),
   // Shared secret the compiler requires. Never sent anywhere but COMPILER_SERVICE_URL.
   COMPILER_AUTH_TOKEN: z.string().min(32).optional(),
   // Per-execution budget the compiler enforces by killing the worker. Warm runs
@@ -111,7 +112,13 @@ const envSchema = z.object({
   APP_URL: z.url().default("http://localhost:8000"),
   // NOTE: in Zod 4 `.default()` supplies the OUTPUT value, so this is an array.
   CORS_ALLOWED_ORIGINS: csv.default(["http://localhost:8000"]),
-  TRUST_PROXY: booleanish.default(false),
+  // "loopback": trust only proxies on this machine (cloudflared, the Next.js
+  // /backend proxy), so req.ip is the address Cloudflare saw. A spoofed
+  // X-Forwarded-For only adds entries LEFT of that, which are never trusted.
+  TRUST_PROXY: z
+    .enum(["true", "false", "1", "0", "loopback"])
+    .transform((v) => (v === "loopback" ? ("loopback" as const) : v === "true" || v === "1"))
+    .default(false),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),
@@ -120,12 +127,12 @@ const envSchema = z.object({
 
 /** Cross-field rules a per-field schema cannot express. */
 const validatedEnvSchema = envSchema.superRefine((env, ctx) => {
-  if (env.DW_BACKEND === "service") {
-    for (const key of ["COMPILER_SERVICE_URL", "COMPILER_AUTH_TOKEN"] as const) {
-      if (env[key] === undefined) {
-        ctx.addIssue({ code: "custom", path: [key], message: "required when DW_BACKEND=service" });
-      }
-    }
+  // In production the compiler runs untrusted code and must only answer us.
+  if (env.DW_BACKEND === "service" && env.NODE_ENV === "production" && env.COMPILER_AUTH_TOKEN === undefined) {
+    ctx.addIssue({ code: "custom", path: ["COMPILER_AUTH_TOKEN"], message: "required in production" });
+  }
+  if (env.DW_BACKEND === "upstream" && env.DW_COMPILER_URL === undefined) {
+    ctx.addIssue({ code: "custom", path: ["DW_COMPILER_URL"], message: "required when DW_BACKEND=upstream" });
   }
 });
 

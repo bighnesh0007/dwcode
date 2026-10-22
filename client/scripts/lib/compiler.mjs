@@ -5,7 +5,8 @@
  * it): same request shape, same output formatting, same normalisation. A pass
  * here therefore means a pass for a user submitting the same code.
  */
-export const COMPILER_URL = (process.env.DWL_BACKEND_URL || "https://dataweave-playground-h1p7.onrender.com").replace(/\/$/, "");
+// The local server's legacy proxy (which runs on the local compiler service).
+export const COMPILER_URL = (process.env.DWL_BACKEND_URL || "http://127.0.0.1:4000").replace(/\/$/, "");
 
 export function normalizeOutput(value) {
   try {

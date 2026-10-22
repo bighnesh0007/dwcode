@@ -59,12 +59,10 @@ jobs:
               - 'packages/**'
               - 'package.json'
               - 'package-lock.json'
-              - 'render.yaml'
               - '.github/workflows/**'
             compiler:
               - 'compiler/**'
               - 'docker-compose.yml'
-              - 'render.yaml'
               - '.github/workflows/**'
 
   # ── Frontend ────────────────────────────────────────────────────────────────

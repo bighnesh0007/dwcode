@@ -29,7 +29,10 @@ import { casesOf, formatCompilerOutput, normalizeOutput } from "../../client/scr
  * from the wrong runtime is worse than none. Override with --compiler <url>.
  */
 const flag = process.argv.indexOf("--compiler");
-const COMPILER_URL = (flag > -1 ? process.argv[flag + 1] : "https://dataweave-playground-h1p7.onrender.com").replace(/\/$/, "");
+// No default: the reference upstream this was written for (Render-hosted) is
+// retired. Name the reference explicitly, e.g. --compiler http://127.0.0.1:4000
+if (flag < 0) throw new Error("Pass --compiler <base url> (the runtime to capture as the reference).");
+const COMPILER_URL = process.argv[flag + 1].replace(/\/$/, "");
 
 /**
  * Sends `value` as a JSON string, exactly as server/ does (dataweave.client.ts).
