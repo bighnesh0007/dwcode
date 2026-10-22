@@ -8,16 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Play, Send, RotateCcw, Star, Eye, EyeOff, Timer, PauseCircle, PlayCircle, Copy, Check, FileInput } from "lucide-react";
 import Editor from "@monaco-editor/react";
 import { useTheme } from "next-themes";
+import { useAuth } from "@clerk/nextjs";
 import { Comments } from "@/components/Comments";
 import { ReportProblem } from "@/components/ReportProblem";
 import { renderMarkdown } from "@/lib/markdown";
 import { formatPayload } from "@/lib/format";
 import { difficultyClassName } from "@dwcode/shared";
 import { getErrorMessage } from "@/lib/errors";
+import { COMPILER_VIA_API } from "@/lib/config";
+import { runViaApi, submitViaApi } from "@/lib/compilerApi";
 import type { BookmarkSummary, Problem, SubmissionSummary } from "@/lib/types";
 
 export default function Workspace({ problem }: { problem: Problem }) {
   const { resolvedTheme } = useTheme();
+  const { getToken } = useAuth();
   const editorTheme = resolvedTheme === "light" ? "vs-light" : "vs-dark";
 
   const [code, setCode] = useState(problem.starterCode || "%dw 2.0\noutput application/json\n---\n");
@@ -131,6 +135,19 @@ export default function Workspace({ problem }: { problem: Problem }) {
     setIsRunning(true);
     setOutputStatus("idle");
     setActiveTab("output");
+    if (COMPILER_VIA_API) {
+      const r = await runViaApi(code, customInput, () => getToken());
+      setOutputStatus(r.kind === "ok" ? "success" : "error");
+      setOutput(
+        r.kind === "ok"
+          ? `⏱ ${r.timeMs}ms\n\n${formatPayload(r.output)}`
+          : r.kind === "unavailable"
+            ? `⚠ ${r.message}`
+            : `✗ Error:\n${r.message}`,
+      );
+      setIsRunning(false);
+      return;
+    }
     try {
       const res = await fetch("/api/execute", {
         method: "POST",
@@ -151,6 +168,36 @@ export default function Workspace({ problem }: { problem: Problem }) {
       setIsRunning(false);
     }
   };
+
+  const showVerdict = (finalStatus: "Accepted" | "Attempted" | "Error", summary: string) => {
+    const statusEmoji =
+      finalStatus === "Accepted" ? "✅ Accepted" : finalStatus === "Error" ? "✗ Error" : "✗ Wrong Answer";
+
+    setOutputStatus(finalStatus === "Accepted" ? "success" : "error");
+    setOutput(`${statusEmoji}\n\n${summary}`);
+
+    // Persist accepted solves to localStorage for guests
+    if (finalStatus === "Accepted") {
+      try {
+        const raw = localStorage.getItem("dwcode_guest_progress");
+        const existing: string[] = raw ? JSON.parse(raw) : [];
+        if (!existing.includes(problem.slug)) {
+          existing.push(problem.slug);
+          localStorage.setItem("dwcode_guest_progress", JSON.stringify(existing));
+        }
+      } catch {
+        // localStorage unavailable (private mode, SSR guard) — fail silently
+      }
+    }
+  };
+
+  // History still reads this app's /api/submissions: both write one collection.
+  const refreshSubmissions = () =>
+    fetch("/api/submissions").then(r => r.json()).then((d: SubmissionSummary[]) => {
+      if (Array.isArray(d)) {
+        setSubmissions(d.filter(s => s.problemSlug === problem.slug).slice(0, 5));
+      }
+    });
 
   // --- Submit (test-case comparison → real status) ---
   const handleSubmit = async () => {
@@ -175,6 +222,27 @@ export default function Workspace({ problem }: { problem: Problem }) {
       return;
     }
     // ────────────────────────────────────────────────────────────────────
+
+    if (COMPILER_VIA_API) {
+      try {
+        const r = await submitViaApi(
+          { problemId: problem._id, code, input: customInput },
+          () => getToken(),
+          setOutput,
+        );
+        if (r.kind !== "graded") {
+          setOutputStatus("error");
+          // `unavailable` is ours, and nothing was recorded: say so, never "Wrong Answer".
+          setOutput(r.kind === "unavailable" ? `⚠ ${r.message}` : `✗ Error:\n${r.message}`);
+          return;
+        }
+        showVerdict(r.result.status, r.result.summary);
+        await refreshSubmissions();
+      } finally {
+        setIsRunning(false);
+      }
+      return;
+    }
 
     try {
       // Submit the CODE and let the server grade it.
@@ -201,33 +269,8 @@ export default function Workspace({ problem }: { problem: Problem }) {
         return;
       }
 
-      const finalStatus: "Accepted" | "Attempted" | "Error" = submitData.status;
-      const statusEmoji =
-        finalStatus === "Accepted" ? "✅ Accepted" : finalStatus === "Error" ? "✗ Error" : "✗ Wrong Answer";
-
-      setOutputStatus(finalStatus === "Accepted" ? "success" : "error");
-      setOutput(`${statusEmoji}\n\n${submitData.summary ?? ""}`);
-
-      // Persist accepted solves to localStorage for guests
-      if (finalStatus === "Accepted") {
-        try {
-          const raw = localStorage.getItem("dwcode_guest_progress");
-          const existing: string[] = raw ? JSON.parse(raw) : [];
-          if (!existing.includes(problem.slug)) {
-            existing.push(problem.slug);
-            localStorage.setItem("dwcode_guest_progress", JSON.stringify(existing));
-          }
-        } catch {
-          // localStorage unavailable (private mode, SSR guard) — fail silently
-        }
-      }
-
-      // Refresh history
-      await fetch("/api/submissions").then(r => r.json()).then((d: SubmissionSummary[]) => {
-        if (Array.isArray(d)) {
-          setSubmissions(d.filter(s => s.problemSlug === problem.slug).slice(0, 5));
-        }
-      });
+      showVerdict(submitData.status, submitData.summary ?? "");
+      await refreshSubmissions();
     } catch (error) {
       setOutputStatus("error");
       setOutput(`✗ Error: ${getErrorMessage(error)}`);

@@ -43,6 +43,7 @@ const RAW = {
     NEXT_PUBLIC_SHOW_ADMIN: process.env.NEXT_PUBLIC_SHOW_ADMIN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+    NEXT_PUBLIC_COMPILER_VIA_API: process.env.NEXT_PUBLIC_COMPILER_VIA_API,
 } as const;
 
 // ── Tiny validators ──────────────────────────────────────────────────────────
@@ -108,6 +109,14 @@ export const DWL_BACKEND_URL = httpUrl(
     RAW.DWL_BACKEND_URL,
     DEFAULT_COMPILER_URL,
 );
+
+/**
+ * Run and Submit go to server/ (the compiler service and the grading queue,
+ * ADR-006) instead of this app's /api/execute and /api/submissions. Public: the
+ * browser makes the call. OFF by default, so deploying the code changes nothing
+ * until the flag is set — and unsetting it is the rollback.
+ */
+export const COMPILER_VIA_API = booleanish("NEXT_PUBLIC_COMPILER_VIA_API", RAW.NEXT_PUBLIC_COMPILER_VIA_API);
 
 /**
  * Maintenance banner. Public — safe to expose, it only toggles a banner.
