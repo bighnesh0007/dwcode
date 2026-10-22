@@ -40,5 +40,25 @@ services:
       retries: 5
       start_period: 20s
 
+  # Issue #23: target of `npm run pg:migrate` / `pg:copy`. Not used by the app yet.
+  postgres:
+    image: postgres:16-alpine
+    container_name: dwcode_postgres
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:5432:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dwcode}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dwcode-local-dev}
+      POSTGRES_DB: dwcode
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-dwcode}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   mongodb_data:
+  postgres_data:

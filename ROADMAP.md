@@ -33,7 +33,11 @@ All client data access goes through `client/lib/repositories/`, and ESLint forbi
 Mongoose anywhere else. The database swap becomes "reimplement 14 repository modules",
 not "edit 36 route handlers".
 
-### Phase 2 — schema and tooling
+### Phase 2 — schema and tooling ✅
+
+See [`docs/runbooks/postgres-copy.md`](docs/runbooks/postgres-copy.md). Done except the
+host decision and `DATABASE_URL` in the validated config, which move to Phase 3.
+The copy script from Phase 3 was pulled forward so the schema is proven against real data.
 
 - Drizzle schema with foreign keys, unique constraints and indexes for every
   collection; `jsonb` only for genuinely document-shaped data (test cases,
