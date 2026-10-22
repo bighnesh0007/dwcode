@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import mongoose from "mongoose";
 import { COIN_RULES, LIMITS } from "@dwcode/shared";
-import connectToDatabase from "@/lib/db";
-import { Comment, COMMENT_TARGET_TYPES, type CommentTargetType } from "@/models/Comment";
+import { awardCoins } from "@/lib/coins";
+import * as comments from "@/lib/repositories/comments";
+import { COMMENT_TARGET_TYPES, type CommentTarget, type CommentTargetType } from "@/lib/repositories/comments";
+import { isValidId } from "@/lib/repositories/shared";
 import { getErrorMessage } from "@/lib/errors";
 
 /**
@@ -20,10 +21,7 @@ import { getErrorMessage } from "@/lib/errors";
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = LIMITS.pagination.maxLimit;
 
-interface Target {
-  targetType: CommentTargetType;
-  targetId: string;
-}
+type Target = CommentTarget;
 
 function isTargetType(value: unknown): value is CommentTargetType {
   return typeof value === "string" && (COMMENT_TARGET_TYPES as readonly string[]).includes(value);
@@ -49,25 +47,6 @@ function resolveTarget(source: {
   return null;
 }
 
-/**
- * Match documents written BEFORE and AFTER migration 002.
- *
- * A problem comment written by the previous release has `problemSlug` but no
- * `targetId`. Until 002 has run, querying `targetId` alone would make every
- * existing discussion vanish from the UI.
- */
-function matchFor(target: Target): Record<string, unknown> {
-  if (target.targetType === "problem") {
-    return {
-      $or: [
-        { targetType: "problem", targetId: target.targetId },
-        { targetId: { $exists: false }, problemSlug: target.targetId },
-      ],
-    };
-  }
-  return { targetType: target.targetType, targetId: target.targetId };
-}
-
 // GET /api/comments?targetType=blog&targetId=slug   (or ?problemSlug=slug)
 export async function GET(req: Request) {
   try {
@@ -90,13 +69,7 @@ export async function GET(req: Request) {
         ? Math.min(requested, MAX_LIMIT)
         : DEFAULT_LIMIT;
 
-    await connectToDatabase();
-    const comments = await Comment.find(matchFor(target))
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
-
-    return NextResponse.json(comments);
+    return NextResponse.json(await comments.listForTarget(target, limit));
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
@@ -131,22 +104,18 @@ export async function POST(req: Request) {
       );
     }
 
-    await connectToDatabase();
-    const comment = new Comment({
-      targetType: target.targetType,
-      targetId: target.targetId,
-      // Dual-write during the 002 rollout so the previous release still sees it.
-      ...(target.targetType === "problem" ? { problemSlug: target.targetId } : {}),
-      userId,
-      userName: user?.fullName || user?.username || "Anonymous",
-      userImageUrl: user?.imageUrl || "",
+    const comment = await comments.create(
+      target,
+      {
+        userId,
+        userName: user?.fullName || user?.username || "Anonymous",
+        userImageUrl: user?.imageUrl || "",
+      },
       content,
-    });
-    await comment.save();
+    );
 
     // Award a coin for commenting.
     try {
-      const { awardCoins } = await import("@/lib/coins");
       await awardCoins(userId, COIN_RULES.comment, "comment", "Posted a comment");
     } catch {
       /* coins are non-critical */
@@ -167,17 +136,16 @@ export async function DELETE(req: Request) {
     }
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    if (!isValidId(id)) {
       return NextResponse.json({ error: "valid id required" }, { status: 400 });
     }
 
-    await connectToDatabase();
-    const comment = await Comment.findById(id);
-    if (!comment) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (comment.userId !== userId) {
+    const authorId = await comments.findAuthorId(id);
+    if (authorId === null) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (authorId !== userId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    await Comment.findByIdAndDelete(id);
+    await comments.deleteById(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });

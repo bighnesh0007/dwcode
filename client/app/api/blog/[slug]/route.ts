@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Blog } from "@/models/Blog";
+import * as blog from "@/lib/repositories/blog";
 import { isAdmin } from "@/lib/coins";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -11,8 +10,7 @@ export async function GET(
 ) {
     try {
         const { slug } = await params;
-        await connectToDatabase();
-        const post = await Blog.findOne({ slug, published: true }).lean();
+        const post = await blog.findPublished(slug);
         if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
         return NextResponse.json(post);
     } catch (error) {
@@ -29,8 +27,7 @@ export async function DELETE(
         if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { slug } = await params;
-        await connectToDatabase();
-        const post = await Blog.findOne({ slug });
+        const post = await blog.findBySlug(slug);
         if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
         const admin = await isAdmin(userId);
@@ -38,13 +35,9 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        await Blog.deleteOne({ slug });
-        // Votes are keyed by slug, and slugs are reusable (the uniqueness loop in
-        // POST /api/blog only checks live posts). Stale votes on a recycled slug
-        // would seed the new post with counts/myVote its author never earned —
-        // and retracting one could even drive its counters negative.
-        const { BlogVote } = await import("@/models/BlogVote");
-        await BlogVote.deleteMany({ blogSlug: slug });
+        // Votes go too: slugs are reusable, and stale votes would seed a recycled
+        // slug with counts its new author never earned.
+        await blog.deleteWithVotes(slug);
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });

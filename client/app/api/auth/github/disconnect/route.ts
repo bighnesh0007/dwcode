@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { GitHubIntegration } from "@/models/GitHubIntegration";
+import * as githubIntegrations from "@/lib/repositories/githubIntegrations";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function POST() {
@@ -11,8 +10,7 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    await connectToDatabase();
-    await GitHubIntegration.findOneAndDelete({ userId });
+    await githubIntegrations.deleteByUserId(userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

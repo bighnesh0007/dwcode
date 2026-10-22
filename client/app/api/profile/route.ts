@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
-import { Submission } from "@/models/Submission";
-import { Bookmark } from "@/models/Bookmark";
-import { GitHubIntegration } from "@/models/GitHubIntegration";
-import { UserProfile } from "@/models/UserProfile";
+import * as bookmarks from "@/lib/repositories/bookmarks";
+import * as githubIntegrations from "@/lib/repositories/githubIntegrations";
+import * as problems from "@/lib/repositories/problems";
+import * as profiles from "@/lib/repositories/profiles";
+import * as submissions from "@/lib/repositories/submissions";
 import { getErrorMessage } from "@/lib/errors";
 
 export async function GET() {
@@ -15,21 +14,19 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        await connectToDatabase();
-
         // ── Problem stats ──────────────────────────────────────────────────────
         const [totalProblems, easyCount, mediumCount, hardCount, aiCount, manualCount] =
             await Promise.all([
-                Problem.countDocuments(),
-                Problem.countDocuments({ difficulty: "Easy" }),
-                Problem.countDocuments({ difficulty: "Medium" }),
-                Problem.countDocuments({ difficulty: "Hard" }),
-                Problem.countDocuments({ createdByAI: true }),
-                Problem.countDocuments({ createdByAI: false }),
+                problems.count(),
+                problems.count({ difficulty: "Easy" }),
+                problems.count({ difficulty: "Medium" }),
+                problems.count({ difficulty: "Hard" }),
+                problems.count({ createdByAI: true }),
+                problems.count({ createdByAI: false }),
             ]);
 
         // ── Submission stats ───────────────────────────────────────────────────
-        const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
+        const allSubmissions = await submissions.listByUser(userId);
         const totalSubmissions = allSubmissions.length;
 
         const acceptedSlugs = new Set(
@@ -46,9 +43,7 @@ export async function GET() {
         const attemptedCount = attemptedSlugs.size;
 
         // Solve breakdown by difficulty
-        const solvedProblems = await Problem.find({ slug: { $in: Array.from(acceptedSlugs) } })
-            .select("difficulty")
-            .lean();
+        const solvedProblems = await problems.summariesForSlugs(Array.from(acceptedSlugs));
         const solvedEasy = solvedProblems.filter((problem) => problem.difficulty === "Easy").length;
         const solvedMedium = solvedProblems.filter((problem) => problem.difficulty === "Medium").length;
         const solvedHard = solvedProblems.filter((problem) => problem.difficulty === "Hard").length;
@@ -59,7 +54,7 @@ export async function GET() {
             totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
 
         // ── Bookmarks ──────────────────────────────────────────────────────────
-        const bookmarkCount = await Bookmark.countDocuments({ userId });
+        const bookmarkCount = await bookmarks.countByUser(userId);
 
         // ── Activity: submissions per day (last 30 days) ───────────────────────
         const thirtyDaysAgo = new Date();
@@ -108,10 +103,10 @@ export async function GET() {
         }
 
         // ── GitHub Integration ────────────────────────────────────────────────
-        const githubIntegration = await GitHubIntegration.findOne({ userId }).lean();
+        const githubIntegration = await githubIntegrations.findSettings(userId);
 
         // ── User Profile ──────────────────────────────────────────────────────
-        const userProfile = await UserProfile.findOne({ userId }).lean();
+        const userProfile = await profiles.findByUserId(userId);
 
         return NextResponse.json({
             githubConnected: Boolean(githubIntegration),

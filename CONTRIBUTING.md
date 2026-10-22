@@ -110,6 +110,12 @@ a whole new tier is one entry in that array — everything else derives from it.
 - **Never import `models/*` from a `"use client"` component.** It pulls Mongoose
   (and `async_hooks`) into the browser bundle and fails the build. Put shared
   constants in `client/lib/`.
+- **Data access goes through `client/lib/repositories/`.** Route handlers,
+  pages and `lib/` services never import `@/models/*`, `mongoose` or
+  `@/lib/db` — ESLint fails the build if they do (type-only imports are fine).
+  Add a function to the relevant repository instead; it owns the query, the
+  projection and any database error codes. This is what keeps a future database
+  change (issue #23) contained to one layer.
 - **Validate at the boundary.** Never spread a request body into a Mongoose
   constructor — `new Model({ ...req.body })` is how mass assignment happens.
 - **Authorisation belongs in the route handler**, not in middleware path

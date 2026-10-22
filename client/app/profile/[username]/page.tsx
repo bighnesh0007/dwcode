@@ -4,10 +4,9 @@ import { auth } from "@clerk/nextjs/server";
 // NOTE: This page intentionally reads Mongoose directly on the server — the
 // migration of client-side data access to the Express API backend is a
 // separate ongoing effort.
-import connectToDatabase from "@/lib/db";
-import { UserProfile } from "@/models/UserProfile";
-import { Problem } from "@/models/Problem";
-import { Submission } from "@/models/Submission";
+import * as problems from "@/lib/repositories/problems";
+import * as profiles from "@/lib/repositories/profiles";
+import * as submissions from "@/lib/repositories/submissions";
 import { Heatmap, ProgressRing } from "@/components/Charts";
 import RankAvatar from "@/components/RankAvatar";
 import { computeScore, getTier } from "@/lib/ranks";
@@ -47,13 +46,8 @@ function statusDotColor(status: string): string {
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
 
-  await connectToDatabase();
-
-  // Case-insensitive exact-match lookup (escape regex metacharacters first).
-  const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const profile = await UserProfile.findOne({
-    username: { $regex: `^${escaped}$`, $options: "i" },
-  }).lean();
+  // Case-insensitive exact match.
+  const profile = await profiles.findByUsernameIgnoreCase(username);
   if (!profile) notFound();
 
   const userId = profile.userId;
@@ -63,12 +57,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const isOwnProfile = viewerId === userId;
   let initialIsFollowing = false;
   if (viewerId && !isOwnProfile) {
-    const viewerProfile = await UserProfile.findOne({ userId: viewerId }).select("following").lean();
-    initialIsFollowing = viewerProfile?.following.includes(userId) ?? false;
+    initialIsFollowing = await profiles.isFollowing(viewerId, userId);
   }
 
   // ── Stats ──
-  const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
+  const allSubmissions = await submissions.listByUser(userId);
   const totalSubmissions = allSubmissions.length;
 
   const acceptedSlugs = new Set(
@@ -84,10 +77,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedSubmissionCount / totalSubmissions) * 100) : 0;
 
   const [solvedProbs, easy, medium, hard] = await Promise.all([
-    Problem.find({ slug: { $in: Array.from(acceptedSlugs) } }).select("difficulty").lean(),
-    Problem.countDocuments({ difficulty: "Easy" }),
-    Problem.countDocuments({ difficulty: "Medium" }),
-    Problem.countDocuments({ difficulty: "Hard" }),
+    problems.summariesForSlugs(Array.from(acceptedSlugs)),
+    problems.count({ difficulty: "Easy" }),
+    problems.count({ difficulty: "Medium" }),
+    problems.count({ difficulty: "Hard" }),
   ]);
   const solvedEasy = solvedProbs.filter((problem) => problem.difficulty === "Easy").length;
   const solvedMedium = solvedProbs.filter((problem) => problem.difficulty === "Medium").length;

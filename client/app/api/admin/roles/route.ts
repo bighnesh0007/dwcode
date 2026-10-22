@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { UserRole } from "@/models/UserRole";
+import { grantAdmin, listAdminRoles, revokeAdmin } from "@/lib/repositories/roles";
 import { getErrorMessage } from "@/lib/errors";
 
 function isSuperAdmin(userId: string) {
@@ -15,8 +14,7 @@ export async function GET() {
         if (!userId || !isSuperAdmin(userId)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        await connectToDatabase();
-        const roles = await UserRole.find({ role: "admin" }).lean();
+        const roles = await listAdminRoles();
         return NextResponse.json(roles);
     } catch (error) {
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
@@ -34,12 +32,7 @@ export async function POST(req: Request) {
         if (!targetUserId) {
             return NextResponse.json({ error: "targetUserId required" }, { status: 400 });
         }
-        await connectToDatabase();
-        await UserRole.findOneAndUpdate(
-            { userId: targetUserId },
-            { userId: targetUserId, userName: targetUserName || "", role: "admin", grantedBy: userId, createdAt: new Date() },
-            { upsert: true }
-        );
+        await grantAdmin(targetUserId, targetUserName || "", userId);
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
@@ -58,8 +51,7 @@ export async function DELETE(req: Request) {
         if (!targetUserId) {
             return NextResponse.json({ error: "userId required" }, { status: 400 });
         }
-        await connectToDatabase();
-        await UserRole.deleteOne({ userId: targetUserId });
+        await revokeAdmin(targetUserId);
         return NextResponse.json({ success: true });
     } catch (error) {
         return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });

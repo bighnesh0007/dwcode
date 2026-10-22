@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { StorePurchase } from "@/models/StorePurchase";
-import { UserCoins } from "@/models/UserCoins";
+import { credit, debitIfAffordable, getBalance } from "@/lib/repositories/coins";
+import { hasPurchased, listOwnedItemIds, recordPurchase } from "@/lib/repositories/store";
 import { THEME_SKINS, isFreeSkin } from "@/lib/themes";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -28,28 +27,22 @@ export async function GET() {
             });
         }
 
-        await connectToDatabase();
-
-        const [purchases, coins] = await Promise.all([
-            StorePurchase.find({ userId }).select("itemId").lean(),
-            UserCoins.findOne({ userId }).select("balance").lean(),
+        const [purchasedIds, balance] = await Promise.all([
+            listOwnedItemIds(userId),
+            getBalance(userId),
         ]);
 
-        const owned = [...new Set([...freeIds, ...purchases.map((p) => p.itemId)])];
+        const owned = [...new Set([...freeIds, ...purchasedIds])];
 
         return NextResponse.json({
             items: THEME_SKINS,
             owned,
-            balance: coins?.balance ?? 0,
+            balance,
             signedIn: true,
         });
     } catch (error) {
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
-}
-
-interface MongoDuplicateKeyError {
-    code?: number;
 }
 
 /**
@@ -58,8 +51,8 @@ interface MongoDuplicateKeyError {
  * This is the first code path in DWCode that DEBITS coins; every existing path only
  * ever awarded them. Correctness notes:
  *
- *  - The debit is a single conditional `findOneAndUpdate` with `balance: { $gte: cost }`,
- *    so two concurrent purchases cannot both succeed against the same balance. A
+ *  - The debit is a single conditional update (debitIfAffordable), so two
+ *    concurrent purchases cannot both succeed against the same balance. A
  *    read-then-write would allow exactly that race.
  *  - The ownership row carries a unique index on { userId, itemId }, so a retry cannot
  *    charge twice. If the insert loses a race we refund the debit rather than leaving
@@ -89,95 +82,52 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "That item is already free." }, { status: 400 });
         }
 
-        await connectToDatabase();
-
-        const existing = await StorePurchase.findOne({ userId, itemId: item.id }).lean();
-        if (existing) {
-            const coins = await UserCoins.findOne({ userId }).select("balance").lean();
+        if (await hasPurchased(userId, item.id)) {
             return NextResponse.json({
                 success: true,
                 alreadyOwned: true,
                 itemId: item.id,
-                balance: coins?.balance ?? 0,
+                balance: await getBalance(userId),
             });
         }
 
-        // Atomic conditional debit — fails (returns null) when the balance is short.
-        const debited = await UserCoins.findOneAndUpdate(
-            { userId, balance: { $gte: item.cost } },
-            {
-                $inc: { balance: -item.cost },
-                $push: {
-                    transactions: {
-                        $each: [
-                            {
-                                type: "store_purchase",
-                                amount: -item.cost,
-                                description: `Purchased ${item.name}`,
-                                createdAt: new Date(),
-                            },
-                        ],
-                        $position: 0,
-                        $slice: 200,
-                    },
-                },
-            },
-            { returnDocument: "after" },
-        );
+        // Atomic conditional debit — null when the balance is short.
+        const newBalance = await debitIfAffordable(userId, item.cost, {
+            type: "store_purchase",
+            description: `Purchased ${item.name}`,
+        });
 
-        if (!debited) {
-            const coins = await UserCoins.findOne({ userId }).select("balance").lean();
+        if (newBalance === null) {
             return NextResponse.json(
                 {
                     error: "Not enough coins.",
                     required: item.cost,
-                    balance: coins?.balance ?? 0,
+                    balance: await getBalance(userId),
                 },
                 { status: 402 },
             );
         }
 
-        try {
-            await StorePurchase.create({ userId, itemId: item.id, cost: item.cost });
-        } catch (err) {
+        if ((await recordPurchase(userId, item.id, item.cost)) === "duplicate") {
             // Lost a race against a concurrent purchase of the same item: the unique
             // index rejected us. Refund so the user is not charged twice.
-            if ((err as MongoDuplicateKeyError).code === 11000) {
-                await UserCoins.updateOne(
-                    { userId },
-                    {
-                        $inc: { balance: item.cost },
-                        $push: {
-                            transactions: {
-                                $each: [
-                                    {
-                                        type: "store_refund",
-                                        amount: item.cost,
-                                        description: `Refund — ${item.name} already owned`,
-                                        createdAt: new Date(),
-                                    },
-                                ],
-                                $position: 0,
-                                $slice: 200,
-                            },
-                        },
-                    },
-                );
-                const coins = await UserCoins.findOne({ userId }).select("balance").lean();
-                return NextResponse.json({
-                    success: true,
-                    alreadyOwned: true,
-                    itemId: item.id,
-                    balance: coins?.balance ?? 0,
-                });
-            }
-            throw err;
+            await credit(userId, {
+                type: "store_refund",
+                amount: item.cost,
+                description: `Refund — ${item.name} already owned`,
+            });
+            return NextResponse.json({
+                success: true,
+                alreadyOwned: true,
+                itemId: item.id,
+                balance: await getBalance(userId),
+            });
         }
 
         return NextResponse.json({
             success: true,
             itemId: item.id,
-            balance: debited.balance,
+            balance: newBalance,
         });
     } catch (error) {
         return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });

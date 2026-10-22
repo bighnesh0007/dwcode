@@ -1,13 +1,11 @@
 import { type MetadataRoute } from 'next';
-import connectToDatabase from '@/lib/db';
-import { Problem } from '@/models/Problem';
+import * as problemRepo from '@/lib/repositories/problems';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dwcode.vercel.app';
   
   try {
-    await connectToDatabase();
-    const problems = await Problem.find({}, 'slug createdAt');
+    const problems = await problemRepo.listForSitemap();
 
     const problemUrls = problems.map((problem) => ({
       url: `${baseUrl}/problems/${problem.slug}`,

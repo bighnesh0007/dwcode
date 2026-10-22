@@ -1,59 +1,18 @@
 import { NextResponse } from "next/server";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
-import mongoose from "mongoose";
+import * as problems from "@/lib/repositories/problems";
+import { WRITABLE_PROBLEM_FIELDS, slugify } from "@/lib/problemFields";
 import { requireAdmin } from "@/lib/adminCheck";
 import { getErrorMessage } from "@/lib/errors";
 
-/**
- * Fields a PUT is allowed to change.
- *
- * This used to be `findByIdAndUpdate(id, req.body)` with the RAW body, which let
- * a caller set any schema field — including `createdBy`, `createdAt` and
- * `createdByAI`. Provenance is server-owned, so it is absent here and a request
- * carrying it is ignored rather than rejected (audit finding H-5).
- *
- * `slug` is deliberately absent too: it is derived from `title` below, never
- * taken from the caller.
- */
-const MUTABLE_FIELDS = [
-  "title",
-  "difficulty",
-  "category",
-  "tags",
-  "description",
-  "examples",
-  "constraints",
-  "starterCode",
-  "testCases",
-  "hiddenTestCases",
-  "solution",
-  "hints",
-] as const;
-
-function slugify(title: string) {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
-}
-
-/** MongoDB duplicate-key error (unique index violation). */
-function isDuplicateKeyError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
-}
+// Fields a PUT may change: WRITABLE_PROBLEM_FIELDS (lib/problemFields.ts).
+// This used to be `findByIdAndUpdate(id, req.body)` with the RAW body, which let
+// a caller set any field — including provenance (audit finding H-5).
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    await connectToDatabase();
-
-    // Check if the id is a valid MongoDB ObjectId. If yes, query by _id, else query by slug.
-    let query = {};
-    if (mongoose.Types.ObjectId.isValid(id)) {
-      query = { _id: id };
-    } else {
-      query = { slug: id };
-    }
-
-    const problem = await Problem.findOne(query).select("-hiddenTestCases -solution");
+    // Accepts either an id or a slug.
+    const problem = await problems.findPublicByIdOrSlug(id);
 
     if (!problem) {
       return NextResponse.json({ error: "Problem not found" }, { status: 404 });
@@ -79,7 +38,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     const { id } = await params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!problems.isValidId(id)) {
       return NextResponse.json({ success: false, error: "Problem not found" }, { status: 404 });
     }
 
@@ -90,7 +49,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     // Copy across only the fields a caller is allowed to set.
     const update: Record<string, unknown> = {};
-    for (const field of MUTABLE_FIELDS) {
+    for (const field of WRITABLE_PROBLEM_FIELDS) {
       if (field in body) update[field] = (body as Record<string, unknown>)[field];
     }
 
@@ -113,24 +72,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       );
     }
 
-    await connectToDatabase();
-
-    let updated;
-    try {
-      updated = await Problem.findByIdAndUpdate(
-        id,
-        { $set: update },
-        { returnDocument: "after", runValidators: true },
+    const updated = await problems.updateById(id, update);
+    // Another problem already owns the derived slug.
+    if (updated === "duplicate") {
+      return NextResponse.json(
+        { success: false, error: "A problem with that title already exists" },
+        { status: 409 },
       );
-    } catch (error) {
-      // Another problem already owns the derived slug.
-      if (isDuplicateKeyError(error)) {
-        return NextResponse.json(
-          { success: false, error: "A problem with that title already exists" },
-          { status: 409 },
-        );
-      }
-      throw error;
     }
 
     if (!updated) {
@@ -156,13 +104,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     }
 
     const { id } = await params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!problems.isValidId(id)) {
       return NextResponse.json({ success: false, error: "Problem not found" }, { status: 404 });
     }
 
-    await connectToDatabase();
-    const deleted = await Problem.findByIdAndDelete(id);
-    if (!deleted) {
+    if (!(await problems.deleteById(id))) {
       return NextResponse.json({ success: false, error: "Problem not found" }, { status: 404 });
     }
     return NextResponse.json({ success: true });

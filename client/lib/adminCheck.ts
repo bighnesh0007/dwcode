@@ -1,6 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { UserRole } from "@/models/UserRole";
+import { hasAdminRole } from "@/lib/repositories/roles";
 
 export async function requireAdmin(): Promise<{ userId: string; isSuperAdmin: boolean } | null> {
     try {
@@ -10,9 +9,7 @@ export async function requireAdmin(): Promise<{ userId: string; isSuperAdmin: bo
         const isSuperAdmin = userId === process.env.SUPER_ADMIN_USER_ID;
         if (isSuperAdmin) return { userId, isSuperAdmin: true };
 
-        await connectToDatabase();
-        const role = await UserRole.findOne({ userId, role: "admin" }).lean();
-        if (role) return { userId, isSuperAdmin: false };
+        if (await hasAdminRole(userId)) return { userId, isSuperAdmin: false };
 
         return null;
     } catch {

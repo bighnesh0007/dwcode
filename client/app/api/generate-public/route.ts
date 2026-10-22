@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
+import * as problems from "@/lib/repositories/problems";
+import { pickWritableProblemFields, slugify } from "@/lib/problemFields";
 import { awardCoins } from "@/lib/coins";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -63,23 +63,23 @@ export async function POST(req: Request) {
         } catch {
             return NextResponse.json({ success: false, error: "Failed to parse Gemini response as JSON. Try again." }, { status: 500 });
         }
-        const newProblem = new Problem(parsedData);
+        // Model output is untrusted: keep only writable fields.
+        const fields = pickWritableProblemFields(parsedData);
+        if (typeof fields.title !== "string" || !fields.title.trim()) {
+            return NextResponse.json(
+                { success: false, error: "Model returned no usable title. Try again." },
+                { status: 502 },
+            );
+        }
 
-        const slug = newProblem.title
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/(^-|-$)/g, "");
-
-        await connectToDatabase();
-
-        newProblem.set({
-            slug,
+        const newProblem = await problems.create({
+            ...fields,
+            slug: slugify(fields.title),
             difficulty: difficulty || "Medium",
             category: category || "Arrays",
             createdByAI: true,
             createdBy: userId,
         });
-        await newProblem.save();
 
         // Award 2 coins for creating a problem
         await awardCoins(userId, 2, "problem_created", `Created problem: ${newProblem.title}`);

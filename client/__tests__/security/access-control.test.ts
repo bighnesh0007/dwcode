@@ -54,16 +54,18 @@ const problemDoc = {
 vi.mock("@/models/Problem", () => ({
     Problem: {
         findById: vi.fn(() => ({ select: () => ({ lean: () => Promise.resolve(problemDoc) }) })),
-        findByIdAndUpdate: vi.fn(() => Promise.resolve(problemDoc)),
+        // Repositories return plain objects via .lean().
+        findByIdAndUpdate: vi.fn(() => ({ lean: () => Promise.resolve(problemDoc) })),
         findByIdAndDelete: vi.fn(() => Promise.resolve(problemDoc)),
         findOne: vi.fn(() => ({ select: () => ({ lean: () => Promise.resolve(problemDoc) }) })),
+        create: vi.fn((fields: Record<string, unknown>) => Promise.resolve({ toObject: () => fields })),
     },
 }));
 
 vi.mock("@/models/Note", () => ({
     Note: {
         findOne: vi.fn(() => ({ lean: () => Promise.resolve(null) })),
-        findOneAndUpdate: vi.fn(() => Promise.resolve({ content: "x" })),
+        findOneAndUpdate: vi.fn(() => ({ lean: () => Promise.resolve({ content: "x" }) })),
     },
 }));
 
@@ -99,6 +101,9 @@ function post(url: string, body: unknown) {
 beforeEach(() => {
     authState.userId = null;
     adminState.admin = null;
+    // Call history only — mock implementations stay. Keeps every assertion about
+    // "was this called" independent of which tests ran before it.
+    vi.clearAllMocks();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,6 +167,51 @@ describe("M-1 · POST /api/problems requires a session", () => {
         const { POST } = await import("@/app/api/problems/route");
         const res = await POST(post("http://t/api/problems", { title: "x" }));
         expect(res.status).toBe(401);
+    });
+});
+
+describe("M-1 / H-5 · POST /api/problems only writes allowed fields", () => {
+    it("ignores _id, provenance and other server-owned fields in the body", async () => {
+        authState.userId = "user_author";
+        const { Problem } = await import("@/models/Problem");
+        const { POST } = await import("@/app/api/problems/route");
+
+        const res = await POST(
+            post("http://t/api/problems", {
+                title: "Legit Title",
+                description: "d",
+                _id: "deadbeefdeadbeefdeadbeef",
+                createdAt: "1970-01-01",
+                createdBy: "attacker",
+                createdByAI: true,
+                slug: "attacker-slug",
+            }),
+        );
+        expect(res.status).toBe(200);
+
+        const written = vi.mocked(Problem.create).mock.calls.at(-1)?.[0] as Record<string, unknown>;
+        expect(written).toMatchObject({
+            title: "Legit Title",
+            description: "d",
+            slug: "legit-title",
+            createdBy: "user_author",
+            createdByAI: false,
+        });
+        expect(written).not.toHaveProperty("_id");
+        expect(written).not.toHaveProperty("createdAt");
+    });
+});
+
+describe("Problem page never loads hidden test cases", () => {
+    it("excludes hiddenTestCases from the workspace query", async () => {
+        const { Problem } = await import("@/models/Problem");
+        const select = vi.fn(() => ({ lean: () => Promise.resolve(problemDoc) }));
+        vi.mocked(Problem.findOne).mockReturnValueOnce({ select } as never);
+
+        const { findForWorkspace } = await import("@/lib/repositories/problems");
+        await findForWorkspace("t");
+
+        expect(select).toHaveBeenCalledWith(expect.stringContaining("-hiddenTestCases"));
     });
 });
 

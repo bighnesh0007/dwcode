@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
-import mongoose from "mongoose";
-import connectToDatabase from "@/lib/db";
-import { Note } from "@/models/Note";
+import * as notes from "@/lib/repositories/notes";
+import { isValidId } from "@/lib/repositories/shared";
 import { getErrorMessage } from "@/lib/errors";
 
 /**
@@ -31,12 +30,11 @@ export async function GET(req: Request) {
     if (!problemId) {
       return NextResponse.json({ error: "problemId required" }, { status: 400 });
     }
-    if (!mongoose.Types.ObjectId.isValid(problemId)) {
+    if (!isValidId(problemId)) {
       return NextResponse.json({ error: "invalid problemId" }, { status: 400 });
     }
 
-    await connectToDatabase();
-    const note = await Note.findOne({ userId, problemId }).lean();
+    const note = await notes.findOwn(userId, problemId);
     return NextResponse.json(note ?? { content: "" });
   } catch (error) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
@@ -52,7 +50,7 @@ export async function PUT(req: Request) {
 
     const { problemId, problemSlug, content } = await req.json();
 
-    if (!problemId || !mongoose.Types.ObjectId.isValid(problemId)) {
+    if (!isValidId(problemId)) {
       return NextResponse.json({ success: false, error: "invalid problemId" }, { status: 400 });
     }
     if (typeof problemSlug !== "string" || !problemSlug.trim()) {
@@ -68,15 +66,9 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: "Note is too large." }, { status: 413 });
     }
 
-    await connectToDatabase();
-
-    // Scoped by userId on BOTH the filter and the update, so an upsert can never
-    // create or claim a row belonging to someone else.
-    const note = await Note.findOneAndUpdate(
-      { userId, problemId },
-      { userId, problemId, problemSlug, content, updatedAt: new Date() },
-      { upsert: true, returnDocument: "after" },
-    );
+    // Scoped by userId inside the repository, so an upsert can never create or
+    // claim a row belonging to someone else.
+    const note = await notes.saveOwn(userId, problemId, problemSlug, content);
     return NextResponse.json({ success: true, note });
   } catch (error) {
     return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
