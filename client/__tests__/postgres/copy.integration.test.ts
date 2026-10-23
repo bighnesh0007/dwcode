@@ -1,25 +1,20 @@
 /**
  * Applies the migrations and the copy to a real PostgreSQL.
- * Runs only when PG_TEST_URL points at a disposable database — it drops the
- * public schema first.
+ * Runs only when PG_TEST_URL points at a disposable server — it creates and
+ * drops its own database there.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sql } from "drizzle-orm";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
-import path from "node:path";
-import { createPgDatabase, type PgDatabase } from "@/db/postgres/client";
-import { applyPlan, buildPlan, countRows } from "@/db/postgres/copy";
+import type { PgDatabase } from "@/db/postgres/client";
+import { applyPlan, buildPlan, countRows, verifyPlan } from "@/db/postgres/copy";
 import { readFixtures } from "./fixtures";
+import { PG_TEST_URL, freshDatabase } from "./helpers";
 
-const url = process.env.PG_TEST_URL;
-
-describe.skipIf(!url)("copy into PostgreSQL (#23)", () => {
+describe.skipIf(!PG_TEST_URL)("copy into PostgreSQL (#23)", () => {
   let db: PgDatabase;
 
   beforeAll(async () => {
-    db = createPgDatabase(url);
-    await db.execute(sql`drop schema if exists public cascade; drop schema if exists drizzle cascade; create schema public`);
-    await migrate(db, { migrationsFolder: path.resolve(__dirname, "../../db/postgres/migrations") });
+    ({ db } = await freshDatabase("dwcode_test_copy"));
   });
   afterAll(() => db?.close());
 
@@ -29,6 +24,18 @@ describe.skipIf(!url)("copy into PostgreSQL (#23)", () => {
     await applyPlan(db, plan);
     const counts = await countRows(db, plan);
     for (const t of plan.tables) expect([t.name, counts.get(t.name)]).toEqual([t.name, t.rows.length]);
+  });
+
+  it("verifies every copied row by checksum, and catches a changed row", async () => {
+    const plan = await buildPlan(readFixtures);
+    for (const v of await verifyPlan(db, plan)) {
+      expect([v.name, v.missing, v.different, v.checksumPostgres]).toEqual([v.name, 0, 0, v.checksumCopied]);
+    }
+    await db.execute(sql`update problems set title = 'tampered' where slug = 'two'`);
+    const problems = (await verifyPlan(db, plan)).find((v) => v.name === "problems");
+    expect(problems).toMatchObject({ missing: 0, different: 1 });
+    expect(problems?.checksumPostgres).not.toBe(problems?.checksumCopied);
+    await applyPlan(db, plan);
   });
 
   it("enforces one open report per user per problem", async () => {

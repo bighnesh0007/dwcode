@@ -38,6 +38,7 @@ const RAW = {
     DWL_BACKEND_URL: process.env.DWL_BACKEND_URL,
     GUEST_MIGRATION_ENABLED: process.env.GUEST_MIGRATION_ENABLED,
     GRADE_HIDDEN_TESTS: process.env.GRADE_HIDDEN_TESTS,
+    DATA_BACKEND: process.env.DATA_BACKEND,
     // Public (inlined into the browser bundle)
     NEXT_PUBLIC_MAINTENANCE_MODE: process.env.NEXT_PUBLIC_MAINTENANCE_MODE,
     NEXT_PUBLIC_SHOW_ADMIN: process.env.NEXT_PUBLIC_SHOW_ADMIN,
@@ -152,6 +153,34 @@ export const GUEST_MIGRATION_ENABLED = booleanish(
  * otherwise make a problem impossible to solve.
  */
 export const GRADE_HIDDEN_TESTS = booleanish("GRADE_HIDDEN_TESTS", RAW.GRADE_HIDDEN_TESTS);
+
+/**
+ * Which database the repositories serve from (issue #23, Phase 3). Server-only.
+ *
+ * - `mongo` (default): MongoDB only — the behaviour before #23.
+ * - `shadow`: MongoDB is served; every read also runs on PostgreSQL and
+ *   mismatches are logged, and writes are mirrored to PostgreSQL best-effort.
+ *   Nothing a user sees comes from PostgreSQL.
+ * - `postgres`: PostgreSQL only. The Phase 4 cutover.
+ *
+ * `shadow` and `postgres` need DATABASE_URL; without it the deploy fails at boot
+ * rather than on the first request.
+ */
+export const DATA_BACKENDS = ["mongo", "shadow", "postgres"] as const;
+export type DataBackend = (typeof DATA_BACKENDS)[number];
+
+function dataBackend(value: string | undefined): DataBackend {
+    if (value === undefined || value === "") return "mongo";
+    if ((DATA_BACKENDS as readonly string[]).includes(value)) return value as DataBackend;
+    issues.push(`DATA_BACKEND: expected one of ${DATA_BACKENDS.join(", ")}, got "${value}"`);
+    return "mongo";
+}
+
+export const DATA_BACKEND = dataBackend(RAW.DATA_BACKEND);
+
+if (isServer && DATA_BACKEND !== "mongo" && !process.env.DATABASE_URL) {
+    issues.push(`DATA_BACKEND=${DATA_BACKEND} needs DATABASE_URL`);
+}
 
 // ── Capability reporting ─────────────────────────────────────────────────────
 

@@ -1,35 +1,13 @@
-import { UserRole } from "@/models/UserRole";
-import { connect } from "./shared";
+/**
+ * Admin roles — facade over mongo/roles.ts and pg/roles.ts; backend.ts picks one per call.
+ */
+import * as m from "./mongo/roles";
+import * as p from "./pg/roles";
+import { pgImpl, read, write } from "./backend";
 
-/** Every admin role row, as stored. */
-export async function listAdminRoles() {
-  await connect();
-  return UserRole.find({ role: "admin" }).lean();
-}
-
-/** User ids holding the admin role. */
-export async function listAdminUserIds(): Promise<string[]> {
-  await connect();
-  const rows = await UserRole.find({ role: "admin" }).select("userId").lean();
-  return rows.map((row) => row.userId);
-}
-
-export async function hasAdminRole(userId: string): Promise<boolean> {
-  await connect();
-  return Boolean(await UserRole.findOne({ userId, role: "admin" }).lean());
-}
-
-/** Grant (or re-grant) admin. Idempotent. */
-export async function grantAdmin(targetUserId: string, targetUserName: string, grantedBy: string) {
-  await connect();
-  await UserRole.findOneAndUpdate(
-    { userId: targetUserId },
-    { userId: targetUserId, userName: targetUserName, role: "admin", grantedBy, createdAt: new Date() },
-    { upsert: true },
-  );
-}
-
-export async function revokeAdmin(targetUserId: string) {
-  await connect();
-  await UserRole.deleteOne({ userId: targetUserId });
-}
+export const listAdminRoles = read("roles.listAdminRoles", m.listAdminRoles,
+  pgImpl<typeof m.listAdminRoles>(p.listAdminRoles), { ignoreId: true });
+export const listAdminUserIds = read("roles.listAdminUserIds", m.listAdminUserIds, p.listAdminUserIds);
+export const hasAdminRole = read("roles.hasAdminRole", m.hasAdminRole, p.hasAdminRole);
+export const grantAdmin = write("roles.grantAdmin", m.grantAdmin, p.grantAdmin);
+export const revokeAdmin = write("roles.revokeAdmin", m.revokeAdmin, p.revokeAdmin);

@@ -1,31 +1,16 @@
-import type { InferSchemaType } from "mongoose";
-import { PlaygroundSnippet, type PlaygroundSnippetSchema } from "@/models/PlaygroundSnippet";
-import { connect, isDuplicateKeyError } from "./shared";
-
-type SnippetContent = Pick<InferSchemaType<typeof PlaygroundSnippetSchema>, "script" | "files" | "testCases">;
-
 /**
- * Store a shared snippet under a fresh random slug, retrying if a slug collides
- * with an existing one. Returns the slug, or null if every attempt collided.
+ * Shared playground snippets — facade over mongo/snippets.ts and pg/snippets.ts; backend.ts picks one per call.
  */
-export async function createWithUniqueSlug(
-  makeSlug: () => string,
-  content: SnippetContent,
-  attempts = 5,
-): Promise<string | null> {
-  await connect();
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    try {
-      const doc = await PlaygroundSnippet.create({ slug: makeSlug(), ...content });
-      return doc.slug;
-    } catch (err) {
-      if (!isDuplicateKeyError(err)) throw err;
-    }
-  }
-  return null;
-}
+import * as m from "./mongo/snippets";
+import * as p from "./pg/snippets";
+import { pgImpl, read, write } from "./backend";
 
-export async function findBySlug(slug: string) {
-  await connect();
-  return PlaygroundSnippet.findOne({ slug }).lean();
-}
+export const findBySlug = read("snippets.findBySlug", m.findBySlug, pgImpl<typeof m.findBySlug>(p.findBySlug));
+/** The mirror reuses Mongo's slug, and reads Mongo's id so both stores agree. */
+export const createWithUniqueSlug = write("snippets.createWithUniqueSlug", m.createWithUniqueSlug,
+  pgImpl<typeof m.createWithUniqueSlug>(p.createWithUniqueSlug),
+  async (slug, _makeSlug, content) => {
+    if (!slug) return;
+    const doc = await m.findBySlug(slug);
+    if (doc) await p.insert(slug, content, { id: String(doc._id), createdAt: doc.createdAt });
+  });

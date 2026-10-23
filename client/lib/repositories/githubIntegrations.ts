@@ -1,31 +1,13 @@
-import { GitHubIntegration } from "@/models/GitHubIntegration";
-import { connect } from "./shared";
+/**
+ * GitHub connections — facade over mongo/githubIntegrations.ts and pg/githubIntegrations.ts; backend.ts picks one per call.
+ */
+import * as m from "./mongo/githubIntegrations";
+import * as p from "./pg/githubIntegrations";
+import { pgImpl, read, write } from "./backend";
 
-/** The user's GitHub connection, access token included — server-side only. */
-export async function findByUserId(userId: string) {
-  await connect();
-  return GitHubIntegration.findOne({ userId }).lean();
-}
-
-/** Connection settings without the access token — safe to return to the client. */
-export async function findSettings(userId: string) {
-  await connect();
-  return GitHubIntegration.findOne({ userId })
-    .select("githubUsername repoName repoPrivate defaultBranch")
-    .lean();
-}
-
-/** Create or refresh the user's connection after OAuth. */
-export async function saveConnection(userId: string, githubId: string, githubUsername: string, accessToken: string) {
-  await connect();
-  await GitHubIntegration.findOneAndUpdate(
-    { userId },
-    { userId, githubId, githubUsername, accessToken, updatedAt: new Date() },
-    { upsert: true },
-  );
-}
-
-export async function deleteByUserId(userId: string) {
-  await connect();
-  await GitHubIntegration.findOneAndDelete({ userId });
-}
+export const findByUserId = read("githubIntegrations.findByUserId", m.findByUserId,
+  pgImpl<typeof m.findByUserId>(p.findByUserId), { ignoreId: true });
+export const findSettings = read("githubIntegrations.findSettings", m.findSettings,
+  pgImpl<typeof m.findSettings>(p.findSettings), { ignoreId: true });
+export const saveConnection = write("githubIntegrations.saveConnection", m.saveConnection, p.saveConnection);
+export const deleteByUserId = write("githubIntegrations.deleteByUserId", m.deleteByUserId, p.deleteByUserId);

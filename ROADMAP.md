@@ -47,7 +47,12 @@ The copy script from Phase 3 was pulled forward so the schema is proven against 
 - Schema tests against a throwaway database in CI
 - Decide hosting (Neon / Supabase / Render) — the code stays host-agnostic
 
-### Phase 3 — data migration and dual-read
+### Phase 3 — data migration and dual-read ✅
+
+See [`docs/runbooks/postgres-copy.md`](docs/runbooks/postgres-copy.md). Every repository
+has a Drizzle implementation behind `DATA_BACKEND` (`mongo` | `shadow` | `postgres`),
+and a parity suite runs both stores against each other in CI. Turning `shadow`
+on in production waits on a Postgres host.
 
 - An idempotent, `--dry-run`-able Mongo → Postgres copy script with an explicit
   ObjectId → id mapping

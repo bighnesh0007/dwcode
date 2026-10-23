@@ -1,23 +1,13 @@
-import { Bookmark } from "@/models/Bookmark";
-import { connect } from "./shared";
+/**
+ * Bookmarks — facade over mongo/bookmarks.ts and pg/bookmarks.ts; backend.ts picks one per call.
+ */
+import * as m from "./mongo/bookmarks";
+import * as p from "./pg/bookmarks";
+import { pgImpl, read, write } from "./backend";
 
-export async function listByUser(userId: string) {
-  await connect();
-  return Bookmark.find({ userId }).lean();
-}
-
-export async function countByUser(userId: string): Promise<number> {
-  await connect();
-  return Bookmark.countDocuments({ userId });
-}
-
-/** Add the bookmark if absent, remove it if present. Returns the new state. */
-export async function toggle(userId: string, problemId: string, problemSlug: string): Promise<boolean> {
-  await connect();
-  if (await Bookmark.findOne({ problemId, userId }).lean()) {
-    await Bookmark.deleteOne({ problemId, userId });
-    return false;
-  }
-  await Bookmark.create({ problemId, problemSlug, userId });
-  return true;
-}
+export const listByUser = read("bookmarks.listByUser", m.listByUser,
+  pgImpl<typeof m.listByUser>(p.listByUser), { ignoreId: true });
+export const countByUser = read("bookmarks.countByUser", m.countByUser, p.countByUser);
+/** The mirror applies Mongo's outcome rather than toggling, so a drifted row converges. */
+export const toggle = write("bookmarks.toggle", m.toggle, p.toggle,
+  (bookmarked, userId, problemId) => p.setBookmarked(userId, problemId, bookmarked));
