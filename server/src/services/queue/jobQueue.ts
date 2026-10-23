@@ -122,9 +122,15 @@ export class BullMqJobQueue<TData extends object, TResult> implements JobQueue<T
   }
 
   async status(id: string): Promise<JobStatus<TData, TResult> | null> {
+    // State FIRST, then the job hash. BullMQ writes the return value and the
+    // state change in one atomic script, so a hash read after seeing
+    // "completed" always holds the result. The other order raced: a hash read
+    // while active plus a state read after completion = completed, no result
+    // (the intermittent "runs a job" test failure, and a verdict-less poll).
+    const state = await this.queue.getJobState(id);
+    if (state === "unknown") return null;
     const job = await this.queue.getJob(id);
     if (!job) return null;
-    const state = await job.getState();
     const base = { id, data: job.data as TData };
     if (state === "completed") return { ...base, state: "completed", result: job.returnvalue as TResult };
     if (state === "failed") return { ...base, state: "failed", error: parseFailure(job.failedReason) };
