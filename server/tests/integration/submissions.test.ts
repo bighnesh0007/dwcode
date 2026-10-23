@@ -173,3 +173,36 @@ describe("GET /api/v1/submissions", () => {
     expect(res.body.data.map((s: { status: string }) => s.status)).toEqual(["Accepted", "Attempted"]);
   });
 });
+
+describe("GET /api/v1/submissions/progress", () => {
+  it("reports a slug as solved once any submission was accepted, attempted otherwise", async () => {
+    const a = app();
+    await submitAndWait(a, "user-a", { problemId, code: WRONG });
+    await submitAndWait(a, "user-a", { problemId, code: IDENTITY });
+    await submitAndWait(a, "user-b", { problemId, code: WRONG });
+    const ra = await request(a).get("/api/v1/submissions/progress").set("Authorization", "Bearer user-a");
+    expect(ra.body.data).toEqual({ solved: ["echo"], attempted: [] });
+    const rb = await request(a).get("/api/v1/submissions/progress").set("Authorization", "Bearer user-b");
+    expect(rb.body.data).toEqual({ solved: [], attempted: ["echo"] });
+  });
+
+  it("filters history by problem", async () => {
+    const a = app();
+    await submitAndWait(a, "user-a", { problemId, code: IDENTITY });
+    const r = await request(a).get("/api/v1/submissions?problemSlug=nope").set("Authorization", "Bearer user-a");
+    expect(r.body.data).toEqual([]);
+  });
+});
+
+describe("GET /api/v1/submissions/stats", () => {
+  it("counts totals, acceptances and today's activity for the caller only", async () => {
+    const a = app();
+    await submitAndWait(a, "user-a", { problemId, code: WRONG });
+    await submitAndWait(a, "user-a", { problemId, code: IDENTITY });
+    await submitAndWait(a, "user-b", { problemId, code: IDENTITY });
+    const r = await request(a).get("/api/v1/submissions/stats").set("Authorization", "Bearer user-a");
+    const today = new Date().toISOString().slice(0, 10);
+    expect(r.body.data).toMatchObject({ total: 2, accepted: 1, solved: ["echo"], attempted: [] });
+    expect(r.body.data.daily[today]).toBe(2);
+  });
+});

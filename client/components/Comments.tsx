@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { getErrorMessage } from "@/lib/errors";
 import { Trash2, MessageSquare, Loader2 } from "lucide-react";
 import { renderMarkdown } from "@/lib/markdown";
+import { apiRequest } from "@/lib/apiClient";
 import type { Comment } from "@/lib/types";
 
 /**
@@ -37,11 +38,10 @@ export function Comments({
     const fetchComments = useCallback(async (signal?: AbortSignal) => {
         setLoading(true);
         try {
-            const res = await fetch(
-                `/api/comments?targetType=${targetType}&targetId=${encodeURIComponent(resolvedId)}`,
-                { signal },
+            const data = await apiRequest<Comment[]>(
+                `/api/v1/comments?targetType=${targetType}&targetId=${encodeURIComponent(resolvedId)}`,
+                signal ? { signal } : {},
             );
-            const data = await res.json();
             if (Array.isArray(data)) setComments(data);
         } catch {
             // silently fail
@@ -67,18 +67,12 @@ export function Comments({
         setPosting(true);
         setError(null);
         try {
-            const res = await fetch("/api/comments", {
+            await apiRequest<Comment>("/api/v1/comments", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ targetType, targetId: resolvedId, content: draft.trim() }),
+                body: { targetType, targetId: resolvedId, content: draft.trim() },
             });
-            const data = await res.json();
-            if (data.success) {
-                setDraft("");
-                await fetchComments();
-            } else {
-                setError(data.error || "Failed to post comment");
-            }
+            setDraft("");
+            await fetchComments();
         } catch (error) {
             setError(getErrorMessage(error));
         } finally {
@@ -88,7 +82,7 @@ export function Comments({
 
     const handleDelete = async (id: string) => {
         try {
-            await fetch(`/api/comments?id=${id}`, { method: "DELETE" });
+            await apiRequest<unknown>(`/api/v1/comments/${encodeURIComponent(id)}`, { method: "DELETE" });
             setComments((prev) => prev.filter((c) => c._id !== id));
         } catch {
             // ignore

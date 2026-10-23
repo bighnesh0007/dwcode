@@ -35,7 +35,6 @@ const RAW = {
     // Server-only (no NEXT_PUBLIC_ prefix → stripped from the browser bundle).
     // Only non-secret values live here; secret NAMES are read inside the
     // isServer branch below so they never appear in a client bundle at all.
-    DWL_BACKEND_URL: process.env.DWL_BACKEND_URL,
     GUEST_MIGRATION_ENABLED: process.env.GUEST_MIGRATION_ENABLED,
     GRADE_HIDDEN_TESTS: process.env.GRADE_HIDDEN_TESTS,
     // Public (inlined into the browser bundle)
@@ -43,7 +42,6 @@ const RAW = {
     NEXT_PUBLIC_SHOW_ADMIN: process.env.NEXT_PUBLIC_SHOW_ADMIN,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    NEXT_PUBLIC_COMPILER_VIA_API: process.env.NEXT_PUBLIC_COMPILER_VIA_API,
 } as const;
 
 // ── Tiny validators ──────────────────────────────────────────────────────────
@@ -62,64 +60,7 @@ function booleanish(name: string, value: string | undefined, fallback = false): 
     return fallback;
 }
 
-/** Must parse as an http(s) URL when present. A malformed URL is fatal. */
-function httpUrl(name: string, value: string | undefined, fallback: string): string {
-    const candidate = value?.trim() || fallback;
-    try {
-        const url = new URL(candidate);
-        if (url.protocol !== "http:" && url.protocol !== "https:") {
-            issues.push(`${name}: must be http(s), got "${url.protocol}"`);
-            return fallback;
-        }
-        // Normalise away a trailing slash so `${BASE}/api/x` never doubles up.
-        return candidate.replace(/\/+$/, "");
-    } catch {
-        issues.push(`${name}: not a valid URL ("${candidate}")`);
-        return fallback;
-    }
-}
-
 // ── Exported values ──────────────────────────────────────────────────────────
-
-/**
- * DataWeave compiler backend. Server-only. `/api/transform` is appended to it.
- *
- * ⚠️ THE PREVIOUS DEFAULT WAS A DEAD HOST. This fell back to
- * `https://dwlbackend.onrender.com`, which now returns **404 on every path**
- * (verified 2026-07-26 — it answers in ~1s, so it is alive but no longer serving
- * the compiler). Any deployment that did not explicitly set DWL_BACKEND_URL was
- * silently pointed at nothing.
- *
- * That became critical when SEC-05 moved grading onto the request path: a dead
- * compiler no longer just breaks the playground, it makes every submission
- * return `Error`. The default is now the upstream the server already uses
- * successfully via DW_COMPILER_URL.
- *
- * Local development normally overrides this to http://localhost:4000 so calls go
- * through the Express server's legacy /api/transform proxy.
- *
- * NOTE (audit W1-R1 / OPS-07): this upstream is a Render free-tier service that
- * sleeps after 15 minutes idle and takes 30–60s to wake, against a 15s timeout.
- * See docs/audit/09-runtime-ownership.md.
- */
-// Everything runs on this machine now (ADR-006): the default is this repo's own
-// server, whose legacy /api/transform proxy runs on the local compiler service.
-// The Render-hosted upstream is retired; nothing here calls it any more.
-const DEFAULT_COMPILER_URL = "http://127.0.0.1:4000";
-
-export const DWL_BACKEND_URL = httpUrl(
-    "DWL_BACKEND_URL",
-    RAW.DWL_BACKEND_URL,
-    DEFAULT_COMPILER_URL,
-);
-
-/**
- * Run and Submit go to server/ (the compiler service and the grading queue,
- * ADR-006) instead of this app's /api/execute and /api/submissions. Public: the
- * browser makes the call. OFF by default, so deploying the code changes nothing
- * until the flag is set — and unsetting it is the rollback.
- */
-export const COMPILER_VIA_API = booleanish("NEXT_PUBLIC_COMPILER_VIA_API", RAW.NEXT_PUBLIC_COMPILER_VIA_API);
 
 /**
  * Maintenance banner. Public — safe to expose, it only toggles a banner.
@@ -176,7 +117,6 @@ export const GRADE_HIDDEN_TESTS = booleanish("GRADE_HIDDEN_TESTS", RAW.GRADE_HID
  * absent secret would be worse than booting with the feature off.
  */
 const CAPABILITY_REQUIREMENTS = {
-    database: ["MONGODB_URI"],
     auth: ["CLERK_SECRET_KEY"],
     ai: ["GEMINI_API_KEY"],
     github: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
@@ -235,10 +175,4 @@ if (isServer) {
     // Relying on the built-in default is legitimate but worth surfacing: the
     // compiler is now on the submission path, so which host it points at is
     // operationally significant rather than a playground detail.
-    if (!RAW.DWL_BACKEND_URL && process.env.NODE_ENV === "production") {
-        console.warn(
-            `[config] DWL_BACKEND_URL is not set — falling back to ${DEFAULT_COMPILER_URL}. ` +
-                `Set it explicitly in the hosting environment.`,
-        );
-    }
 }

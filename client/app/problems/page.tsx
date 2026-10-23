@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Star, CheckCircle2, Circle, CircleDot, Shuffle } from "lucide-react";
 import { useSearchParams, useRouter } from "next/navigation";
-import type { BookmarkSummary, ProblemSummary, SubmissionSummary } from "@/lib/types";
+import type { BookmarkSummary, ProblemSummary } from "@/lib/types";
+import { apiRequest } from "@/lib/apiClient";
 import { DIFFICULTIES, difficultyClassName } from "@dwcode/shared";
 
 // Difficulty filters derive from the shared registry, so a new tier appears
@@ -24,7 +25,7 @@ function ProblemsList() {
   const q = searchParams.get("q") || "";
 
   const [problems, setProblems] = useState<ProblemSummary[]>([]);
-  const [submissions, setSubmissions] = useState<SubmissionSummary[]>([]);
+  const [userProgress, setUserProgress] = useState<{ solved: string[]; attempted: string[] }>({ solved: [], attempted: [] });
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [search, setSearch] = useState(q);
   const [selectedTag, setSelectedTag] = useState("All");
@@ -35,16 +36,15 @@ function ProblemsList() {
       setLoading(true);
       try {
         const [pRes, sRes, bRes] = await Promise.all([
-          fetch("/api/problems"),
-          fetch("/api/submissions"),
-          fetch("/api/bookmarks"),
+          apiRequest<ProblemSummary[]>("/api/v1/problems").catch((): ProblemSummary[] => []),
+          // Signed out → 401 → no progress, exactly like the empty list before.
+          apiRequest<{ solved: string[]; attempted: string[] }>("/api/v1/submissions/progress")
+            .catch(() => ({ solved: [] as string[], attempted: [] as string[] })),
+          apiRequest<BookmarkSummary[]>("/api/v1/bookmarks").catch((): BookmarkSummary[] => []),
         ]);
-        const [pData, sData, bData] = await Promise.all([pRes.json(), sRes.json(), bRes.json()]);
-        if (Array.isArray(pData)) setProblems(pData);
-        if (Array.isArray(sData)) setSubmissions(sData);
-        if (Array.isArray(bData)) {
-          setBookmarks((bData as BookmarkSummary[]).map((bookmark) => bookmark.problemId));
-        }
+        setProblems(pRes);
+        setUserProgress(sRes);
+        setBookmarks(bRes.map((bookmark) => bookmark.problemId));
       } catch (err) {
         console.error(err);
       } finally {
@@ -54,9 +54,9 @@ function ProblemsList() {
     void load();
   }, []);
 
-  // Derive solved/attempted slugs from submissions
-  const solvedSlugs = new Set(submissions.filter(s => s.status === "Accepted").map(s => s.problemSlug));
-  const attemptedSlugs = new Set(submissions.filter(s => s.status !== "Accepted").map(s => s.problemSlug));
+  // Solved/attempted slugs, computed by the server across all submissions
+  const solvedSlugs = new Set(userProgress.solved);
+  const attemptedSlugs = new Set(userProgress.attempted);
 
   const getProblemStatus = (slug: string) => {
     if (solvedSlugs.has(slug)) return "solved";

@@ -11,6 +11,7 @@ import {
     ChevronLeft, ChevronRight, Loader2, Medal, Target, TrendingUp, Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/apiClient";
 import { RANK_TIERS, getTier } from "@/lib/ranks";
 
 interface LeaderboardRow {
@@ -35,7 +36,6 @@ interface LeaderboardResponse {
     me: LeaderboardRow | null;
     pagination: { page: number; limit: number; totalUsers: number; totalPages: number; sort: string };
     meta: { totalProblems: number; easyCount: number; mediumCount: number; hardCount: number };
-    error?: string;
 }
 
 type SortKey = "score" | "solved" | "acceptance";
@@ -82,12 +82,11 @@ export default function LeaderboardPage() {
         const controller = new AbortController();
         queueMicrotask(() => {
             setFetching(true);
-            void fetch(`/api/leaderboard?page=${page}&limit=${PAGE_SIZE}&sort=${sort}`, {
+            void apiRequest<LeaderboardResponse>(`/api/v1/leaderboard?page=${page}&limit=${PAGE_SIZE}&sort=${sort}`, {
                 signal: controller.signal,
             })
-                .then((r) => r.json())
-                .then((d: LeaderboardResponse) => {
-                    if (controller.signal.aborted || d.error) return;
+                .then((d) => {
+                    if (controller.signal.aborted) return;
                     setData(d);
                 })
                 .catch(() => {

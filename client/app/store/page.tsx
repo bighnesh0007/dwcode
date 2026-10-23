@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useSkin } from "@/components/SkinProvider";
 import { DEFAULT_SKIN, type ThemeSkin } from "@/lib/themes";
 import { getErrorMessage } from "@/lib/errors";
+import { apiRequest } from "@/lib/apiClient";
 
 interface StoreResponse {
     items: ThemeSkin[];
@@ -55,10 +56,7 @@ export default function StorePage() {
 
     const load = useCallback(async () => {
         try {
-            const res = await fetch("/api/store");
-            if (!res.ok) throw new Error("Could not load the store.");
-            const json: StoreResponse = await res.json();
-            setData(json);
+            setData(await apiRequest<StoreResponse>("/api/v1/store"));
         } catch (e) {
             setError(getErrorMessage(e, "Could not load the store."));
         } finally {
@@ -78,19 +76,7 @@ export default function StorePage() {
         setBusyId(item.id);
         setError(null);
         try {
-            const res = await fetch("/api/store", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ itemId: item.id }),
-            });
-            const json: unknown = await res.json();
-            if (!res.ok) {
-                const message =
-                    typeof json === "object" && json !== null && "error" in json
-                        ? String(json.error)
-                        : "Purchase failed.";
-                throw new Error(message);
-            }
+            await apiRequest("/api/v1/store", { method: "POST", body: { itemId: item.id } });
             await load();
             // Buying is an explicit choice of theme, so equip it right away.
             applySkin(item.id);

@@ -21,7 +21,7 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import mongoose from "mongoose";
-import { casesOf, formatCompilerOutput, normalizeOutput } from "../../client/scripts/lib/compiler.mjs";
+import { casesOf, formatCompilerOutput, normalizeOutput } from "../../server/scripts/lib/compiler.mjs";
 
 /**
  * The reference runtime, named explicitly. Deliberately NOT DWL_BACKEND_URL:

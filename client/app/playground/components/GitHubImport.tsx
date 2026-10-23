@@ -1,5 +1,6 @@
 "use client";
 
+import { apiRequest } from "@/lib/apiClient";
 import { useState } from "react";
 import {
     GitBranch,
@@ -40,14 +41,10 @@ export function GitHubImport({ onImport, onClose }: GitHubImportProps) {
         setError(null);
 
         try {
-            const res = await fetch("/api/playground/github/import", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ repo: trimmed }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error ?? "Could not load repo.");
-            setFiles(data.files ?? []);
+            const data = await apiRequest<{ files: string[] }>(
+                `/api/v1/playground/github/files?${new URLSearchParams({ repo: trimmed })}`,
+            );
+            setFiles(data.files);
             setStep("file");
         } catch (error) {
             setError(getErrorMessage(error));
@@ -62,9 +59,9 @@ export function GitHubImport({ onImport, onClose }: GitHubImportProps) {
         setError(null);
         try {
             const params = new URLSearchParams({ repo: repo.trim(), path });
-            const res = await fetch(`/api/playground/github/import?${params}`);
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error ?? "Import failed.");
+            const data = await apiRequest<{ fileName: string; content: string }>(
+                `/api/v1/playground/github/file?${params}`,
+            );
             onImport(data.fileName, data.content);
         } catch (error) {
             setError(getErrorMessage(error));

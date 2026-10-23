@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { ArrowBigDown, ArrowBigUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/apiClient";
 
 type VoteValue = 1 | -1 | 0;
 
@@ -69,8 +70,8 @@ export function BlogVoteButtons({
         // overwrite the confirmed post-vote state.
         const seq = requestSeq.current;
         queueMicrotask(() => {
-            void fetch(`/api/blog/${slug}/vote`, { signal: controller.signal })
-                .then(r => (r.ok ? (r.json() as Promise<VoteResponse>) : null))
+            void apiRequest<VoteResponse>(`/api/v1/blog/${encodeURIComponent(slug)}/vote`, { signal: controller.signal })
+                .catch(() => null)
                 .then(d => {
                     if (!d || controller.signal.aborted) return;
                     if (seq !== requestSeq.current) return; // a vote superseded us
@@ -98,15 +99,10 @@ export function BlogVoteButtons({
 
         setState(applyVote(previous, next)); // optimistic
         setPending(true);
-        void fetch(`/api/blog/${slug}/vote`, {
+        void apiRequest<VoteResponse>(`/api/v1/blog/${encodeURIComponent(slug)}/vote`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ value: next }),
+            body: { value: next },
         })
-            .then(r => {
-                if (!r.ok) throw new Error("Vote failed");
-                return r.json() as Promise<VoteResponse>;
-            })
             .then(d => {
                 if (seq !== requestSeq.current) return;
                 setState({

@@ -22,7 +22,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatCompilerOutput, normalizeOutput } from "../../client/scripts/lib/compiler.mjs";
+import { formatCompilerOutput, normalizeOutput } from "../../server/scripts/lib/compiler.mjs";
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);

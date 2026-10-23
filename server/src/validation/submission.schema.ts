@@ -18,5 +18,8 @@ export type SubmitInput = z.infer<typeof submitSchema>;
 export const jobParamsSchema = z.object({ jobId: z.uuid() }).strict();
 
 export const listQuerySchema = z
-  .object({ limit: z.coerce.number().int().min(1).max(200).default(100) })
+  .object({
+    limit: z.coerce.number().int().min(1).max(200).default(100),
+    problemSlug: z.string().min(1).max(200).optional(),
+  })
   .strict();

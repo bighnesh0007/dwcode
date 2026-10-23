@@ -10,6 +10,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { GlobalSearch } from "@/components/global-search";
 import { cn } from "@/lib/utils";
 import { SHOW_ADMIN } from "@/lib/config";
+import { apiRequest } from "@/lib/apiClient";
 
 const NAV_LINKS = [
   { href: "/problems", label: "Problems" },
@@ -24,8 +25,7 @@ function CoinsBadge() {
   const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch("/api/coins")
-      .then(r => r.json())
+    apiRequest<{ balance: number }>("/api/v1/coins")
       .then(d => { if (typeof d.balance === "number") setBalance(d.balance); })
       .catch(() => { });
   }, []);

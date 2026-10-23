@@ -37,4 +37,8 @@ export const ProblemSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Indexes (PERF-02) — identical to client/models/Problem.ts.
+ProblemSchema.index({ difficulty: 1, category: 1 });
+ProblemSchema.index({ createdAt: -1 });
+
 export const Problem = modelFromSchema("Problem", ProblemSchema);

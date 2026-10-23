@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,9 @@ import { renderMarkdown } from "@/lib/markdown";
 import { formatPayload } from "@/lib/format";
 import { difficultyClassName } from "@dwcode/shared";
 import { getErrorMessage } from "@/lib/errors";
-import { COMPILER_VIA_API } from "@/lib/config";
 import { runViaApi, submitViaApi } from "@/lib/compilerApi";
 import type { BookmarkSummary, Problem, SubmissionSummary } from "@/lib/types";
+import { apiRequest } from "@/lib/apiClient";
 
 export default function Workspace({ problem }: { problem: Problem }) {
   const { resolvedTheme } = useTheme();
@@ -49,6 +49,10 @@ export default function Workspace({ problem }: { problem: Problem }) {
   // Once the solution is viewed, we track it for the lifetime of this session.
   // Hiding it again does NOT reset this flag — the user already saw the answer.
   const [solutionWasViewed, setSolutionWasViewed] = useState(false);
+  // Loaded on demand: the problem payload no longer carries the solution, so
+  // it is not sitting in the page source for anyone who opens dev tools.
+  const [solutionText, setSolutionText] = useState<string | null>(problem.solution ?? null);
+  const [solutionError, setSolutionError] = useState<string | null>(null);
 
   // Timer
   const [seconds, setSeconds] = useState(0);
@@ -85,88 +89,69 @@ export default function Workspace({ problem }: { problem: Problem }) {
 
   // --- Bookmark ---
   useEffect(() => {
-    void fetch("/api/bookmarks").then(r => r.json()).then((data: BookmarkSummary[]) => {
+    void apiRequest<BookmarkSummary[]>("/api/v1/bookmarks").then((data) => {
       if (Array.isArray(data)) {
         setIsBookmarked(data.some(b => b.problemId === problem._id));
       }
-    });
+    }).catch(() => { /* leave unbookmarked */ });
   }, [problem._id]);
 
   const toggleBookmark = async () => {
-    const res = await fetch("/api/bookmarks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ problemId: problem._id, problemSlug: problem.slug }),
-    });
-    const data = await res.json();
-    if (data.success) setIsBookmarked(data.bookmarked);
+    try {
+      const data = await apiRequest<{ bookmarked: boolean }>("/api/v1/bookmarks", {
+        method: "POST",
+        body: { problemId: problem._id, problemSlug: problem.slug },
+      });
+      setIsBookmarked(data.bookmarked);
+    } catch { /* signed out or failed: leave as is */ }
   };
 
   // --- Notes ---
   useEffect(() => {
-    void fetch(`/api/notes?problemId=${problem._id}`).then(r => r.json()).then(data => {
+    void apiRequest<{ content?: string }>(`/api/v1/notes?problemId=${encodeURIComponent(problem._id)}`).then(data => {
       setNote(data.content || "");
-    });
+    }).catch(() => { /* signed out: no note */ });
   }, [problem._id]);
 
   const handleNoteChange = (val: string) => {
     setNote(val);
     if (noteSaveTimeout.current) clearTimeout(noteSaveTimeout.current);
     noteSaveTimeout.current = setTimeout(() => {
-      void fetch("/api/notes", {
+      void apiRequest("/api/v1/notes", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ problemId: problem._id, problemSlug: problem.slug, content: val }),
-      });
+        body: { problemId: problem._id, problemSlug: problem.slug, content: val },
+      }).catch(() => { /* best-effort autosave */ });
     }, 800);
   };
 
   // --- Submissions ---
+  // The last five for this problem. Signed out → 401 → simply no history.
+  const loadSubmissions = useCallback(
+    () =>
+      apiRequest<SubmissionSummary[]>(`/api/v1/submissions?limit=5&problemSlug=${encodeURIComponent(problem.slug)}`)
+        .then(setSubmissions)
+        .catch(() => setSubmissions([])),
+    [problem.slug],
+  );
   useEffect(() => {
-    void fetch("/api/submissions").then(r => r.json()).then((data: SubmissionSummary[]) => {
-      if (Array.isArray(data)) {
-        setSubmissions(data.filter(s => s.problemSlug === problem.slug).slice(0, 5));
-      }
-    });
-  }, [problem.slug]);
+    void loadSubmissions();
+  }, [loadSubmissions]);
 
   // --- Run (custom input only, no submission recorded) ---
   const handleRun = async () => {
     setIsRunning(true);
     setOutputStatus("idle");
     setActiveTab("output");
-    if (COMPILER_VIA_API) {
-      const r = await runViaApi(code, customInput, () => getToken());
-      setOutputStatus(r.kind === "ok" ? "success" : "error");
-      setOutput(
-        r.kind === "ok"
-          ? `⏱ ${r.timeMs}ms\n\n${formatPayload(r.output)}`
-          : r.kind === "unavailable"
-            ? `⚠ ${r.message}`
-            : `✗ Error:\n${r.message}`,
-      );
-      setIsRunning(false);
-      return;
-    }
-    try {
-      const res = await fetch("/api/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, input: customInput }),
-      });
-      const data = await res.json();
-      setOutputStatus(data.success ? "success" : "error");
-      setOutput(
-        data.success
-          ? `⏱ ${data.time}\n\n${formatPayload(data.output)}`
-          : `✗ Error:\n${data.output}`,
-      );
-    } catch (error) {
-      setOutputStatus("error");
-      setOutput(`✗ Error: ${getErrorMessage(error)}`);
-    } finally {
-      setIsRunning(false);
-    }
+    const r = await runViaApi(code, customInput, () => getToken());
+    setOutputStatus(r.kind === "ok" ? "success" : "error");
+    setOutput(
+      r.kind === "ok"
+        ? `⏱ ${r.timeMs}ms\n\n${formatPayload(r.output)}`
+        : r.kind === "unavailable"
+          ? `⚠ ${r.message}`
+          : `✗ Error:\n${r.message}`,
+    );
+    setIsRunning(false);
   };
 
   const showVerdict = (finalStatus: "Accepted" | "Attempted" | "Error", summary: string) => {
@@ -190,14 +175,6 @@ export default function Workspace({ problem }: { problem: Problem }) {
       }
     }
   };
-
-  // History still reads this app's /api/submissions: both write one collection.
-  const refreshSubmissions = () =>
-    fetch("/api/submissions").then(r => r.json()).then((d: SubmissionSummary[]) => {
-      if (Array.isArray(d)) {
-        setSubmissions(d.filter(s => s.problemSlug === problem.slug).slice(0, 5));
-      }
-    });
 
   // --- Submit (test-case comparison → real status) ---
   const handleSubmit = async () => {
@@ -223,57 +200,21 @@ export default function Workspace({ problem }: { problem: Problem }) {
     }
     // ────────────────────────────────────────────────────────────────────
 
-    if (COMPILER_VIA_API) {
-      try {
-        const r = await submitViaApi(
-          { problemId: problem._id, code, input: customInput },
-          () => getToken(),
-          setOutput,
-        );
-        if (r.kind !== "graded") {
-          setOutputStatus("error");
-          // `unavailable` is ours, and nothing was recorded: say so, never "Wrong Answer".
-          setOutput(r.kind === "unavailable" ? `⚠ ${r.message}` : `✗ Error:\n${r.message}`);
-          return;
-        }
-        showVerdict(r.result.status, r.result.summary);
-        await refreshSubmissions();
-      } finally {
-        setIsRunning(false);
-      }
-      return;
-    }
-
+    // Graded on the server's queue; the verdict is polled for.
     try {
-      // Submit the CODE and let the server grade it.
-      //
-      // This used to run the test cases in the browser, compare the outputs
-      // here, and POST the resulting verdict — which the API stored verbatim
-      // and paid coins on (audit finding C-4). The comparison now happens in
-      // lib/grading.ts on the server, using test cases read from the database,
-      // and this component only renders what comes back.
-      const submitRes = await fetch("/api/submissions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          problemId: problem._id,
-          code,
-          input: customInput,
-        }),
-      });
-      const submitData = await submitRes.json();
-
-      if (!submitRes.ok || !submitData.success) {
+      const r = await submitViaApi(
+        { problemId: problem._id, code, input: customInput },
+        () => getToken(),
+        setOutput,
+      );
+      if (r.kind !== "graded") {
         setOutputStatus("error");
-        setOutput(`✗ Error:\n${submitData.error ?? `Submission failed (HTTP ${submitRes.status}).`}`);
+        // `unavailable` is ours, and nothing was recorded: say so, never "Wrong Answer".
+        setOutput(r.kind === "unavailable" ? `⚠ ${r.message}` : `✗ Error:\n${r.message}`);
         return;
       }
-
-      showVerdict(submitData.status, submitData.summary ?? "");
-      await refreshSubmissions();
-    } catch (error) {
-      setOutputStatus("error");
-      setOutput(`✗ Error: ${getErrorMessage(error)}`);
+      showVerdict(r.result.status, r.result.summary);
+      await loadSubmissions();
     } finally {
       setIsRunning(false);
     }
@@ -404,7 +345,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
                 <ReportProblem problemId={problem._id} />
               </div>
 
-              {problem.solution && (
+              {(problem.hasSolution || problem.solution) && (
                 <div>
                   <Button
                     variant="outline"
@@ -415,6 +356,11 @@ export default function Workspace({ problem }: { problem: Problem }) {
                       setShowSolution(next);
                       // Mark solution as viewed the moment user opens it
                       if (next) setSolutionWasViewed(true);
+                      if (next && solutionText === null) {
+                        apiRequest<{ solution: string }>(`/api/v1/problems/${encodeURIComponent(problem._id)}/solution`)
+                          .then((r) => setSolutionText(r.solution))
+                          .catch((e: unknown) => setSolutionError(getErrorMessage(e, "Could not load the solution.")));
+                      }
                     }}
                   >
                     {showSolution ? <><EyeOff className="w-3.5 h-3.5 mr-1.5" /> Hide Solution</> : <><Eye className="w-3.5 h-3.5 mr-1.5" /> Reveal Solution</>}
@@ -431,7 +377,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
                   )}
                   {showSolution && (
                     <div className="mt-3 bg-muted/60 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap border border-border">
-                      {problem.solution}
+                      {solutionText ?? solutionError ?? "Loading…"}
                     </div>
                   )}
                 </div>

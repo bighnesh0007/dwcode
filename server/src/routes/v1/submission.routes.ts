@@ -24,6 +24,8 @@ export function submissionRoutes(controller: SubmissionController, verifier: Tok
   router.get("/jobs/:jobId", requireAuth(verifier), validate({ params: jobParamsSchema }), controller.job);
 
   router.get("/", requireAuth(verifier), validate({ query: listQuerySchema }), controller.list);
+  router.get("/progress", requireAuth(verifier), controller.progress);
+  router.get("/stats", requireAuth(verifier), controller.stats);
 
   return router;
 }

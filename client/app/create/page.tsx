@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { getErrorMessage } from "@/lib/errors";
+import { apiRequest } from "@/lib/apiClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,19 +67,10 @@ export default function CreatePage() {
                 starterCode: form.starterCode,
                 solution: form.solution,
             };
-            const res = await fetch("/api/problems", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setCreateMsg({ type: "success", text: `✓ Created "${form.title}"! +2 coins earned.` });
-                setForm(EMPTY);
-                setTimeout(() => router.push(`/problems/${data.problem.slug}`), 1500);
-            } else {
-                setCreateMsg({ type: "error", text: data.error || "Failed to create." });
-            }
+            const problem = await apiRequest<{ slug: string }>("/api/v1/problems", { method: "POST", body: payload });
+            setCreateMsg({ type: "success", text: `✓ Created "${form.title}"! +2 coins earned.` });
+            setForm(EMPTY);
+            setTimeout(() => router.push(`/problems/${problem.slug}`), 1500);
         } catch (error) {
             setCreateMsg({ type: "error", text: getErrorMessage(error) });
         } finally {
@@ -94,24 +86,18 @@ export default function CreatePage() {
         setGenerating(true);
         setAiMsg(null);
         try {
-            const res = await fetch("/api/generate-public", {
+            const problem = await apiRequest<{ title: string; slug: string }>("/api/v1/generate/public", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     difficulty: aiDifficulty,
                     category: aiCategory,
                     topic: aiTopic,
                     geminiApiKey: aiKey,
-                }),
+                },
             });
-            const data = await res.json();
-            if (data.success) {
-                setAiMsg({ type: "success", text: `✓ Generated "${data.problem.title}"! +2 coins earned.` });
-                setAiKey(""); // clear key after use
-                setTimeout(() => router.push(`/problems/${data.problem.slug}`), 1500);
-            } else {
-                setAiMsg({ type: "error", text: data.error || "AI generation failed." });
-            }
+            setAiMsg({ type: "success", text: `✓ Generated "${problem.title}"! +2 coins earned.` });
+            setAiKey(""); // clear key after use
+            setTimeout(() => router.push(`/problems/${problem.slug}`), 1500);
         } catch (error) {
             setAiMsg({ type: "error", text: getErrorMessage(error) });
         } finally {

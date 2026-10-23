@@ -51,8 +51,18 @@ export class SubmissionController {
 
   list = async (req: Request, res: Response): Promise<void> => {
     const userId = requireUser(req);
-    const { limit } = validatedQuery<{ limit: number }>(req);
-    ok(res, await this.submissions.listByUser(userId, limit));
+    const { limit, problemSlug } = validatedQuery<{ limit: number; problemSlug?: string }>(req);
+    ok(res, await this.submissions.listByUser(userId, limit, problemSlug));
+  };
+
+  stats = async (req: Request, res: Response): Promise<void> => {
+    const userId = requireUser(req);
+    const [progress, counts] = await Promise.all([this.submissions.progress(userId), this.submissions.stats(userId, new Date())]);
+    ok(res, { ...counts, ...progress });
+  };
+
+  progress = async (req: Request, res: Response): Promise<void> => {
+    ok(res, await this.submissions.progress(requireUser(req)));
   };
 }
 

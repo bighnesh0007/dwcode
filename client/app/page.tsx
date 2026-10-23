@@ -5,10 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import connectToDatabase from "@/lib/db";
-import { Problem } from "@/models/Problem";
-import { Submission } from "@/models/Submission";
-import { Bookmark } from "@/models/Bookmark";
+import { serverApi } from "@/lib/serverApi";
 import { Heatmap, ProgressRing } from "@/components/Charts";
 import { Code2, Zap, Trophy, Star, BarChart2, Flame, TrendingUp } from "lucide-react";
 import type { ProblemSummary } from "@/lib/types";
@@ -25,48 +22,45 @@ export default async function Home() {
   const activityData: { date: string; count: number }[] = [];
 
   try {
-    await connectToDatabase();
-    [total, easy, medium, hard] = await Promise.all([
-      Problem.countDocuments(),
-      Problem.countDocuments({ difficulty: "Easy" }),
-      Problem.countDocuments({ difficulty: "Medium" }),
-      Problem.countDocuments({ difficulty: "Hard" }),
-    ]);
+    const stats = await serverApi<{ total: number; byDifficulty: Record<string, number> }>("/api/v1/problems/stats");
+    total = stats.total;
+    easy = stats.byDifficulty.Easy ?? 0;
+    medium = stats.byDifficulty.Medium ?? 0;
+    hard = stats.byDifficulty.Hard ?? 0;
 
     if (userId) {
+      const [mine, bookmarks] = await Promise.all([
+        serverApi<{ total: number; accepted: number; solved: string[]; attempted: string[]; daily: Record<string, number> }>(
+          "/api/v1/submissions/stats",
+        ),
+        serverApi<{ problemId: string }[]>("/api/v1/bookmarks"),
+      ]);
+
       // Solved = any problem that has an Accepted submission
-      const acceptedSlugs = await Submission.distinct("problemSlug", { userId, status: "Accepted" });
-      const attemptedSlugs = await Submission.distinct("problemSlug", { userId, status: { $ne: "Accepted" } });
-      solved = acceptedSlugs.length;
-      attempted = attemptedSlugs.filter((s: string) => !acceptedSlugs.includes(s)).length;
+      solved = mine.solved.length;
+      attempted = mine.attempted.length;
+      totalSubmissions = mine.total;
+      acceptanceRate = totalSubmissions > 0 ? Math.round((mine.accepted / totalSubmissions) * 100) : 0;
 
-      bookmarked = await Bookmark.countDocuments({ userId });
-
+      bookmarked = bookmarks.length;
       if (bookmarked > 0) {
-        const bmarks = await Bookmark.find({ userId }).lean();
-        const bIds = bmarks.map((bookmark) => bookmark.problemId);
-        const bDocs = await Problem.find({ _id: { $in: bIds } }).limit(3).lean();
-        bookmarkedProblems = JSON.parse(JSON.stringify(bDocs));
+        bookmarkedProblems = await serverApi<ProblemSummary[]>("/api/v1/problems/summaries", {
+          method: "POST",
+          body: { ids: bookmarks.map((b) => b.problemId), limit: 3 },
+        });
       }
 
-      const allSubmissions = await Submission.find({ userId }).sort({ createdAt: -1 }).lean();
-      totalSubmissions = allSubmissions.length;
-      const acceptedCount = allSubmissions.filter((submission) => submission.status === "Accepted").length;
-      acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedCount / totalSubmissions) * 100) : 0;
-
-      const solvedProbs = await Problem.find({ slug: { $in: acceptedSlugs } }).select("difficulty").lean();
+      const solvedProbs = mine.solved.length
+        ? await serverApi<ProblemSummary[]>("/api/v1/problems/summaries", {
+            method: "POST",
+            body: { slugs: mine.solved },
+          })
+        : [];
       solvedEasy = solvedProbs.filter((problem) => problem.difficulty === "Easy").length;
       solvedMedium = solvedProbs.filter((problem) => problem.difficulty === "Medium").length;
       solvedHard = solvedProbs.filter((problem) => problem.difficulty === "Hard").length;
 
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const recentSubs = allSubmissions.filter((submission) => new Date(submission.createdAt) >= thirtyDaysAgo);
-      const activityMap: Record<string, number> = {};
-      for (const sub of recentSubs) {
-        const day = new Date(sub.createdAt).toISOString().split("T")[0];
-        activityMap[day] = (activityMap[day] ?? 0) + 1;
-      }
+      const activityMap = mine.daily;
       for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
@@ -74,6 +68,8 @@ export default async function Home() {
         activityData.push({ date: key, count: activityMap[key] ?? 0 });
       }
 
+      // Over the full year of daily counts — it used to be computed from the
+      // last 30 days only, so a streak could never show more than 30.
       const todayStr = new Date().toISOString().split("T")[0];
       for (let i = 0; i < 365; i++) {
         const d = new Date();
@@ -83,12 +79,11 @@ export default async function Home() {
         else if (i > 0) break;
       }
 
-      const recentDocs = await Problem.find({ createdBy: userId }).sort({ createdAt: -1 }).limit(4).lean();
-      recentProblems = JSON.parse(JSON.stringify(recentDocs));
+      recentProblems = await serverApi<ProblemSummary[]>("/api/v1/problems/mine?limit=4");
     }
 
   } catch (e) {
-    console.error("Dashboard DB error:", e);
+    console.error("Dashboard data error:", e);
   }
 
   const difficultyColor = (d: string) =>

@@ -18,7 +18,9 @@
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:cov": "vitest run --coverage"
+    "test:cov": "vitest run --coverage",
+    "audit:problems": "node --env-file-if-exists=.env scripts/audit-problems.mjs",
+    "migrate:odd-even": "node --env-file-if-exists=.env scripts/migrations/003-fix-odd-even-solution.mjs"
   },
   "dependencies": {
     "@clerk/backend": "3.26.1",

@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import type { CoinTransaction } from "@/lib/types";
 import { getErrorMessage } from "@/lib/errors";
 import { getTier } from "@/lib/ranks";
+import { ApiError, apiRequest } from "@/lib/apiClient";
 import RankAvatar from "@/components/RankAvatar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -270,14 +271,11 @@ export default function ProfilePage() {
     const [editError, setEditError] = useState("");
 
     useEffect(() => {
-        fetch("/api/profile")
-            .then((r) => r.json())
+        apiRequest<ProfileData>("/api/v1/profile")
             .then((d) => {
-                if (d.error) throw new Error(d.error);
                 if (!d.username) {
                     // Auto-setup profile if username is missing
-                    return fetch("/api/profile/setup", { method: "POST" })
-                        .then(res => res.json())
+                    return apiRequest<{ profile?: { username: string; bio: string } }>("/api/v1/profile/setup", { method: "POST" })
                         .then(setupData => {
                             setData({ ...d, username: setupData.profile?.username, bio: setupData.profile?.bio, followers: 0, following: 0 });
                         });
@@ -292,8 +290,7 @@ export default function ProfilePage() {
     }, []);
 
     useEffect(() => {
-        fetch("/api/coins")
-            .then((r) => r.json())
+        apiRequest<{ balance: number; transactions: CoinTransaction[] }>("/api/v1/coins")
             .then((d) => { if (typeof d.balance === "number") setCoins(d); })
             .catch(() => { });
     }, []);
@@ -303,8 +300,7 @@ export default function ProfilePage() {
     // caller's page-independent row as `me` instead.
     useEffect(() => {
         if (!user) return;
-        fetch("/api/leaderboard?limit=5")
-            .then((r) => r.json())
+        apiRequest<{ me?: (LeaderboardEntry & { rank: number }) | null }>("/api/v1/leaderboard?limit=5")
             .then((d: { me?: (LeaderboardEntry & { rank: number }) | null }) => {
                 if (d.me) { setRank(d.me.rank); setScore(d.me.score); }
             })
@@ -383,7 +379,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex gap-2 flex-wrap">
                     {!data.githubConnected ? (
-                        <a href="/api/auth/github">
+                        <a href="/backend/api/v1/github/connect?returnTo=/profile">
                             <Button variant="outline" size="sm" className="bg-[#24292e] text-white hover:bg-[#24292e]/90 hover:text-white border-0 gap-2 h-8 text-xs">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
                                     <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
@@ -401,7 +397,7 @@ export default function ProfilePage() {
                             </Badge>
                             <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-red-500 px-2" onClick={() => {
                                 if (confirm("Are you sure you want to disconnect your GitHub account?")) {
-                                    void fetch('/api/auth/github/disconnect', { method: 'POST' }).then(() => window.location.reload());
+                                    void apiRequest('/api/v1/github/disconnect', { method: 'POST' }).then(() => window.location.reload());
                                 }
                             }}>
                                 Disconnect
@@ -462,19 +458,20 @@ export default function ProfilePage() {
                                         setEditSaving(true);
                                         setEditError("");
                                         try {
-                                            const res = await fetch("/api/profile/username", {
+                                            const dataRes = await apiRequest<{ profile: { username: string; bio: string } }>("/api/v1/profile/username", {
                                                 method: "PUT",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({ username: editUsername, bio: editBio })
+                                                body: { username: editUsername, bio: editBio },
                                             });
-                                            const dataRes = await res.json();
-                                            if (dataRes.error) throw new Error(dataRes.error);
                                             setData((previous) => previous
                                                 ? { ...previous, username: dataRes.profile.username, bio: dataRes.profile.bio }
                                                 : previous);
                                             setEditOpen(false);
                                         } catch (error) {
-                                            setEditError(getErrorMessage(error));
+                                            // A 400 carries the rule that failed (e.g. the username format) in its details.
+                                            const issue = error instanceof ApiError && Array.isArray(error.details)
+                                                ? (error.details[0] as { message?: string } | undefined)?.message
+                                                : undefined;
+                                            setEditError(issue ?? getErrorMessage(error));
                                         } finally {
                                             setEditSaving(false);
                                         }

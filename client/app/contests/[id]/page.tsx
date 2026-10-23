@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ContestSummary } from "@/lib/types";
+import { apiRequest } from "@/lib/apiClient";
 import { difficultyClassName } from "@dwcode/shared";
 
 function getTimeLeft(endTime: string, status: string, now: number) {
@@ -54,15 +55,15 @@ export default function ContestDetailPage() {
     const [joining, setJoining] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const fetchContest = useCallback(async () => {
-        try {
-            const res = await fetch(`/api/contests/${id}`);
-            const data = await res.json();
-            if (!data.error) setContest(data);
-        } finally {
-            setLoading(false);
-        }
-    }, [id]);
+    const fetchContest = useCallback(
+        () =>
+            apiRequest<ContestSummary>(`/api/v1/contests/${id}`)
+                .then(setContest)
+                // Not found or invite required: render the empty state.
+                .catch(() => undefined)
+                .finally(() => setLoading(false)),
+        [id],
+    );
 
     useEffect(() => { void fetchContest(); }, [fetchContest]);
 
@@ -70,9 +71,10 @@ export default function ContestDetailPage() {
         if (!isSignedIn) return;
         setJoining(true);
         try {
-            const res = await fetch(`/api/contests/${id}?action=join`, { method: "POST" });
-            const data = await res.json();
-            if (data.success) await fetchContest();
+            await apiRequest(`/api/v1/contests/${id}/join`, { method: "POST" });
+            await fetchContest();
+        } catch {
+            // Join refused; leave the page as it is.
         } finally {
             setJoining(false);
         }
@@ -82,9 +84,10 @@ export default function ContestDetailPage() {
         if (!isSignedIn) return;
         setJoining(true);
         try {
-            const res = await fetch(`/api/contests/${id}?action=leave`, { method: "POST" });
-            const data = await res.json();
-            if (data.success) await fetchContest();
+            await apiRequest(`/api/v1/contests/${id}/leave`, { method: "POST" });
+            await fetchContest();
+        } catch {
+            // Leave failed; leave the page as it is.
         } finally {
             setJoining(false);
         }
