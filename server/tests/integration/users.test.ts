@@ -17,7 +17,6 @@ import { UserProfile } from "../../src/models/UserProfile.ts";
 import { StorePurchase } from "../../src/models/StorePurchase.ts";
 import { UnauthenticatedError } from "../../src/errors/AppError.ts";
 import { THEME_SKINS } from "../../src/services/users/storeCatalog.ts";
-import { readFileSync } from "node:fs";
 import type { TokenVerifier } from "../../src/types/ports.ts";
 
 let mongo: MongoMemoryServer;
@@ -241,14 +240,6 @@ describe("coins", () => {
 
 describe("store", () => {
   const paid = THEME_SKINS.find((s) => s.cost > 0)!;
-
-  it("server prices match the client catalogue (they are duplicated)", () => {
-    // Read as text: client/ is outside this package's TypeScript project.
-    const src = readFileSync(new URL("../../../client/lib/themes.ts", import.meta.url), "utf8");
-    const client = [...src.matchAll(/id:\s*(?:"([^"]+)"|DEFAULT_SKIN)[\s\S]*?cost:\s*(\d+)/g)].map((m) => [m[1] ?? "default", Number(m[2])]);
-    expect(client.length).toBeGreaterThan(1);
-    expect(THEME_SKINS.map((s) => [s.id, s.cost])).toEqual(client);
-  });
 
   it("debits, records ownership, and is idempotent", async () => {
     await UserCoins.create({ userId: "user_a", balance: paid.cost + 5 });

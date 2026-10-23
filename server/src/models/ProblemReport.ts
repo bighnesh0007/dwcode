@@ -1,28 +1,10 @@
 import mongoose from "mongoose";
+import { REPORT_DETAILS_MAX_LENGTH, REPORT_REASONS, REPORT_STATUSES } from "@dwcode/shared";
 import { modelFromSchema } from "./model.ts";
 
-/**
- * Ported from client/models/ProblemReport.ts — both apps write the same
- * collection during the migration, so keep the schema and indexes identical.
- *
- * The vocabulary is duplicated from client/lib/reports.ts because the client
- * copy cannot be imported here. Move both into @dwcode/shared once the Next
- * route is gone; until then a change to one must be made to the other.
- */
-export const REPORT_REASONS = [
-  "wrong-expected-output",
-  "unclear-description",
-  "broken-test-case",
-  "duplicate",
-  "inappropriate",
-  "other",
-] as const;
-export type ReportReason = (typeof REPORT_REASONS)[number];
-
-export const REPORT_STATUSES = ["open", "reviewing", "resolved", "rejected"] as const;
-export type ReportStatus = (typeof REPORT_STATUSES)[number];
-
-export const REPORT_DETAILS_MAX_LENGTH = 1000;
+// One vocabulary for the report form and this schema (@dwcode/shared).
+export { REPORT_REASONS, REPORT_STATUSES, REPORT_DETAILS_MAX_LENGTH } from "@dwcode/shared";
+export type { ReportReason, ReportStatus } from "@dwcode/shared";
 
 export const ProblemReportSchema = new mongoose.Schema({
   problemId: { type: mongoose.Schema.Types.ObjectId, ref: "Problem", required: true },
