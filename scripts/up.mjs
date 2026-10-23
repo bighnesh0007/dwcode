@@ -23,7 +23,7 @@
  * Ctrl-C stops everything in reverse order. Logs: .run/logs/<name>.log
  */
 import { spawn, spawnSync } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, readFileSync, statSync, readdirSync, cpSync } from "node:fs";
+import { createWriteStream, existsSync, mkdirSync, readFileSync, statSync, readdirSync, cpSync, writeFileSync, rmSync } from "node:fs";
 import { homedir, cpus, totalmem } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +32,32 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RUN = join(ROOT, ".run");
 const LOGS = join(RUN, "logs");
 mkdirSync(LOGS, { recursive: true });
+
+// One launcher at a time. Two of them build into the same .next/ and one
+// stopping mid-way left the site with no static assets (see the copy below).
+const LOCK = join(RUN, "up.pid");
+if (existsSync(LOCK)) {
+  const other = Number(readFileSync(LOCK, "utf8"));
+  let alive = false;
+  try {
+    process.kill(other, 0);
+    alive = true;
+  } catch {
+    // stale lock from a launcher that died without cleaning up
+  }
+  if (alive) {
+    process.stdout.write(`✗ another 'npm run up' is already running (pid ${other}). Stop it first (Ctrl-C in its terminal).\n`);
+    process.exit(1);
+  }
+}
+writeFileSync(LOCK, String(process.pid));
+process.on("exit", () => {
+  try {
+    if (readFileSync(LOCK, "utf8") === String(process.pid)) rmSync(LOCK);
+  } catch {
+    // already gone
+  }
+});
 
 const args = new Set(process.argv.slice(2));
 const REBUILD = args.has("--rebuild");
