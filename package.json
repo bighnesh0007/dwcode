@@ -34,6 +34,9 @@
     "setup": "npm install && npm run build:shared",
     "up": "node scripts/up.mjs",
     "tunnel:setup": "bash scripts/tunnel-setup.sh",
+    "service:install": "bash scripts/install-service.sh",
+    "service:status": "systemctl --user status dwcode --no-pager",
+    "service:logs": "journalctl --user -u dwcode -f",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down"
   },
