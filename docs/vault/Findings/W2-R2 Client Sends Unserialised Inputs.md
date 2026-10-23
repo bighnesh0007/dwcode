@@ -1,8 +1,8 @@
 ---
 tags: [finding, high]
 severity: High
-status: open
-verified-on: 2026-10-23
+status: closed
+verified-on: 2026-10-24
 ---
 # W2-R2 · The client sends compiler inputs unserialised
 
@@ -31,3 +31,5 @@ serialises and works. Check the Vercel env before fixing.
 
 ## Related
 [[DataWeave Runtime]] · [[FEAT-01 Server-Side Grading]] · [[Client]]
+
+**Closed 2026-10-24:** the client no longer calls the compiler at all; every run goes through server/, which serialises inputs.
