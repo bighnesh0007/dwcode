@@ -122,11 +122,15 @@ const standalone = join(ROOT, "client", ".next", "standalone", "client", "server
 const clientEnvMtime = mtime(join(ROOT, "client", ".env.local"));
 if (REBUILD || stale(standalone, join(ROOT, "client"), sharedDir + "/src") || mtime(standalone) < clientEnvMtime) {
   run("client", "npm", ["run", "build:client"]);
-  // The standalone server does not include static assets; Next documents copying them.
-  cpSync(join(ROOT, "client", ".next", "static"), join(ROOT, "client", ".next", "standalone", "client", ".next", "static"), { recursive: true });
-  if (existsSync(join(ROOT, "client", "public"))) {
-    cpSync(join(ROOT, "client", "public"), join(ROOT, "client", ".next", "standalone", "client", "public"), { recursive: true });
-  }
+}
+// Always (not only after a build): the standalone server does not include its
+// static assets, Next documents copying them. A build interrupted between
+// building and copying left a fresh build with NO assets — every page served
+// unstyled with 404s on all JS/CSS — and the next run, seeing a fresh build,
+// skipped both. Copying is cheap and idempotent.
+cpSync(join(ROOT, "client", ".next", "static"), join(ROOT, "client", ".next", "standalone", "client", ".next", "static"), { recursive: true });
+if (existsSync(join(ROOT, "client", "public"))) {
+  cpSync(join(ROOT, "client", "public"), join(ROOT, "client", ".next", "standalone", "client", "public"), { recursive: true });
 }
 
 // ── processes ─────────────────────────────────────────────────────────────────
