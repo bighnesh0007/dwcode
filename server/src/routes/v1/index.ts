@@ -29,5 +29,7 @@ export function v1Routes(container: Container): Router {
     router.use("/submissions", submissionRoutes(container.submissionController, container.tokenVerifier));
   }
 
+  for (const domain of container.domains) router.use(domain.path, domain.router);
+
   return router;
 }

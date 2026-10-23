@@ -14,6 +14,8 @@ import { logger } from "./lib/logger.ts";
 import { MemoryKeyValueStore } from "./lib/store/memoryStore.ts";
 import { RedisKeyValueStore } from "./lib/store/redisStore.ts";
 import { useRateLimitStore } from "./middleware/rateLimit.ts";
+import { buildDomains } from "./composition/registry.ts";
+import type { DomainModule } from "./composition/types.ts";
 import { CompilerController } from "./controllers/compiler.controller.ts";
 import { CompilerServiceClient } from "./services/compiler/compilerService.client.ts";
 import { SubmissionController } from "./controllers/submission.controller.ts";
@@ -82,6 +84,8 @@ export interface Container {
   submissionController?: SubmissionController;
   /** Background queues, closed on shutdown. */
   queues: JobQueue<never, unknown>[];
+  /** Migrated domains (src/composition/), mounted under /api/v1. */
+  domains: DomainModule[];
 }
 
 export function buildContainer(overrides: ContainerOverrides = {}): Container {
@@ -148,6 +152,10 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
 
   const compilerController = new CompilerController(compilerService);
 
+  const identity =
+    overrides.identityProvider ??
+    (config.clerk.secretKey ? new ClerkIdentityProvider(config.clerk.secretKey) : new NullIdentityProvider());
+
   // ── Submissions (graded in the background) ─────────────────────────────────
   const queues: JobQueue<never, unknown>[] = [];
   const bullUrl = redis && !overrides.inlineQueues ? config.redisUrl : undefined;
@@ -173,9 +181,6 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
       resultTtlMs: 24 * 60 * 60_000,
       retryIf: () => true,
     });
-    const identity =
-      overrides.identityProvider ??
-      (config.clerk.secretKey ? new ClerkIdentityProvider(config.clerk.secretKey) : new NullIdentityProvider());
     const submissionService = new SubmissionService(
       problems,
       submissions,
@@ -250,6 +255,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
     compilerController,
     ...(submissionController ? { submissionController } : {}),
     queues,
+    domains: buildDomains({ tokenVerifier, identity, store, fetchImpl, clock }),
   };
 }
 
