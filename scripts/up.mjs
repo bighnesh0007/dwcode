@@ -14,7 +14,7 @@
  *   compiler  127.0.0.1:8080  DataWeave engine in warm JVM workers (compiler/)
  *   server    127.0.0.1:4000  Express API (server/)
  *   client    localhost:8000  Next.js site; proxies /backend → server
- *   tunnel    dwl.business.space → client, via cloudflared (scripts/tunnel-setup.sh)
+ *   tunnel    dwl.bighnesh.space → client, via cloudflared (scripts/tunnel-setup.sh)
  *
  * Everything binds to loopback. The tunnel is the only way in from outside.
  *
@@ -290,5 +290,5 @@ for (const svc of services) {
   say(svc.name, "\x1b[32mhealthy\x1b[0m");
 }
 
-say("up", "\x1b[32m✓ all up\x1b[0m — http://localhost:8000" + (services.some((s) => s.name === "tunnel") ? "  ·  https://dwl.business.space" : ""));
+say("up", "\x1b[32m✓ all up\x1b[0m — http://localhost:8000" + (services.some((s) => s.name === "tunnel") ? "  ·  https://dwl.bighnesh.space" : ""));
 say("up", "Ctrl-C to stop. Logs: .run/logs/");

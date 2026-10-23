@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# One-time Cloudflare Tunnel setup for https://dwl.business.space → this machine.
+# One-time Cloudflare Tunnel setup for https://dwl.bighnesh.space → this machine.
 #
 #   npm run tunnel:setup
 #
-# Step 1 opens a browser to sign in to Cloudflare and pick the business.space
+# Step 1 opens a browser to sign in to Cloudflare and pick the bighnesh.space
 # zone — that step is yours; nothing here can or should do it for you. The rest
 # is idempotent: re-running reuses the tunnel and leaves an existing DNS record.
 # Afterwards `npm run up` starts the tunnel with the rest of the stack.
 set -euo pipefail
 
-HOSTNAME="${DWC_HOSTNAME:-dwl.business.space}"
+HOSTNAME="${DWC_HOSTNAME:-dwl.bighnesh.space}"
 TUNNEL="${DWC_TUNNEL:-dwcode}"
 DIR="$HOME/.cloudflared"
 CONFIG="$DIR/dwcode.yml"
@@ -18,7 +18,7 @@ command -v cloudflared >/dev/null || { echo "cloudflared is not installed"; exit
 mkdir -p "$DIR"
 
 if [ ! -f "$DIR/cert.pem" ]; then
-  echo "→ Sign in to Cloudflare in the browser that opens, and choose the business.space zone."
+  echo "→ Sign in to Cloudflare in the browser that opens, and choose the bighnesh.space zone."
   cloudflared tunnel login
 fi
 
