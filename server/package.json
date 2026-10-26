@@ -21,16 +21,16 @@
     "test:cov": "vitest run --coverage"
   },
   "dependencies": {
-    "@clerk/backend": "3.26.1",
+    "@clerk/backend": "3.26.2",
     "@dwcode/shared": "*",
-    "@google/genai": "^2.8.0",
+    "@google/genai": "^2.31.0",
     "compression": "^1.8.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.0.0",
     "helmet": "^8.0.0",
     "lru-cache": "^11.0.0",
-    "mongoose": "9.11.3",
+    "mongoose": "9.11.4",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "zod": "^4.0.0"
