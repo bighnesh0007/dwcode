@@ -47,6 +47,23 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
   });
 
   describe("problems", () => {
+    it("finds a full problem for admins, and listing-shaped summaries", async () => {
+      expect(await problems.findFullByIdOrSlug("odd-or-even")).toHaveProperty("hiddenTestCases");
+      expect(await problems.findFullByIdOrSlug(P2)).toMatchObject({ slug: "two" });
+      const found = await problems.summariesByIdsOrSlugs({ ids: [P1], slugs: ["two"] }, 10);
+      expect(found.map((p) => p.slug).sort()).toEqual(["odd-or-even", "two"]);
+      expect(found.every((p) => !("testCases" in p) && !("solution" in p))).toBe(true);
+      expect(await problems.summariesByIdsOrSlugs({}, 10)).toEqual([]);
+      expect(await problems.summariesByIdsOrSlugs({ ids: [P1, P2] }, 1)).toHaveLength(1);
+    });
+
+    it("samples within a difficulty and excludes ids", async () => {
+      const hard = await problems.sample(5, { difficulty: "Hard" });
+      expect(hard.map((p) => p.slug)).toEqual(["two"]);
+      const rest = await problems.sample(5, { excludeIds: [P1] });
+      expect(rest.map((p) => String(p._id))).not.toContain(P1);
+    });
+
     it("lists without test cases or solutions, newest first", async () => {
       const list = await problems.listPublic({});
       expect(list.map((p) => p.slug)).toEqual(["odd-or-even", "two"]);
@@ -104,6 +121,23 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       expect(await submissions.slugsByOutcome("u1")).toEqual({ accepted: ["odd-or-even"], notAccepted: ["two"] });
       const [stats] = (await submissions.statsByUser()).filter((r) => r._id === "u1");
       expect(stats).toMatchObject({ totalSubmissions: 2, accepted: 1, solvedSlugs: ["odd-or-even"] });
+    });
+
+    it("pages a user's history, optionally for one problem", async () => {
+      const recent = await submissions.listRecentByUser("u1", 1);
+      expect(recent).toHaveLength(1);
+      const forTwo = await submissions.listRecentByUser("u1", 10, "two");
+      expect(forTwo.length).toBeGreaterThan(0);
+      expect(forTwo.every((s) => s.problemSlug === "two")).toBe(true);
+      expect(must(forTwo[0])).not.toHaveProperty("input");
+    });
+
+    it("counts activity per UTC day", async () => {
+      const stats = await submissions.activityStats("u1", new Date(0));
+      expect(stats).toMatchObject({ total: 2, accepted: 1 });
+      expect(Object.values(stats.daily).reduce((a, b) => a + b, 0)).toBe(2);
+      expect(Object.keys(stats.daily).every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d))).toBe(true);
+      expect((await submissions.activityStats("u1", new Date(Date.now() + 86_400_000))).daily).toEqual({});
     });
   });
 

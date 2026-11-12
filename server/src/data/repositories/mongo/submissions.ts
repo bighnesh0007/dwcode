@@ -20,6 +20,44 @@ export async function listByUser(userId: string) {
   return Submission.find({ userId }).sort({ createdAt: -1 }).lean();
 }
 
+/**
+ * The user's newest `limit` submissions, optionally for one problem — the
+ * history panel. Served by { userId, createdAt }.
+ */
+export async function listRecentByUser(userId: string, limit: number, problemSlug?: string) {
+  await connect();
+  return Submission.find(problemSlug ? { userId, problemSlug } : { userId })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .select("problemId problemSlug status executionTime createdAt code output")
+    .lean();
+}
+
+export interface ActivityStats {
+  total: number;
+  accepted: number;
+  /** Submissions per UTC day (YYYY-MM-DD) since `since`. */
+  daily: Record<string, number>;
+}
+
+/** Dashboard totals for one user, computed in the database. */
+export async function activityStats(userId: string, since: Date): Promise<ActivityStats> {
+  await connect();
+  const [totals] = await Submission.aggregate<{ total: number; accepted: number }>([
+    { $match: { userId } },
+    { $group: { _id: null, total: { $sum: 1 }, accepted: { $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] } } } },
+  ]);
+  const days = await Submission.aggregate<{ _id: string; n: number }>([
+    { $match: { userId, createdAt: { $gte: since } } },
+    { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, n: { $sum: 1 } } },
+  ]);
+  return {
+    total: totals?.total ?? 0,
+    accepted: totals?.accepted ?? 0,
+    daily: Object.fromEntries(days.map((d) => [d._id, d.n])),
+  };
+}
+
 /** Every submission. The leaderboard still aggregates in memory (see its route). */
 export async function listAll() {
   await connect();

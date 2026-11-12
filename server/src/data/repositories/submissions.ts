@@ -5,8 +5,11 @@ import * as m from "./mongo/submissions.ts";
 import * as p from "./pg/submissions.ts";
 import { pgImpl, read, write } from "./backend.ts";
 
-export type { NewSubmission, SubmissionUserStats } from "./mongo/submissions.ts";
+export type { ActivityStats, NewSubmission, SubmissionUserStats } from "./mongo/submissions.ts";
 export const listByUser = read("submissions.listByUser", m.listByUser, pgImpl<typeof m.listByUser>(p.listByUser));
+export const listRecentByUser = read("submissions.listRecentByUser", m.listRecentByUser,
+  pgImpl<typeof m.listRecentByUser>(p.listRecentByUser));
+export const activityStats = read("submissions.activityStats", m.activityStats, p.activityStats);
 export const listAll = read("submissions.listAll", m.listAll, pgImpl<typeof m.listAll>(p.listAll));
 export const create = write("submissions.create", m.create, pgImpl<typeof m.create>(p.create),
   (doc, submission) => p.create(submission, { id: String(doc._id), createdAt: doc.createdAt }));

@@ -1,18 +1,15 @@
 /**
- * Problem-bank CRUD for the /problems API. Mongoose queries only — the secrecy
- * and authorisation rules live in ProblemService.
+ * Problem-bank CRUD for the /problems API — the secrecy and authorisation rules
+ * live in ProblemService. Delegates to data/repositories, where DATA_BACKEND
+ * picks the database.
  *
  * Separate from problem.repository.ts (grading/contest reads) so the two
  * callers' projections cannot be confused.
  */
-import mongoose from "mongoose";
 import { DIFFICULTIES } from "@dwcode/shared";
-import { Problem } from "../models/Problem.ts";
+import * as problems from "../data/repositories/problems.ts";
 
-/** Everything except the fields only an admin may see. */
-const PUBLIC_DETAIL = "-hiddenTestCases -solution";
-/** The listing never carried test cases either. */
-const SUMMARY = "-testCases -hiddenTestCases -solution";
+export { isDuplicateKeyError } from "../data/repositories/shared.ts";
 
 export interface NewProblem {
   title: string;
@@ -34,64 +31,47 @@ export interface NewProblem {
 
 export type ProblemPatch = Partial<Omit<NewProblem, "createdByAI" | "createdBy">>;
 
-export function isDuplicateKeyError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
-}
-
 export class ProblemCatalogRepository {
-  async list(filter: { difficulty?: string; category?: string }) {
-    const query: Record<string, string> = {};
-    if (filter.difficulty) query.difficulty = filter.difficulty;
-    if (filter.category) query.category = filter.category;
-    return Problem.find(query).select(SUMMARY).sort({ createdAt: -1 }).lean();
+  list(filter: { difficulty?: string; category?: string }) {
+    return problems.listPublic(filter);
   }
 
-  async listByCreator(userId: string, limit: number) {
-    return Problem.find({ createdBy: userId }).select(SUMMARY).sort({ createdAt: -1 }).limit(limit).lean();
+  listByCreator(userId: string, limit: number) {
+    return problems.listSummariesByCreator(userId, limit);
   }
 
-  async summaries(keys: { ids?: string[]; slugs?: string[] }, limit: number) {
-    const or: Record<string, unknown>[] = [];
-    if (keys.ids?.length) or.push({ _id: { $in: keys.ids } });
-    if (keys.slugs?.length) or.push({ slug: { $in: keys.slugs } });
-    if (or.length === 0) return [];
-    return Problem.find({ $or: or }).select(SUMMARY).limit(limit).lean();
+  summaries(keys: { ids?: string[]; slugs?: string[] }, limit: number) {
+    return problems.summariesByIdsOrSlugs(keys, limit);
   }
 
   /** `{ total, byDifficulty }` for every tier in the shared registry. */
   async stats(): Promise<{ total: number; byDifficulty: Record<string, number> }> {
-    const [total, grouped] = await Promise.all([
-      Problem.countDocuments(),
-      Problem.aggregate<{ _id: string; n: number }>([{ $group: { _id: "$difficulty", n: { $sum: 1 } } }]),
+    const [total, ...counts] = await Promise.all([
+      problems.count(),
+      ...DIFFICULTIES.map((difficulty) => problems.count({ difficulty })),
     ]);
-    const byDifficulty: Record<string, number> = Object.fromEntries(DIFFICULTIES.map((d) => [d, 0]));
-    for (const row of grouped) if (row._id in byDifficulty) byDifficulty[row._id] = row.n;
-    return { total, byDifficulty };
+    return { total, byDifficulty: Object.fromEntries(DIFFICULTIES.map((d, i) => [d, counts[i] ?? 0])) };
   }
 
-  /** By ObjectId when the key is one, else by slug — as the Next route did. */
-  async findByKey(key: string, opts: { includeSecrets: boolean }) {
-    const query = mongoose.Types.ObjectId.isValid(key) ? { _id: key } : { slug: key };
-    const q = Problem.findOne(query);
-    if (!opts.includeSecrets) q.select(PUBLIC_DETAIL);
-    return q.lean();
+  /** By id when the key is one, else by slug — as the Next route did. */
+  findByKey(key: string, opts: { includeSecrets: boolean }) {
+    return opts.includeSecrets ? problems.findFullByIdOrSlug(key) : problems.findPublicByIdOrSlug(key);
   }
 
-  async findSlugById(id: string): Promise<string | null> {
-    const p = await Problem.findById(id).select("slug").lean();
-    return p?.slug ?? null;
+  findSlugById(id: string): Promise<string | null> {
+    return problems.findSlugById(id);
   }
 
-  async create(data: NewProblem) {
-    const doc = await Problem.create(data);
-    return doc.toObject();
+  create(data: NewProblem) {
+    return problems.create({ ...data });
   }
 
-  async update(id: string, patch: ProblemPatch) {
-    return Problem.findByIdAndUpdate(id, { $set: patch }, { returnDocument: "after", runValidators: true }).lean();
+  /** The updated problem, null when absent, or "duplicate" when the patch collides with another slug. */
+  update(id: string, patch: ProblemPatch) {
+    return problems.updateById(id, { ...patch });
   }
 
-  async delete(id: string): Promise<boolean> {
-    return (await Problem.findByIdAndDelete(id)) !== null;
+  delete(id: string): Promise<boolean> {
+    return problems.deleteById(id);
   }
 }

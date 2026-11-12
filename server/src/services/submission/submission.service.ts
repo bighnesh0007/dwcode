@@ -80,8 +80,7 @@ export class SubmissionService {
     if (grade.status === "Accepted") {
       // The submission is recorded; a reward failure must not undo or fail it.
       try {
-        const earlier = await this.submissions.countAcceptedExcept(cmd.userId, problem.id, saved.id);
-        if (earlier === 0) {
+        if (!(await this.submissions.hasOtherAccepted(cmd.userId, problem.id, saved.id))) {
           await this.coins.award(cmd.userId, COIN_RULES.firstSolve, "first_solve", `First solve: ${problem.slug}`);
         }
         await this.coins.award(cmd.userId, coinRewardFor(problem.difficulty), "difficulty_bonus", `${problem.difficulty} problem solved`);
