@@ -58,6 +58,67 @@ export async function activityStats(userId: string, since: Date): Promise<Activi
   };
 }
 
+/** One leaderboard row per user, aggregated in the database. */
+export interface LeaderboardRow {
+  userId: string;
+  totalSubmissions: number;
+  accepted: number;
+  solvedSlugs: string[];
+  /** Earliest submission carrying a real, non-placeholder name. */
+  firstReal: { name: string; imageUrl: string } | null;
+  /** Earliest submission of any kind. */
+  firstAny: { imageUrl: string };
+}
+
+/**
+ * Per-user leaderboard totals. `placeholderNames` are names written by system
+ * code ("Migrated", …); the earliest real name wins over them (issue #43).
+ * "Earliest" is by `_id`: `$min` over a document compares field by field, so
+ * leading with `_id` picks the earliest match, and `$min` ignores the nulls
+ * produced for placeholder rows.
+ */
+export async function leaderboardRows(placeholderNames: readonly string[]): Promise<LeaderboardRow[]> {
+  await connect();
+  const rows = await Submission.aggregate<{
+    _id: string;
+    totalSubmissions: number;
+    accepted: number;
+    solvedSlugs: string[];
+    firstReal: { id: unknown; name: string; imageUrl: string } | null;
+    firstAny: { id: unknown; imageUrl: string };
+  }>([
+    { $match: { userId: { $nin: [null, ""] } } },
+    {
+      $addFields: {
+        _isAccepted: { $eq: ["$status", "Accepted"] },
+        _isReal: { $not: [{ $in: [{ $ifNull: ["$userName", ""] }, [...placeholderNames]] }] },
+      },
+    },
+    {
+      $group: {
+        _id: "$userId",
+        totalSubmissions: { $sum: 1 },
+        accepted: { $sum: { $cond: ["$_isAccepted", 1, 0] } },
+        solvedSlugs: { $addToSet: { $cond: ["$_isAccepted", "$problemSlug", "$$REMOVE"] } },
+        firstReal: {
+          $min: {
+            $cond: ["$_isReal", { id: "$_id", name: "$userName", imageUrl: { $ifNull: ["$userImageUrl", ""] } }, null],
+          },
+        },
+        firstAny: { $min: { id: "$_id", imageUrl: { $ifNull: ["$userImageUrl", ""] } } },
+      },
+    },
+  ]).allowDiskUse(true);
+  return rows.map((r) => ({
+    userId: r._id,
+    totalSubmissions: r.totalSubmissions,
+    accepted: r.accepted,
+    solvedSlugs: r.solvedSlugs,
+    firstReal: r.firstReal ? { name: r.firstReal.name, imageUrl: r.firstReal.imageUrl } : null,
+    firstAny: { imageUrl: r.firstAny.imageUrl },
+  }));
+}
+
 /** Every submission. The leaderboard still aggregates in memory (see its route). */
 export async function listAll() {
   await connect();

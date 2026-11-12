@@ -58,6 +58,11 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       expect(await problems.summariesByIdsOrSlugs({ ids: [P1, P2] }, 1)).toHaveLength(1);
     });
 
+    it("counts problems per stored difficulty", async () => {
+      const counts = await problems.countByDifficulty();
+      expect(counts).toMatchObject({ Easy: 1, Hard: 1 });
+    });
+
     it("samples within a difficulty and excludes ids", async () => {
       const hard = await problems.sample(5, { difficulty: "Hard" });
       expect(hard.map((p) => p.slug)).toEqual(["two"]);
@@ -131,6 +136,23 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       expect(forTwo.length).toBeGreaterThan(0);
       expect(forTwo.every((s) => s.problemSlug === "two")).toBe(true);
       expect(must(forTwo[0])).not.toHaveProperty("input");
+    });
+
+    it("builds leaderboard rows, preferring the earliest real name over placeholders", async () => {
+      const base = { problemId: P2, problemSlug: "two", userImageUrl: "", code: "x", input: "{}", output: "{}", executionTime: "1ms" };
+      await submissions.create({ ...base, userId: "lb1", userName: "Migrated", userImageUrl: "first.png", status: "Accepted" });
+      await new Promise((r) => setTimeout(r, 10));
+      await submissions.create({ ...base, userId: "lb1", userName: "Lena", userImageUrl: "lena.png", status: "Attempted" });
+      await new Promise((r) => setTimeout(r, 10));
+      await submissions.create({ ...base, userId: "lb1", userName: "Lena B", status: "Accepted" });
+      await submissions.create({ ...base, userId: "lb2", userName: "Anonymous", status: "Attempted" });
+      const rows = await submissions.leaderboardRows(["", "Anonymous", "Migrated"]);
+      expect(rows.find((r) => r.userId === "lb1")).toEqual({
+        userId: "lb1", totalSubmissions: 3, accepted: 2, solvedSlugs: ["two"],
+        firstReal: { name: "Lena", imageUrl: "lena.png" }, firstAny: { imageUrl: "first.png" },
+      });
+      expect(rows.find((r) => r.userId === "lb2")).toMatchObject({ firstReal: null, accepted: 0, solvedSlugs: [] });
+      expect(rows.some((r) => r.userId === "")).toBe(false);
     });
 
     it("counts activity per UTC day", async () => {

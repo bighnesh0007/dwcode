@@ -23,6 +23,7 @@ export const summariesByIdsOrSlugs = read("problems.summariesByIdsOrSlugs", m.su
   pgImpl<typeof m.summariesByIdsOrSlugs>(p.summariesByIdsOrSlugs));
 /** Random by design, so shadow mode never compares the two answers. */
 export const sample = readUncompared("problems.sample", m.sample, pgImpl<typeof m.sample>(p.sample));
+export const countByDifficulty = read("problems.countByDifficulty", m.countByDifficulty, p.countByDifficulty);
 export const findSlugById = read("problems.findSlugById", m.findSlugById, p.findSlugById);
 export const findIdBySlug = read("problems.findIdBySlug", m.findIdBySlug, pgImpl<typeof m.findIdBySlug>(p.findIdBySlug));
 export const slugsForIds = read("problems.slugsForIds", m.slugsForIds, p.slugsForIds);

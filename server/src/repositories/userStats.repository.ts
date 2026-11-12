@@ -1,11 +1,12 @@
 /**
  * Read-only queries behind profiles and the leaderboard: submissions, problems,
- * bookmarks and the GitHub link. Mongoose only — no business rules.
+ * bookmarks and the GitHub link — no business rules. Delegates to
+ * data/repositories, where DATA_BACKEND picks the database.
  */
-import { Bookmark } from "../models/Bookmark.ts";
-import { GitHubIntegration } from "../models/GitHubIntegration.ts";
-import { Problem } from "../models/Problem.ts";
-import { Submission } from "../models/Submission.ts";
+import * as bookmarks from "../data/repositories/bookmarks.ts";
+import * as github from "../data/repositories/githubIntegrations.ts";
+import * as problems from "../data/repositories/problems.ts";
+import * as submissions from "../data/repositories/submissions.ts";
 
 export interface SubmissionLite {
   problemSlug: string;
@@ -15,25 +16,13 @@ export interface SubmissionLite {
   userImageUrl: string;
 }
 
-/** Per-user totals from the submissions collection, computed in MongoDB. */
-export interface UserSubmissionAggregate {
-  userId: string;
-  totalSubmissions: number;
-  accepted: number;
-  solvedSlugs: string[];
-  /** Earliest submission (by _id) carrying a real, non-placeholder name. */
-  firstReal: { name: string; imageUrl: string } | null;
-  /** Earliest submission (by _id) of any kind. */
-  firstAny: { imageUrl: string };
-}
+/** Per-user totals, computed in the database. */
+export type UserSubmissionAggregate = submissions.LeaderboardRow;
 
 export class UserStatsRepository {
-  /** All of a user's submissions, newest first. Served by { userId, createdAt }. */
+  /** All of a user's submissions, newest first. */
   async submissionsFor(userId: string): Promise<SubmissionLite[]> {
-    const rows = await Submission.find({ userId })
-      .sort({ createdAt: -1 })
-      .select("problemSlug status executionTime createdAt userImageUrl")
-      .lean();
+    const rows = await submissions.listByUser(userId);
     return rows.map((r) => ({
       problemSlug: r.problemSlug,
       status: r.status ?? "Attempted",
@@ -43,94 +32,42 @@ export class UserStatsRepository {
     }));
   }
 
-  async countProblems(): Promise<number> {
-    return Problem.countDocuments();
+  countProblems(): Promise<number> {
+    return problems.count();
   }
 
   async countProblemsByOrigin(): Promise<{ ai: number; manual: number }> {
-    const [ai, manual] = await Promise.all([
-      Problem.countDocuments({ createdByAI: true }),
-      Problem.countDocuments({ createdByAI: false }),
-    ]);
+    const [ai, manual] = await Promise.all([problems.count({ createdByAI: true }), problems.count({ createdByAI: false })]);
     return { ai, manual };
   }
 
   /** difficulty id → number of problems. */
-  async countProblemsByDifficulty(): Promise<Record<string, number>> {
-    const rows = await Problem.aggregate<{ _id: string; n: number }>([
-      { $group: { _id: "$difficulty", n: { $sum: 1 } } },
-    ]);
-    return Object.fromEntries(rows.map((r) => [r._id, r.n]));
+  countProblemsByDifficulty(): Promise<Record<string, number>> {
+    return problems.countByDifficulty();
   }
 
   /** slug → difficulty for the given slugs, or for every problem when omitted. */
   async difficultyBySlug(slugs?: string[]): Promise<Map<string, string>> {
-    const filter = slugs ? { slug: { $in: slugs } } : {};
-    const rows = await Problem.find(filter).select("slug difficulty").lean();
-    return new Map(rows.map((r) => [r.slug, r.difficulty]));
+    const all = Object.entries(await problems.difficultyBySlug());
+    if (!slugs) return new Map(all);
+    const wanted = new Set(slugs);
+    return new Map(all.filter(([slug]) => wanted.has(slug)));
   }
 
-  async countBookmarks(userId: string): Promise<number> {
-    return Bookmark.countDocuments({ userId });
+  countBookmarks(userId: string): Promise<number> {
+    return bookmarks.countByUser(userId);
   }
 
   async githubUsername(userId: string): Promise<string | null> {
-    const doc = await GitHubIntegration.findOne({ userId }).select("githubUsername").lean();
-    return doc?.githubUsername ?? null;
+    return (await github.findSettings(userId))?.githubUsername ?? null;
   }
 
   /**
-   * PERF-01: the Next.js route loaded every submission into the app and grouped
-   * it in JS. This groups in MongoDB and returns one row per user.
-   *
-   * `placeholderNames` are names written by system code ("Migrated", …); the
-   * earliest real name wins over them (issue #43). `$min` over a document
-   * compares field by field, so leading with `_id` picks the earliest match,
-   * and `$min` ignores the nulls produced for placeholder rows.
+   * PERF-01: one row per user, grouped in the database rather than by loading
+   * every submission into the app. The earliest real name wins over
+   * `placeholderNames` (issue #43).
    */
-  async aggregatePerUser(placeholderNames: readonly string[]): Promise<UserSubmissionAggregate[]> {
-    const rows = await Submission.aggregate<{
-      _id: string;
-      totalSubmissions: number;
-      accepted: number;
-      solvedSlugs: string[];
-      firstReal: { id: unknown; name: string; imageUrl: string } | null;
-      firstAny: { id: unknown; imageUrl: string };
-    }>([
-      { $match: { userId: { $nin: [null, ""] } } },
-      {
-        $addFields: {
-          _isAccepted: { $eq: ["$status", "Accepted"] },
-          _isReal: { $not: [{ $in: [{ $ifNull: ["$userName", ""] }, [...placeholderNames]] }] },
-        },
-      },
-      {
-        $group: {
-          _id: "$userId",
-          totalSubmissions: { $sum: 1 },
-          accepted: { $sum: { $cond: ["$_isAccepted", 1, 0] } },
-          solvedSlugs: { $addToSet: { $cond: ["$_isAccepted", "$problemSlug", "$$REMOVE"] } },
-          firstReal: {
-            $min: {
-              $cond: [
-                "$_isReal",
-                { id: "$_id", name: "$userName", imageUrl: { $ifNull: ["$userImageUrl", ""] } },
-                null,
-              ],
-            },
-          },
-          firstAny: { $min: { id: "$_id", imageUrl: { $ifNull: ["$userImageUrl", ""] } } },
-        },
-      },
-    ]).allowDiskUse(true);
-
-    return rows.map((r) => ({
-      userId: r._id,
-      totalSubmissions: r.totalSubmissions,
-      accepted: r.accepted,
-      solvedSlugs: r.solvedSlugs,
-      firstReal: r.firstReal ? { name: r.firstReal.name, imageUrl: r.firstReal.imageUrl } : null,
-      firstAny: { imageUrl: r.firstAny.imageUrl },
-    }));
+  aggregatePerUser(placeholderNames: readonly string[]): Promise<UserSubmissionAggregate[]> {
+    return submissions.leaderboardRows(placeholderNames);
   }
 }
