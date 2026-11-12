@@ -35,10 +35,8 @@ const RAW = {
     // Server-only (no NEXT_PUBLIC_ prefix → stripped from the browser bundle).
     // Only non-secret values live here; secret NAMES are read inside the
     // isServer branch below so they never appear in a client bundle at all.
-    DWL_BACKEND_URL: process.env.DWL_BACKEND_URL,
     GUEST_MIGRATION_ENABLED: process.env.GUEST_MIGRATION_ENABLED,
     GRADE_HIDDEN_TESTS: process.env.GRADE_HIDDEN_TESTS,
-    DATA_BACKEND: process.env.DATA_BACKEND,
     // Public (inlined into the browser bundle)
     NEXT_PUBLIC_MAINTENANCE_MODE: process.env.NEXT_PUBLIC_MAINTENANCE_MODE,
     NEXT_PUBLIC_SHOW_ADMIN: process.env.NEXT_PUBLIC_SHOW_ADMIN,
@@ -62,53 +60,7 @@ function booleanish(name: string, value: string | undefined, fallback = false): 
     return fallback;
 }
 
-/** Must parse as an http(s) URL when present. A malformed URL is fatal. */
-function httpUrl(name: string, value: string | undefined, fallback: string): string {
-    const candidate = value?.trim() || fallback;
-    try {
-        const url = new URL(candidate);
-        if (url.protocol !== "http:" && url.protocol !== "https:") {
-            issues.push(`${name}: must be http(s), got "${url.protocol}"`);
-            return fallback;
-        }
-        // Normalise away a trailing slash so `${BASE}/api/x` never doubles up.
-        return candidate.replace(/\/+$/, "");
-    } catch {
-        issues.push(`${name}: not a valid URL ("${candidate}")`);
-        return fallback;
-    }
-}
-
 // ── Exported values ──────────────────────────────────────────────────────────
-
-/**
- * DataWeave compiler backend. Server-only. `/api/transform` is appended to it.
- *
- * ⚠️ THE PREVIOUS DEFAULT WAS A DEAD HOST. This fell back to
- * `https://dwlbackend.onrender.com`, which now returns **404 on every path**
- * (verified 2026-07-26 — it answers in ~1s, so it is alive but no longer serving
- * the compiler). Any deployment that did not explicitly set DWL_BACKEND_URL was
- * silently pointed at nothing.
- *
- * That became critical when SEC-05 moved grading onto the request path: a dead
- * compiler no longer just breaks the playground, it makes every submission
- * return `Error`. The default is now the upstream the server already uses
- * successfully via DW_COMPILER_URL.
- *
- * Local development normally overrides this to http://localhost:4000 so calls go
- * through the Express server's legacy /api/transform proxy.
- *
- * NOTE (audit W1-R1 / OPS-07): this upstream is a Render free-tier service that
- * sleeps after 15 minutes idle and takes 30–60s to wake, against a 15s timeout.
- * See docs/audit/09-runtime-ownership.md.
- */
-const DEFAULT_COMPILER_URL = "https://dataweave-playground-h1p7.onrender.com";
-
-export const DWL_BACKEND_URL = httpUrl(
-    "DWL_BACKEND_URL",
-    RAW.DWL_BACKEND_URL,
-    DEFAULT_COMPILER_URL,
-);
 
 /**
  * Maintenance banner. Public — safe to expose, it only toggles a banner.
@@ -154,33 +106,6 @@ export const GUEST_MIGRATION_ENABLED = booleanish(
  */
 export const GRADE_HIDDEN_TESTS = booleanish("GRADE_HIDDEN_TESTS", RAW.GRADE_HIDDEN_TESTS);
 
-/**
- * Which database the repositories serve from (issue #23, Phase 3). Server-only.
- *
- * - `mongo` (default): MongoDB only — the behaviour before #23.
- * - `shadow`: MongoDB is served; every read also runs on PostgreSQL and
- *   mismatches are logged, and writes are mirrored to PostgreSQL best-effort.
- *   Nothing a user sees comes from PostgreSQL.
- * - `postgres`: PostgreSQL only. The Phase 4 cutover.
- *
- * `shadow` and `postgres` need DATABASE_URL; without it the deploy fails at boot
- * rather than on the first request.
- */
-export const DATA_BACKENDS = ["mongo", "shadow", "postgres"] as const;
-export type DataBackend = (typeof DATA_BACKENDS)[number];
-
-function dataBackend(value: string | undefined): DataBackend {
-    if (value === undefined || value === "") return "mongo";
-    if ((DATA_BACKENDS as readonly string[]).includes(value)) return value as DataBackend;
-    issues.push(`DATA_BACKEND: expected one of ${DATA_BACKENDS.join(", ")}, got "${value}"`);
-    return "mongo";
-}
-
-export const DATA_BACKEND = dataBackend(RAW.DATA_BACKEND);
-
-if (isServer && DATA_BACKEND !== "mongo" && !process.env.DATABASE_URL) {
-    issues.push(`DATA_BACKEND=${DATA_BACKEND} needs DATABASE_URL`);
-}
 
 // ── Capability reporting ─────────────────────────────────────────────────────
 
@@ -193,7 +118,6 @@ if (isServer && DATA_BACKEND !== "mongo" && !process.env.DATABASE_URL) {
  * absent secret would be worse than booting with the feature off.
  */
 const CAPABILITY_REQUIREMENTS = {
-    database: ["MONGODB_URI"],
     auth: ["CLERK_SECRET_KEY"],
     ai: ["GEMINI_API_KEY"],
     github: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"],
@@ -252,10 +176,4 @@ if (isServer) {
     // Relying on the built-in default is legitimate but worth surfacing: the
     // compiler is now on the submission path, so which host it points at is
     // operationally significant rather than a playground detail.
-    if (!RAW.DWL_BACKEND_URL && process.env.NODE_ENV === "production") {
-        console.warn(
-            `[config] DWL_BACKEND_URL is not set — falling back to ${DEFAULT_COMPILER_URL}. ` +
-                `Set it explicitly in the hosting environment.`,
-        );
-    }
 }

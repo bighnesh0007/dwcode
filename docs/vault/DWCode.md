@@ -47,6 +47,9 @@ The red box is the one nobody here owns → [[DataWeave Runtime]]
 - [[Pending Migrations]] — four staged DB steps, **one is urgent**
 - [[DataWeave Runtime]] — unowned third-party service on the critical path
 - [[SEC-21 Move Auth Off Middleware]]
+- [[ADR-006 Own JVM Compiler Service]] — Phase 0 done: [[W2-R1 Compiler Latency Baseline]]
+- [[Local Stack]] — the site runs on this machine (`npm run up`, boot service, tunnel)
+- [[W2-R3 GitHub Tokens In Plaintext]] — fixed for new tokens; old ones re-encrypt on reconnect
 - [[FEAT-01 Server-Side Grading]] — hidden tests still not executed
 
 ## Source of truth

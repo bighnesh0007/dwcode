@@ -16,7 +16,8 @@ export function buildApp(container: Container): Application {
 
   // Render (and most PaaS) terminate TLS upstream; without this, client IPs used
   // for rate limiting would all be the proxy's.
-  if (config.http.trustProxy) app.set("trust proxy", 1);
+  if (config.http.trustProxy === "loopback") app.set("trust proxy", "loopback");
+  else if (config.http.trustProxy) app.set("trust proxy", 1);
 
   // Never advertise the framework.
   app.disable("x-powered-by");

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { DIFFICULTY_ENUM } from "@dwcode/shared";
 import { modelFromSchema } from "./model.ts";
 
 /**
@@ -19,7 +20,8 @@ const ExampleSchema = new mongoose.Schema({
 export const ProblemSchema = new mongoose.Schema({
   title: { type: String, required: true },
   slug: { type: String, required: true, unique: true },
-  difficulty: { type: String, enum: ["Easy", "Medium", "Hard"], required: true },
+  // From the shared registry: never a hand-written list (CLAUDE.md).
+  difficulty: { type: String, enum: DIFFICULTY_ENUM, required: true },
   category: { type: String, required: true },
   tags: [{ type: String }],
   description: { type: String, required: true },
@@ -34,5 +36,9 @@ export const ProblemSchema = new mongoose.Schema({
   createdBy: { type: String, default: "" }, // Clerk userId of creator
   createdAt: { type: Date, default: Date.now },
 });
+
+// Indexes (PERF-02) — identical to client/models/Problem.ts.
+ProblemSchema.index({ difficulty: 1, category: 1 });
+ProblemSchema.index({ createdAt: -1 });
 
 export const Problem = modelFromSchema("Problem", ProblemSchema);

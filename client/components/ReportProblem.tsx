@@ -10,6 +10,7 @@ import {
     type ReportReason,
 } from "@/lib/reports";
 import { getErrorMessage } from "@/lib/errors";
+import { apiRequest } from "@/lib/apiClient";
 
 /**
  * "Report a problem" — the escape hatch for a broken question.
@@ -33,10 +34,9 @@ export function ReportProblem({ problemId }: { problemId: string }) {
     // their first one registered.
     useEffect(() => {
         let cancelled = false;
-        void fetch(`/api/problems/report?problemId=${problemId}`)
-            .then((r) => (r.ok ? r.json() : null))
-            .then((d: { report?: unknown } | null) => {
-                if (!cancelled && d?.report) setAlreadyReported(true);
+        void apiRequest<{ report: unknown }>(`/api/v1/problem-reports/mine?problemId=${encodeURIComponent(problemId)}`)
+            .then((d) => {
+                if (!cancelled && d.report) setAlreadyReported(true);
             })
             .catch(() => {
                 /* signed out, or offline — the button still works */
@@ -50,16 +50,11 @@ export function ReportProblem({ problemId }: { problemId: string }) {
         setSubmitting(true);
         setError(null);
         try {
-            const res = await fetch("/api/problems/report", {
+            // Either a new report or `alreadyReported` — both mean "it is on file".
+            await apiRequest("/api/v1/problem-reports", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ problemId, reason, details: details.trim() }),
+                body: { problemId, reason, details: details.trim() },
             });
-            const data = await res.json();
-            if (!res.ok || !data.success) {
-                setError(data.error ?? `Could not submit (HTTP ${res.status}).`);
-                return;
-            }
             setAlreadyReported(true);
             setOpen(false);
             setDetails("");

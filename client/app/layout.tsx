@@ -67,7 +67,8 @@ export default function RootLayout({
               </FooterGate>
             </SkinProvider>
           </ThemeProvider>
-          <SpeedInsights />
+          {/* Vercel-only: off Vercel its script 404s on every page. VERCEL is set by their build. */}
+          {process.env.VERCEL ? <SpeedInsights /> : null}
         </body>
       </html>
     </ClerkProvider>

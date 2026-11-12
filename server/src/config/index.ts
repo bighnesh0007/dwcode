@@ -10,8 +10,10 @@ export const config = Object.freeze({
   isProduction: env.NODE_ENV === "production",
   isTest: env.NODE_ENV === "test",
   port: env.PORT,
+  host: env.HOST,
 
   mongoUri: env.MONGODB_URI,
+  mongoAutoIndex: env.MONGO_AUTO_INDEX,
 
   clerk: Object.freeze({
     secretKey: env.CLERK_SECRET_KEY,
@@ -22,13 +24,30 @@ export const config = Object.freeze({
   superAdminUserId: env.SUPER_ADMIN_USER_ID,
 
   dataweave: Object.freeze({
-    compilerUrl: env.DW_COMPILER_URL,
+    compilerUrl: env.DW_COMPILER_URL ?? "",
     version: env.DW_VERSION,
     timeoutMs: env.DW_TIMEOUT_MS,
   }),
 
+  compiler: Object.freeze({
+    backend: env.DW_BACKEND,
+    serviceUrl: env.COMPILER_SERVICE_URL,
+    authToken: env.COMPILER_AUTH_TOKEN ?? "",
+    timeoutMs: env.COMPILER_TIMEOUT_MS,
+  }),
+
+  redisUrl: env.REDIS_URL,
+
+  grading: Object.freeze({
+    hiddenTests: env.GRADE_HIDDEN_TESTS,
+    concurrency: env.GRADING_CONCURRENCY,
+    maxQueued: env.GRADING_MAX_QUEUED,
+  }),
+
   healthcheck: Object.freeze({
-    url: env.HEALTHCHECK_URL,
+    url:
+      env.HEALTHCHECK_URL ??
+      (env.DW_BACKEND === "service" ? `${env.COMPILER_SERVICE_URL.replace(/\/$/, "")}/ready` : (env.DW_COMPILER_URL ?? "")),
     enabled: env.HEALTHCHECK_ENABLED,
     intervalMs: env.HEALTHCHECK_INTERVAL_MS,
   }),
@@ -69,6 +88,24 @@ export const config = Object.freeze({
 });
 
 export type Config = typeof config;
+
+/** Which database the src/data repositories use (issue #23). */
+export const DATA_BACKEND = env.DATA_BACKEND;
+export type DataBackend = Env["DATA_BACKEND"];
+
+/*
+ * Connection strings read LIVE, not from the frozen snapshot above. The
+ * Postgres pool and the repositories' Mongo connection are created lazily on
+ * first use, and the database test suites point them at a fresh database per
+ * suite by setting these variables first. Still the only process.env reads.
+ */
+export function liveDatabaseUrl(): string | undefined {
+  return process.env.DATABASE_URL ?? env.DATABASE_URL;
+}
+
+export function liveMongoUri(): string | undefined {
+  return process.env.MONGODB_URI ?? env.MONGODB_URI;
+}
 
 export const capabilities = resolveCapabilities(env);
 

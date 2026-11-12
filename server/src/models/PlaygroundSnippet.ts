@@ -1,0 +1,43 @@
+import mongoose from "mongoose";
+import { modelFromSchema } from "./model.ts";
+
+/** Ported from client/models/PlaygroundSnippet.ts — keep identical while both apps use it. */
+const PlaygroundFileSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    kind: {
+      type: String,
+      enum: ["payload", "vars", "attributes", "custom"],
+      default: "custom",
+    },
+    language: {
+      type: String,
+      enum: ["json", "xml", "csv", "yaml", "text", "java", "ndjson", "multipart"],
+      default: "json",
+    },
+    content: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
+const PlaygroundTestCaseSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    files: [PlaygroundFileSchema],
+    expectedOutput: { type: String, default: "" },
+  },
+  { _id: false },
+);
+
+export const PlaygroundSnippetSchema = new mongoose.Schema(
+  {
+    slug: { type: String, required: true, unique: true },
+    script: { type: String, required: true },
+    files: [PlaygroundFileSchema],
+    testCases: [PlaygroundTestCaseSchema],
+    userId: { type: String, default: "" },
+  },
+  { timestamps: true },
+);
+
+export const PlaygroundSnippet = modelFromSchema("PlaygroundSnippet", PlaygroundSnippetSchema);

@@ -1,9 +1,16 @@
 ---
 tags: [architecture]
+verified-on: 2026-10-24
 ---
 # Architecture Overview
 
-## The defining fact
+## Current state (2026-10-24)
+
+**One backend.** Every API route runs on [[Server]]; the Next.js [[Client]] has no
+API routes, no Mongoose and no database credential. Compiles run on the local
+JVM compiler ([[ADR-006 Own JVM Compiler Service]]). Runbook: [[Local Stack]].
+
+## The defining fact (historical, before the migration)
 
 **There are two backends, and they are not the same backend.**
 

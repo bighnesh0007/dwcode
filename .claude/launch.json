@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "client-new-compiler",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "NEXT_PUBLIC_COMPILER_VIA_API=true NEXT_PUBLIC_API_URL=http://localhost:4100 npm run dev -w dwcode-client"],
+      "port": 8000
+    }
+  ]
+}

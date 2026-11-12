@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { getErrorMessage } from "@/lib/errors";
+import { apiRequest } from "@/lib/apiClient";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,17 +39,11 @@ export default function NewBlogPage() {
         setPosting(true);
         setError(null);
         try {
-            const res = await fetch("/api/blog", {
+            const post = await apiRequest<{ slug: string }>("/api/v1/blog", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title, content, tags }),
+                body: { title, content, tags },
             });
-            const data = await res.json();
-            if (data.success) {
-                router.push(`/blog/${data.post.slug}`);
-            } else {
-                setError(data.error || "Failed to publish.");
-            }
+            router.push(`/blog/${post.slug}`);
         } catch (error) {
             setError(getErrorMessage(error));
         } finally {

@@ -34,8 +34,10 @@ export async function connectDatabase(): Promise<void> {
     // Fail fast rather than hanging a request for 30s on an unreachable cluster.
     serverSelectionTimeoutMS: 10_000,
     maxPoolSize: 10,
-    // In production, indexes are managed deliberately rather than on model load.
-    autoIndex: !config.isProduction,
+    // Opt-in only (MONGO_AUTO_INDEX). It used to be on whenever NODE_ENV was not
+    // "production" — so a local dev server with the production URI wrote
+    // indexes to production the moment a model loaded.
+    autoIndex: config.mongoAutoIndex,
   });
 
   connected = true;

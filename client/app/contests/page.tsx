@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { getErrorMessage } from "@/lib/errors";
+import { apiRequest } from "@/lib/apiClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,26 +81,26 @@ export default function ContestsPage() {
     const fetchContests = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/contests");
-            const data = await res.json();
-            if (Array.isArray(data)) setContests(data);
+            setContests(await apiRequest<ContestListItem[]>("/api/v1/contests"));
+        } catch {
+            // Keep the current list; the page stays usable.
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        void fetch("/api/contests")
-            .then((response) => response.json())
-            .then((data) => { if (Array.isArray(data)) setContests(data); })
+        void apiRequest<ContestListItem[]>("/api/v1/contests")
+            .then(setContests)
+            .catch(() => undefined)
             .finally(() => setLoading(false));
     }, []);
 
     useEffect(() => {
         if (showCreate && allProblems.length === 0) {
-            void fetch("/api/problems").then(r => r.json()).then(d => {
-                if (Array.isArray(d)) setAllProblems(d);
-            });
+            void apiRequest<ProblemSummary[]>("/api/v1/problems")
+                .then(setAllProblems)
+                .catch(() => undefined);
         }
     }, [showCreate, allProblems.length]);
 
@@ -117,29 +118,25 @@ export default function ContestsPage() {
         setCreating(true);
         setCreateMsg(null);
         try {
-            const res = await fetch("/api/contests", {
+            const maxParticipants = parseInt(form.maxParticipants);
+            await apiRequest("/api/v1/contests", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                body: {
                     title: form.title,
                     description: form.description,
                     problemIds: selectedProblems,
-                    startTime: form.startTime,
+                    // datetime-local is local time; send an absolute instant.
+                    startTime: new Date(form.startTime).toISOString(),
                     duration: parseInt(form.duration),
                     isPublic: form.isPublic,
-                    maxParticipants: parseInt(form.maxParticipants),
-                }),
+                    ...(Number.isFinite(maxParticipants) ? { maxParticipants } : {}),
+                },
             });
-            const data = await res.json();
-            if (data.success) {
-                setCreateMsg({ type: "success", text: `Contest "${form.title}" created!` });
-                setShowCreate(false);
-                setForm({ title: "", description: "", duration: "60", startTime: "", isPublic: true, maxParticipants: "50" });
-                setSelectedProblems([]);
-                await fetchContests();
-            } else {
-                setCreateMsg({ type: "error", text: data.error || "Failed to create" });
-            }
+            setCreateMsg({ type: "success", text: `Contest "${form.title}" created!` });
+            setShowCreate(false);
+            setForm({ title: "", description: "", duration: "60", startTime: "", isPublic: true, maxParticipants: "50" });
+            setSelectedProblems([]);
+            await fetchContests();
         } catch (error) {
             setCreateMsg({ type: "error", text: getErrorMessage(error) });
         } finally {
@@ -151,9 +148,10 @@ export default function ContestsPage() {
         if (!isSignedIn) return;
         setJoiningId(id);
         try {
-            const res = await fetch(`/api/contests/${id}?action=join`, { method: "POST" });
-            const data = await res.json();
-            if (data.success) await fetchContests();
+            await apiRequest(`/api/v1/contests/${id}/join`, { method: "POST" });
+            await fetchContests();
+        } catch {
+            // Join refused (ended, full, …); the list is unchanged.
         } finally {
             setJoiningId(null);
         }
@@ -164,16 +162,10 @@ export default function ContestsPage() {
         setJoiningPrivate(true);
         setJoinMessage(null);
         try {
-            const res = await fetch("/api/contests", {
+            const data = await apiRequest<{ contestId: string }>("/api/v1/contests/join-by-code", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    action: "joinByCode",
-                    inviteCode: inviteKey,
-                }),
+                body: { inviteCode: inviteKey },
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Could not join contest.");
             router.push(`/contests/${data.contestId}`);
         } catch (error) {
             setJoinMessage(error instanceof Error ? error.message : "Could not join contest.");

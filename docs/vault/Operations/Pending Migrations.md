@@ -21,6 +21,11 @@ graph LR
 | 4 | `indexes` | no | 1 missing |
 | 5 | `seed:expert` | no (upsert) | 10 problems, 39 verified cases |
 
+> ⚠️ Checked 2026-10-23: `client/package.json` defines `indexes` and
+> `seed:expert`, but `client/scripts/ensure-indexes.ts` and
+> `seed-expert-problems.ts` **do not exist and never did in git history**. Steps
+> 4 and 5 cannot run as written.
+
 Every one supports `-- --dry-run`. Run each dry first and match the numbers.
 
 ## Why step 2 is urgent

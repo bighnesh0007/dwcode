@@ -1,5 +1,3 @@
-import type { InferRawDocTypeFromSchema } from "mongoose";
-
 // ─── MIME / language support ──────────────────────────────────────────────────
 
 /** Maps a PlaygroundFileLanguage to the DataWeave MIME type sent to the backend */
@@ -40,11 +38,14 @@ export const OUTPUT_MIMES = [
 
 // ─── Files ────────────────────────────────────────────────────────────────────
 
-type StoredSnippet = InferRawDocTypeFromSchema<
-  typeof import("@/models/PlaygroundSnippet").PlaygroundSnippetSchema
->;
-type StoredFile = StoredSnippet["files"][number];
-type StoredTestCase = StoredSnippet["testCases"][number];
+// The wire shape of a shared snippet's files and tests (server/src/models/PlaygroundSnippet.ts).
+type StoredFile = {
+  name: string;
+  kind: "payload" | "vars" | "attributes" | "custom";
+  language: "json" | "xml" | "csv" | "yaml" | "text" | "java" | "ndjson" | "multipart";
+  content: string;
+};
+type StoredTestCase = { name: string; files: StoredFile[]; expectedOutput: string };
 
 export type PlaygroundFileLanguage = StoredFile["language"];
 

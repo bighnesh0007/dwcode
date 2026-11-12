@@ -6,7 +6,7 @@
  * only; the client gets a generic message plus the request id to quote.
  */
 import type { ErrorRequestHandler } from "express";
-import { RateLimitError } from "../errors/AppError.ts";
+import { CompilerUnavailableError, RateLimitError } from "../errors/AppError.ts";
 import { toAppError } from "../errors/toAppError.ts";
 import type { ApiFailure } from "../types/envelope.ts";
 
@@ -34,7 +34,10 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   if (appError.status >= 500) req.log?.error(logPayload, appError.message);
   else req.log?.warn(logPayload, appError.message);
 
-  if (appError instanceof RateLimitError && appError.retryAfterSeconds !== undefined) {
+  if (
+    (appError instanceof RateLimitError || appError instanceof CompilerUnavailableError) &&
+    appError.retryAfterSeconds !== undefined
+  ) {
     res.setHeader("Retry-After", String(appError.retryAfterSeconds));
   }
 

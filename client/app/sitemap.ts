@@ -1,15 +1,16 @@
 import { type MetadataRoute } from 'next';
-import * as problemRepo from '@/lib/repositories/problems';
+import { serverApi } from '@/lib/serverApi';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://dwcode.vercel.app';
   
   try {
-    const problems = await problemRepo.listForSitemap();
+    // Public data: never vary the sitemap by visitor.
+    const problems = await serverApi<{ slug: string; createdAt?: string }[]>('/api/v1/problems', { asUser: false });
 
     const problemUrls = problems.map((problem) => ({
       url: `${baseUrl}/problems/${problem.slug}`,
-      lastModified: problem.createdAt || new Date(),
+      lastModified: problem.createdAt ? new Date(problem.createdAt) : new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.8,
     }));
@@ -34,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return [...staticRoutes, ...problemUrls];
   } catch (error) {
     console.error("Error generating sitemap:", error);
-    // Return at least static routes if DB connection fails
+    // Return at least static routes if the API is unreachable
     const staticRoutes = [
       '',
       '/problems',

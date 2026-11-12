@@ -49,7 +49,9 @@ export class WeeklyContestService {
 
   constructor(
     private readonly contestRepo: ContestRepository,
-    private readonly problemRepo: ProblemRepository,
+    // Only the two sampling queries: depending on the whole repository class
+    // ties this service (and its test fake) to every query added for others.
+    private readonly problemRepo: Pick<ProblemRepository, "sampleByDifficulty" | "sampleAny">,
     private readonly clock: Clock = systemClock,
     private readonly cfg: WeeklyContestConfig = WEEKLY_CONTEST,
   ) {}

@@ -16,8 +16,20 @@ import type { NextConfig } from "next";
  */
 const workspaceRoot = path.join(import.meta.dirname, "..");
 
+/**
+ * One public origin. The browser calls `/backend/*` on this site and Next.js
+ * proxies it to the Express server on this machine, so the Cloudflare tunnel
+ * exposes exactly one hostname, the API has no public address of its own, and
+ * there is no cross-origin request to configure CORS for. Read at build time.
+ */
+const backendInternalUrl = (process.env.BACKEND_INTERNAL_URL ?? "http://127.0.0.1:4000").replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
   output: "standalone",
+
+  rewrites() {
+    return Promise.resolve([{ source: "/backend/:path*", destination: `${backendInternalUrl}/:path*` }]);
+  },
 
   turbopack: {
     root: workspaceRoot,

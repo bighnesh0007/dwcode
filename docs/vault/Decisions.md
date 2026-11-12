@@ -13,6 +13,7 @@ graph TD
     A3 --> A4[[ADR-004 npm Workspaces]]
     A1 --> A2[[ADR-002 Server-Side Grading]]
     A4 --> A5[[ADR-005 MIT Licence]]
+    A1 --> A6[[ADR-006 Own JVM Compiler Service]]
 ```
 
 - [[ADR-001 Two Backends]] — finish the second architecture, don't design a third
@@ -20,6 +21,7 @@ graph TD
 - [[ADR-003 Difficulty Registry]] — one array, everything derives
 - [[ADR-004 npm Workspaces]] — and the deployment bill it came with
 - [[ADR-005 MIT Licence]] — "open source" was not legally true
+- [[ADR-006 Own JVM Compiler Service]] — embed the runtime in a warm JVM, in `compiler/`
 
 ## Related
 [[DWCode]] · [[Architecture Overview]]

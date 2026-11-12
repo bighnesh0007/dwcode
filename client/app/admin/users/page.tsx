@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiError, apiRequest } from "@/lib/apiClient";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -76,18 +77,16 @@ export default function AdminUsersPage() {
 
     // `setLoading` lives inside the loader rather than in a `.finally()` on the
     // effect, so the effect body itself performs no state updates.
-    const loadUsers = useCallback(async () => {
-        try {
-            const res = await fetch("/api/admin/users");
-            if (res.status === 403) {
-                setForbidden(true);
-                return;
-            }
-            setData((await res.json()) as AdminUsersResponse);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const loadUsers = useCallback(
+        () =>
+            apiRequest<AdminUsersResponse>("/api/v1/admin/users")
+                .then((users) => setData(users))
+                .catch((error: unknown) => {
+                    if (error instanceof ApiError && (error.status === 403 || error.status === 401)) setForbidden(true);
+                })
+                .finally(() => setLoading(false)),
+        [],
+    );
 
     useEffect(() => {
         if (!isSignedIn) return;
@@ -98,12 +97,11 @@ export default function AdminUsersPage() {
         setActionId(user.userId);
         try {
             await (grant
-                ? fetch("/api/admin/roles", {
+                ? apiRequest("/api/v1/admin/roles", {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ targetUserId: user.userId, targetUserName: user.userName }),
+                    body: { targetUserId: user.userId, targetUserName: user.userName },
                 })
-                : fetch(`/api/admin/roles?userId=${encodeURIComponent(user.userId)}`, { method: "DELETE" }));
+                : apiRequest(`/api/v1/admin/roles/${encodeURIComponent(user.userId)}`, { method: "DELETE" }));
             await loadUsers();
         } finally {
             setActionId(null);

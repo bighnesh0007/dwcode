@@ -1,5 +1,6 @@
 "use client";
 
+import { ApiError, apiRequest } from "@/lib/apiClient";
 import { useState, useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,8 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!isSignedIn) return;
-    fetch("/api/admin/users")
-      .then(r => { setAdminCheck(r.status === 403 ? "forbidden" : "allowed"); })
+    apiRequest("/api/v1/admin/users")
+      .then(() => { setAdminCheck("allowed"); })
       .catch(() => setAdminCheck("forbidden"));
   }, [isSignedIn]);
 
@@ -92,9 +93,11 @@ function AdminPageContent() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const fetchProblems = async () => {
-    const res = await fetch("/api/problems");
-    const data = await res.json();
-    if (Array.isArray(data)) setProblems(data);
+    try {
+      setProblems(await apiRequest<ProblemSummary[]>("/api/v1/problems"));
+    } catch {
+      // Keep the current list.
+    }
   };
 
   const toggleManage = () => {
@@ -108,19 +111,16 @@ function AdminPageContent() {
     setIsGenerating(true);
     setGenerateMsg(null);
     try {
-      const res = await fetch("/api/generate", {
+      const problem = await apiRequest<{ title: string }>("/api/v1/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ difficulty, category, topic }),
+        body: { difficulty, category, topic },
       });
-      const data = await res.json();
-      if (data.success) {
-        setGenerateMsg({ type: "success", text: `✓ Generated: "${data.problem?.title}"` });
-      } else {
-        setGenerateMsg({ type: "error", text: `✗ ${data.error}` });
-      }
-    } catch {
-      setGenerateMsg({ type: "error", text: "✗ Network error. Check your API key." });
+      setGenerateMsg({ type: "success", text: `✓ Generated: "${problem.title}"` });
+    } catch (error) {
+      setGenerateMsg({
+        type: "error",
+        text: error instanceof ApiError ? `✗ ${error.message}` : "✗ Network error.",
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -142,21 +142,12 @@ function AdminPageContent() {
         starterCode: manual.starterCode,
         solution: manual.solution,
       };
-      const res = await fetch("/api/problems", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setAddMsg({ type: "success", text: `✓ Added: "${manual.title}"` });
-        setManual(emptyManual);
-        if (showManage) await fetchProblems();
-      } else {
-        setAddMsg({ type: "error", text: `✗ ${data.error}` });
-      }
-    } catch {
-      setAddMsg({ type: "error", text: "✗ Network error." });
+      await apiRequest("/api/v1/problems", { method: "POST", body: payload });
+      setAddMsg({ type: "success", text: `✓ Added: "${manual.title}"` });
+      setManual(emptyManual);
+      if (showManage) await fetchProblems();
+    } catch (error) {
+      setAddMsg({ type: "error", text: error instanceof ApiError ? `✗ ${error.message}` : "✗ Network error." });
     } finally {
       setIsAdding(false);
     }
@@ -179,25 +170,23 @@ function AdminPageContent() {
       ...editData,
       tags: editData.tags.split(",").map((t: string) => t.trim()).filter(Boolean),
     };
-    const res = await fetch(`/api/problems/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (data.success) {
+    try {
+      await apiRequest(`/api/v1/problems/${id}`, { method: "PUT", body: payload });
       setEditingId(null);
       await fetchProblems();
+    } catch {
+      // Stay in edit mode so nothing typed is lost.
     }
   };
 
   // --- Delete ---
   const handleDelete = async (id: string) => {
-    const res = await fetch(`/api/problems/${id}`, { method: "DELETE" });
-    const data = await res.json();
-    if (data.success) {
+    try {
+      await apiRequest(`/api/v1/problems/${id}`, { method: "DELETE" });
       setDeleteConfirm(null);
       await fetchProblems();
+    } catch {
+      // Leave the confirmation open.
     }
   };
 

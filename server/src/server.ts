@@ -32,12 +32,13 @@ async function main(): Promise<void> {
   const container = buildContainer();
   const app = buildApp(container);
 
-  const server = app.listen(config.port, () => {
+  const server = app.listen(config.port, config.host, () => {
     logger.info(
       {
         // `env` is already on every record via the logger's `base`.
         port: config.port,
-        compiler: config.dataweave.compilerUrl,
+        compiler: config.compiler.backend === "service" ? config.compiler.serviceUrl : config.dataweave.compilerUrl,
+        redis: Boolean(config.redisUrl),
         healthcheck: config.healthcheck.url,
       },
       `DWCode server listening on http://localhost:${config.port}`,
@@ -63,6 +64,9 @@ async function main(): Promise<void> {
 
     container.upstreamHealth.stopHeartbeat();
     container.weeklyContest.stopScheduler();
+    // Let in-flight grading jobs finish (BullMQ waits for active jobs), then
+    // release Redis. Unfinished queued jobs stay in Redis for the next instance.
+    void Promise.allSettled(container.queues.map((q) => q.close())).then(() => container.redis?.quit());
 
     server.close((err) => {
       if (err) {

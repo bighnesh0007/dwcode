@@ -12,6 +12,7 @@ import { BlogVoteButtons } from "@/components/BlogVoteButtons";
 import { Comments } from "@/components/Comments";
 import { renderBlogContent } from "@/lib/embeds";
 import type { BlogPost } from "@/lib/types";
+import { apiRequest } from "@/lib/apiClient";
 
 // ---------------------------------------------------------------------------
 
@@ -28,9 +29,9 @@ export default function BlogPostPage() {
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        void fetch(`/api/blog/${slug}`)
-            .then(r => r.json())
-            .then(d => { if (!d.error) setPost(d); })
+        void apiRequest<BlogPost>(`/api/v1/blog/${encodeURIComponent(slug)}`)
+            .then(d => setPost(d))
+            .catch(() => { /* not found: render the empty state */ })
             .finally(() => setLoading(false));
     }, [slug]);
 
@@ -38,9 +39,8 @@ export default function BlogPostPage() {
         if (!user || !post) return;
         if (post.authorId === user.id) return;
         // Check admin rights
-        fetch("/api/admin/users")
-            .then(r => r.json())
-            .then(d => { if (!d.error) setHasAdminAccess(true); })
+        apiRequest("/api/v1/admin/users")
+            .then(() => { setHasAdminAccess(true); })
             .catch(() => { });
     }, [user, post]);
 
@@ -49,7 +49,12 @@ export default function BlogPostPage() {
     const handleDelete = async () => {
         if (!confirm("Delete this post?")) return;
         setDeleting(true);
-        await fetch(`/api/blog/${slug}`, { method: "DELETE" });
+        try {
+            await apiRequest<unknown>(`/api/v1/blog/${encodeURIComponent(slug)}`, { method: "DELETE" });
+        } catch {
+            setDeleting(false);
+            return;
+        }
         router.push("/blog");
     };
 

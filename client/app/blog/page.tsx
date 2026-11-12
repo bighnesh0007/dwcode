@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Plus, Calendar, Loader2, Tag, ExternalLink, ArrowBigUp } from "lucide-react";
 import type { BlogPost } from "@/lib/types";
+import { apiRequest } from "@/lib/apiClient";
 
 // LinkedIn brand icon (inline SVG — not in all lucide versions)
 function LinkedInIcon({ className }: { className?: string }) {
@@ -74,9 +75,9 @@ export default function BlogPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        void fetch("/api/blog")
-            .then(r => r.json())
+        void apiRequest<BlogPost[]>("/api/v1/blog")
             .then(d => { if (Array.isArray(d)) setPosts(d); })
+            .catch(() => { /* keep the empty list */ })
             .finally(() => setLoading(false));
     }, []);
 

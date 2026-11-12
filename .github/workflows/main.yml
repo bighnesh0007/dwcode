@@ -8,8 +8,8 @@ name: CI
 #
 # The pull_request trigger was previously absent, so a failure was only
 # discovered once the change was already on master (audit finding L-6, task
-# OPS-03). Branch protection should now require: frontend, backend, security,
-# dependencies and image.
+# OPS-03). Branch protection should now require: frontend, backend, compiler,
+# security, dependencies and image.
 on:
   push:
     branches: [master]
@@ -42,6 +42,7 @@ jobs:
     outputs:
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
+      compiler: ${{ steps.filter.outputs.compiler }}
     steps:
       - uses: actions/checkout@v7
       - uses: dorny/paths-filter@v3
@@ -59,7 +60,10 @@ jobs:
               - 'packages/**'
               - 'package.json'
               - 'package-lock.json'
-              - 'render.yaml'
+              - '.github/workflows/**'
+            compiler:
+              - 'compiler/**'
+              - 'docker-compose.yml'
               - '.github/workflows/**'
 
   # ── Frontend ────────────────────────────────────────────────────────────────
@@ -72,17 +76,6 @@ jobs:
       run:
         working-directory: client
 
-    # #23: a disposable Postgres for the integration tests. Each test file
-    # creates its own database. The Mongo parity suite runs in `parity` below.
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dwcode_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
 
     steps:
       - uses: actions/checkout@v7
@@ -127,13 +120,6 @@ jobs:
       - name: Test
         if: needs.changes.outputs.client == 'true'
         run: npm test
-        env:
-          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
-
-      # Fails when schema.ts and the committed migrations disagree.
-      - name: Postgres migrations match schema
-        if: needs.changes.outputs.client == 'true'
-        run: npx drizzle-kit check
 
       - name: Build
         if: needs.changes.outputs.client == 'true'
@@ -164,12 +150,12 @@ jobs:
   parity:
     name: Database parity · Mongo ↔ Postgres
     needs: changes
-    if: needs.changes.outputs.client == 'true'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: client
+        working-directory: server
 
     services:
       mongo:
@@ -209,7 +195,7 @@ jobs:
         run: npm run build:shared
 
       - name: Parity suite
-        run: npx vitest run __tests__/postgres/parity.integration.test.ts
+        run: npx vitest run tests/postgres/parity.integration.test.ts
         env:
           PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
           MONGO_TEST_URL: mongodb://localhost:27017/dwcode_parity
@@ -219,6 +205,25 @@ jobs:
     name: Backend · server
     needs: changes
     runs-on: ubuntu-latest
+    # A real Redis, so the Redis-store and BullMQ suites RUN here. They skip
+    # without TEST_REDIS_URL, and a suite that always skips in CI is a check
+    # that cannot fail.
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      # #23: a disposable Postgres for the repository suites. Each test file
+      # creates its own database; the Mongo parity suite runs in `parity`.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dwcode_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     timeout-minutes: 15
     defaults:
       run:
@@ -258,9 +263,16 @@ jobs:
         env:
           NODE_ENV: test
           HEALTHCHECK_ENABLED: "false"
+          TEST_REDIS_URL: redis://127.0.0.1:6379
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
 
-      # Compiles with the same command Render runs, so a build break surfaces
-      # here rather than during deploy.
+      # Fails when schema.ts and the committed migrations disagree.
+      - name: Postgres migrations match schema
+        if: needs.changes.outputs.server == 'true'
+        run: npx drizzle-kit check
+
+      # Compiles with the same command the launcher runs, so a build break surfaces
+      # here rather than at startup.
       - name: Build
         if: needs.changes.outputs.server == 'true'
         run: npm run build
@@ -268,6 +280,60 @@ jobs:
       - name: Skipped
         if: needs.changes.outputs.server != 'true'
         run: echo "No changes under server/ — checks skipped."
+
+  # ── Compiler service (compiler/, Java) ──────────────────────────────────────
+  # Runs untrusted code, so its security properties are tested on every change:
+  # engine privileges denied, runaway scripts killed, OOM contained, overload
+  # shed. Then the image is built and smoke-tested under the production
+  # hardening flags, because a service that only works without them is not
+  # actually hardened.
+  compiler:
+    name: Compiler · Java
+    needs: changes
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: compiler
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        if: needs.changes.outputs.compiler == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Test
+        if: needs.changes.outputs.compiler == 'true'
+        run: mvn -B test
+
+      - name: Build image
+        if: needs.changes.outputs.compiler == 'true'
+        run: docker build -t dwcode-compiler:ci .
+
+      - name: Smoke test under production hardening
+        if: needs.changes.outputs.compiler == 'true'
+        run: |
+          TOKEN=ci-token-0123456789abcdef0123456789ab
+          docker run -d --name dwc-compiler -p 8080:8080 --read-only \
+            --tmpfs /tmp:size=64m,noexec,nosuid,nodev --cap-drop ALL \
+            --security-opt no-new-privileges:true --pids-limit 256 --memory 1g \
+            -e APP_ENV=production -e COMPILER_WORKERS=2 -e COMPILER_AUTH_TOKEN=$TOKEN dwcode-compiler:ci
+          for i in $(seq 1 60); do curl -sf localhost:8080/ready && break; sleep 1; done
+          run() { curl -s -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' localhost:8080/v1/execute -d "$1"; }
+          out=$(run '{"script":"%dw 2.0\noutput application/json\n---\npayload map $ * 2","inputs":[{"name":"payload","value":"[1,2]"}]}')
+          echo "$out" | grep -q '"ok":true' || { echo "::error::basic execution failed: $out"; docker logs dwc-compiler; exit 1; }
+          out=$(run '{"script":"%dw 2.0\noutput application/json\n---\nreadUrl(\"file:///etc/passwd\",\"text/plain\")","inputs":[]}')
+          echo "$out" | grep -q '"kind":"FORBIDDEN"' || { echo "::error::file read was not denied: $out"; exit 1; }
+          code=$(curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' localhost:8080/v1/execute -d '{"script":"x"}')
+          [ "$code" = 401 ] || { echo "::error::unauthenticated call got $code, expected 401"; exit 1; }
+          echo "OK — runs, denies file access, requires auth, under read-only/cap-drop/pid limits."
+
+      - name: Skipped
+        if: needs.changes.outputs.compiler != 'true'
+        run: echo "No changes under compiler/ — checks skipped."
 
   # ── Repository hygiene ──────────────────────────────────────────────────────
   security:

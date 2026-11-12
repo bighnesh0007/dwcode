@@ -46,6 +46,12 @@ export const ContestSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
+// Indexes (PERF-02) — identical to client/models/Contest.ts. The list endpoint
+// filters on an $or of these three, then sorts by startTime.
+ContestSchema.index({ isPublic: 1, startTime: -1 });
+ContestSchema.index({ createdBy: 1 });
+ContestSchema.index({ "participants.userId": 1 });
+
 // Auto-compute status based on time
 ContestSchema.virtual("computedStatus").get(function () {
   const now = new Date();

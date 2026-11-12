@@ -1,5 +1,6 @@
 "use client";
 
+import { apiRequest } from "@/lib/apiClient";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { useTheme } from "next-themes";
@@ -8,6 +9,8 @@ import {
   GitBranch, History, Bookmark, LayoutPanelTop, Loader2, MoreHorizontal, Play,
   RotateCcw, Share2, Terminal,
 } from "lucide-react";
+import { useAuth } from "@clerk/nextjs";
+import { playgroundRunViaApi } from "@/lib/compilerApi";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +59,18 @@ const DEFAULT_FILES: PlaygroundFile[] = [
   { id: "vars", name: "vars.json", kind: "vars", language: "json", content: "{}" },
   { id: "attributes", name: "attributes.json", kind: "attributes", language: "json", content: "{}" },
 ];
+
+/** A share as the backend returns it (no client-side ids). */
+type SharedSnippetResponse = {
+  script?: string;
+  files?: Partial<PlaygroundFile>[];
+  testCases?: Partial<PlaygroundTestCase>[];
+};
+
+/** The backend's schema is strict: send only stored fields, never the UI's ids. */
+function toWireFile(f: PlaygroundFile) {
+  return { name: f.name, kind: f.kind, language: f.language, content: f.content };
+}
 
 /** Who asked for a run. Live compile is treated differently — see handleRun. */
 type RunSource = "manual" | "auto";
@@ -149,6 +164,7 @@ function saveLS(key: string, value: unknown) {
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function PlaygroundPage() {
+  const { getToken } = useAuth();
   const { resolvedTheme } = useTheme();
 
   // User preferences (persisted). Loaded after mount to avoid a hydration mismatch.
@@ -227,10 +243,9 @@ export default function PlaygroundPage() {
     sync(); media.addEventListener("change", sync);
 
     // GitHub status
-    fetch("/api/github/status")
-      .then((r) => r.json())
+    apiRequest<{ connected: boolean; username?: string; repoName?: string }>("/api/v1/github/status")
       .then((d) => {
-        setGithubConnected(Boolean(d.connected));
+        setGithubConnected(d.connected);
         setGithubUsername(d.username || "");
         setGithubRepo(d.repoName || "dwcode-workspace");
       })
@@ -244,10 +259,9 @@ export default function PlaygroundPage() {
     };
 
     let cancelled = false;
-    fetch(`/api/playground/share?id=${snippetId}`)
-      .then((r) => r.json())
+    apiRequest<SharedSnippetResponse>(`/api/v1/playground/shares/${encodeURIComponent(snippetId)}`)
       .then((d) => {
-        if (cancelled || d.error) return;
+        if (cancelled) return;
         const loadedFiles = Array.isArray(d.files) && d.files.length
           ? d.files.map((f: Partial<PlaygroundFile>, i: number) => ({
             id: createId(`file-${i}`), name: f.name ?? `input-${i + 1}.json`,
@@ -293,22 +307,10 @@ export default function PlaygroundPage() {
   const runTransform = useCallback(async (
     runScript: string, runFiles: PlaygroundFile[], signal?: AbortSignal,
   ) => {
-    const r = await fetch("/api/transform", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ script: runScript, inputs: buildTransformInputs(runFiles) }),
-      signal,
-    });
-    // Surfaced as a distinct error so live compile suspends immediately rather
-    // than continuing to hammer a proxy that has already said no. The endpoint is
-    // not rate-limited yet (see docs/plans/playground-live-compile.md §3); this
-    // handles it correctly from the moment it is.
-    if (r.status === 429) {
-      const retryAfter = Number(r.headers.get("retry-after"));
-      throw new RateLimitedError(Number.isFinite(retryAfter) ? retryAfter : null);
-    }
-    return r.json();
-  }, []);
+    const answer = await playgroundRunViaApi(runScript, buildTransformInputs(runFiles), () => getToken(), signal);
+    if (answer.kind === "rate-limited") throw new RateLimitedError(null);
+    return answer;
+  }, [getToken]);
 
   /**
    * Run the current script.
@@ -336,7 +338,7 @@ export default function PlaygroundPage() {
 
     try {
       const data = await runTransform(script, files, abortRef.current.signal);
-      const ok = Boolean(data.success);
+      const ok = data.success;
       setStatus(ok ? "success" : "error");
       setOutput(data.output ?? (ok ? "" : "Compilation failed"));
       setExecutionTime(data.time ?? null);
@@ -501,12 +503,16 @@ export default function PlaygroundPage() {
   const handleShare = useCallback(async () => {
     setIsSharing(true);
     try {
-      const r = await fetch("/api/playground/share", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script, files, testCases }),
+      const d = await apiRequest<{ id: string }>("/api/v1/playground/shares", {
+        method: "POST",
+        body: {
+          script,
+          files: files.map(toWireFile),
+          testCases: testCases.map((tc) => ({
+            name: tc.name, files: tc.files.map(toWireFile), expectedOutput: tc.expectedOutput,
+          })),
+        },
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error ?? "Could not share snippet.");
       await navigator.clipboard.writeText(`${window.location.origin}/playground?id=${d.id}`);
       setShareCopied(true); setTimeout(() => setShareCopied(false), 2500);
     } catch (e: unknown) {
@@ -518,12 +524,16 @@ export default function PlaygroundPage() {
   const handlePublishToGitHub = useCallback(async () => {
     setIsPublishing(true); setPublishResult(null);
     try {
-      const r = await fetch("/api/playground/github/push", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script, files, testCases, output, message: COMMIT_MESSAGE }),
+      const d = await apiRequest<{ repo: string; url: string }>("/api/v1/playground/github/push", {
+        method: "POST",
+        body: {
+          script,
+          files: files.map((f) => ({ name: f.name, content: f.content })),
+          testCases: testCases.map((tc) => ({ name: tc.name, expectedOutput: tc.expectedOutput })),
+          output,
+          message: COMMIT_MESSAGE,
+        },
       });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "GitHub publish failed.");
       setPublishResult({ message: `Published to ${d.repo}`, url: d.url });
     } catch (e) {
       setPublishResult({ message: getErrorMessage(e, "GitHub publish failed."), error: true });
@@ -559,9 +569,9 @@ export default function PlaygroundPage() {
       const results: PlaygroundTestCase[] = [];
       for (const tc of testCases) {
         const d = await runTransform(script, tc.files);
-        const out = d.output ?? d.error ?? "Compilation failed";
+        const out = d.output || "Compilation failed";
         const expected = tc.expectedOutput?.trim();
-        const passed = Boolean(d.success) && (!expected || normalizeOutput(out) === normalizeOutput(expected));
+        const passed = d.success && (!expected || normalizeOutput(out) === normalizeOutput(expected));
         results.push({ ...tc, result: { status: passed ? "success" : "error", output: out, time: d.time ?? null } });
       }
       setTestCases(results);
@@ -756,7 +766,7 @@ export default function PlaygroundPage() {
                 </>
               ) : (
                 <DropdownMenuItem
-                  render={<a href="/api/auth/github?returnTo=/playground" />}
+                  render={<a href="/backend/api/v1/github/connect?returnTo=/playground" />}
                 >
                   <GitBranch className="mr-2 h-3.5 w-3.5" /> Connect GitHub
                 </DropdownMenuItem>

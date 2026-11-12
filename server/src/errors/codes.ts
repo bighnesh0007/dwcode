@@ -29,6 +29,8 @@ export const ErrorCode = {
   NOT_CONFIGURED: "NOT_CONFIGURED",
   UPSTREAM_FAILED: "UPSTREAM_FAILED",
   UPSTREAM_TIMEOUT: "UPSTREAM_TIMEOUT",
+  /** Our compiler could not run the script (overloaded or down). Never the user's fault. */
+  COMPILER_UNAVAILABLE: "COMPILER_UNAVAILABLE",
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];

@@ -1,21 +1,37 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
-// NOTE: This page intentionally reads Mongoose directly on the server — the
-// migration of client-side data access to the Express API backend is a
-// separate ongoing effort.
-import * as problems from "@/lib/repositories/problems";
-import * as profiles from "@/lib/repositories/profiles";
-import * as submissions from "@/lib/repositories/submissions";
+import { serverApiOrNull } from "@/lib/serverApi";
 import { Heatmap, ProgressRing } from "@/components/Charts";
 import RankAvatar from "@/components/RankAvatar";
-import { computeScore, getTier } from "@/lib/ranks";
+import { getTier } from "@/lib/ranks";
+import { DIFFICULTY_TIERS } from "@dwcode/shared";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Trophy, Code2, Zap, TrendingUp, BarChart2, Flame,
   CalendarDays, Users, Clock,
 } from "lucide-react";
 import FollowButton from "./FollowButton";
+
+/** GET /api/v1/profile/u/:username — public fields only. */
+interface PublicProfile {
+  username: string;
+  bio: string;
+  followers: number;
+  following: number;
+  joinedAt: string;
+  imageUrl: string;
+  isOwnProfile: boolean;
+  isFollowing: boolean;
+  score: number;
+  solved: { total: number; byDifficulty: Record<string, number> };
+  problemsByDifficulty: Record<string, number>;
+  attempted: number;
+  totalSubmissions: number;
+  acceptanceRate: number;
+  streak: number;
+  activityData: { date: string; count: number }[];
+  recentLog: { problemSlug: string; status: string; executionTime: string; createdAt: string }[];
+}
 
 function timeAgo(date: Date): string {
   const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
@@ -46,80 +62,24 @@ function statusDotColor(status: string): string {
 export default async function PublicProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
 
-  // Case-insensitive exact match.
-  const profile = await profiles.findByUsernameIgnoreCase(username);
+  // The visitor's session is forwarded, so isOwnProfile / isFollowing are theirs.
+  const profile = await serverApiOrNull<PublicProfile>(`/api/v1/profile/u/${encodeURIComponent(username)}`);
   if (!profile) notFound();
 
-  const userId = profile.userId;
-
-  // Viewer context
-  const { userId: viewerId } = await auth();
-  const isOwnProfile = viewerId === userId;
-  let initialIsFollowing = false;
-  if (viewerId && !isOwnProfile) {
-    initialIsFollowing = await profiles.isFollowing(viewerId, userId);
-  }
-
-  // ── Stats ──
-  const allSubmissions = await submissions.listByUser(userId);
-  const totalSubmissions = allSubmissions.length;
-
-  const acceptedSlugs = new Set(
-    allSubmissions.filter((submission) => submission.status === "Accepted").map((submission) => submission.problemSlug),
-  );
-  const attemptedSlugs = new Set(
-    allSubmissions.filter((submission) => submission.status !== "Accepted").map((submission) => submission.problemSlug),
-  );
-  for (const slug of acceptedSlugs) attemptedSlugs.delete(slug);
-  const attempted = attemptedSlugs.size;
-
-  const acceptedSubmissionCount = allSubmissions.filter((submission) => submission.status === "Accepted").length;
-  const acceptanceRate = totalSubmissions > 0 ? Math.round((acceptedSubmissionCount / totalSubmissions) * 100) : 0;
-
-  const [solvedProbs, easy, medium, hard] = await Promise.all([
-    problems.summariesForSlugs(Array.from(acceptedSlugs)),
-    problems.count({ difficulty: "Easy" }),
-    problems.count({ difficulty: "Medium" }),
-    problems.count({ difficulty: "Hard" }),
-  ]);
-  const solvedEasy = solvedProbs.filter((problem) => problem.difficulty === "Easy").length;
-  const solvedMedium = solvedProbs.filter((problem) => problem.difficulty === "Medium").length;
-  const solvedHard = solvedProbs.filter((problem) => problem.difficulty === "Hard").length;
-  const solvedTotal = acceptedSlugs.size;
-
-  const score = computeScore({ easy: solvedEasy, medium: solvedMedium, hard: solvedHard });
+  const {
+    score, attempted, acceptanceRate, totalSubmissions, streak, activityData, recentLog, imageUrl,
+    isOwnProfile, isFollowing: initialIsFollowing,
+  } = profile;
   const tier = getTier(score);
-
-  // Activity map over all submissions (heatmap shows the last 30 days; the
-  // streak walks back from today) — same pattern as app/page.tsx.
-  const activityMap: Record<string, number> = {};
-  for (const sub of allSubmissions) {
-    const day = new Date(sub.createdAt).toISOString().split("T")[0];
-    activityMap[day] = (activityMap[day] ?? 0) + 1;
-  }
-  const activityData: { date: string; count: number }[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
-    activityData.push({ date: key, count: activityMap[key] ?? 0 });
-  }
-  let streak = 0;
-  const todayStr = new Date().toISOString().split("T")[0];
-  for (let i = 0; i < 365; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().split("T")[0];
-    if (activityMap[key] || (i === 0 && activityMap[todayStr])) streak++;
-    else if (i > 0) break;
-  }
-
-  const recentLog = allSubmissions.slice(0, 10);
-
-  // UserProfile has no image field — best available avatar is the most
-  // recent submission's snapshot of the Clerk image.
-  const imageUrl = allSubmissions[0]?.userImageUrl ?? "";
-  const joinedAt = new Date(profile.createdAt).toLocaleDateString(undefined, {
+  const solvedTotal = profile.solved.total;
+  // One ring per tier in the shared registry — never a hardcoded difficulty list.
+  const breakdown = DIFFICULTY_TIERS.map((t) => ({
+    label: t.label,
+    value: profile.solved.byDifficulty[t.id] ?? 0,
+    total: profile.problemsByDifficulty[t.id] ?? 0,
+    color: t.className.text,
+  }));
+  const joinedAt = new Date(profile.joinedAt).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
   });
@@ -178,9 +138,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" />
-                  <span className="font-semibold text-foreground">{profile.followers.length}</span> Followers
+                  <span className="font-semibold text-foreground">{profile.followers}</span> Followers
                   <span aria-hidden="true">·</span>
-                  <span className="font-semibold text-foreground">{profile.following.length}</span> Following
+                  <span className="font-semibold text-foreground">{profile.following}</span> Following
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CalendarDays className="w-3.5 h-3.5" /> Joined {joinedAt}
@@ -233,11 +193,7 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               </div>
             ) : (
               <div className="flex items-center justify-around gap-4 py-2">
-                {[
-                  { label: "Easy", value: solvedEasy, total: easy, color: "text-green-500" },
-                  { label: "Medium", value: solvedMedium, total: medium, color: "text-yellow-500" },
-                  { label: "Hard", value: solvedHard, total: hard, color: "text-red-500" },
-                ].map(({ label, value, total, color }) => (
+                {breakdown.map(({ label, value, total, color }) => (
                   <div key={label} className="flex flex-col items-center gap-1">
                     <div className="relative">
                       <ProgressRing value={value} max={total} color={color} size={72} />

@@ -17,6 +17,8 @@ declare global {
       log: Logger;
       /** Present once `requireAuth`/`optionalAuth` has run and a token verified. */
       auth?: VerifiedIdentity;
+      /** Set by `requireAdmin`: true for SUPER_ADMIN_USER_ID, false for a DB admin. */
+      isSuperAdmin?: boolean;
       /** Output of the zod schemas declared for this route. */
       validated: {
         body?: unknown;

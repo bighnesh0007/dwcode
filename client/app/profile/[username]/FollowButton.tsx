@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import { apiRequest } from "@/lib/apiClient";
 
 export default function FollowButton({
   targetUsername,
@@ -34,15 +35,11 @@ export default function FollowButton({
       onClick={async () => {
         setLoading(true);
         try {
-          const res = await fetch("/api/profile/follow", {
+          const data = await apiRequest<{ following: boolean }>("/api/v1/profile/follow", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ targetUsername })
+            body: { targetUsername },
           });
-          const data = await res.json();
-          if (data.following !== undefined) {
-            setFollowing(data.following);
-          }
+          setFollowing(data.following);
         } catch (e) {
           console.error(e);
         } finally {

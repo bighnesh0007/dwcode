@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { apiRequest } from "@/lib/apiClient";
 
 export function GuestMigration({ userId }: { userId: string }) {
   useEffect(() => {
@@ -16,16 +17,14 @@ export function GuestMigration({ userId }: { userId: string }) {
         return;
       }
 
-      fetch("/api/migrate-guest-progress", {
+      // Disabled server-side (503 NOT_CONFIGURED) until guest solves can be
+      // re-graded; a failure keeps localStorage so the carryover resumes later.
+      apiRequest<{ migrated: number }>("/api/v1/guest-progress", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slugs }),
+        body: { slugs },
       })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error === undefined) {
-            localStorage.removeItem("dwcode_guest_progress");
-          }
+        .then(() => {
+          localStorage.removeItem("dwcode_guest_progress");
         })
         .catch(() => {
           // Leave localStorage intact for next attempt
