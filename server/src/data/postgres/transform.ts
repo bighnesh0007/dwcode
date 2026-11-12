@@ -247,6 +247,7 @@ export function toContest(d: Doc): Mapped<{
         isPublic: d.isPublic !== false,
         maxParticipants: num(d.maxParticipants, 100),
         inviteCode: strOrNull(d.inviteCode)?.toUpperCase() ?? null,
+        seriesKey: strOrNull(d.seriesKey),
         createdAt: date(d.createdAt),
       },
       problems: problemIds.map((problemId, position) => ({ contestId: id, problemId, position })),

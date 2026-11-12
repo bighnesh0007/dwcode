@@ -252,6 +252,12 @@ export const contests = pgTable(
     isPublic: boolean("is_public").notNull().default(true),
     maxParticipants: integer("max_participants").notNull().default(100),
     inviteCode: text("invite_code").unique(),
+    /**
+     * Idempotency key for auto-generated contests (the weekly scheduler). The
+     * unique index is how a second scheduler instance learns it lost the race.
+     * Null for user-created contests; Postgres allows many nulls in a unique column.
+     */
+    seriesKey: text("series_key").unique(),
     createdAt: createdAt(),
   },
   (t) => [

@@ -239,6 +239,21 @@ describe.skipIf(!MONGO_TEST_URL || !PG_TEST_URL)("Mongo ↔ Postgres parity in s
       duration: 60, status: "upcoming", isPublic: false, maxParticipants: 5, inviteCode: "NEW1",
     });
     await contests.listVisible("u1");
+    const series = await contests.create({
+      title: "Weekly W46", description: "", createdBy: "system", createdByName: "DWCode", problems: [P1],
+      problemSlugs: ["odd-or-even"], startTime: new Date(Date.now() - 3_600_000), endTime: new Date(Date.now() + 3_600_000),
+      duration: 120, status: "active", isPublic: true, maxParticipants: 1, inviteCode: undefined, seriesKey: "weekly-W46",
+    });
+    const seriesId = String(series._id);
+    await contests.existsBySeriesKey("weekly-W46");
+    const joining = { userId: "u2", userName: "bob", userImageUrl: "", score: 0, solvedProblems: [], joinedAt: new Date() };
+    await contests.joinIfOpen(seriesId, joining, { now: new Date(), requirePublic: true });
+    await contests.joinIfOpen(seriesId, { ...joining, userId: "u3" }, { now: new Date(), requirePublic: true });
+    await contests.joinState(seriesId, "u2");
+    await contests.findById(seriesId);
+    await contests.removeParticipant(seriesId, "u2");
+    await contests.deleteOwned(seriesId, "u2");
+    await contests.deleteOwned(seriesId, "system");
     await contests.deleteById(String(contest._id));
     await contests.listVisible("u1");
 
