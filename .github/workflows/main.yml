@@ -255,6 +255,14 @@ jobs:
         if: needs.changes.outputs.server == 'true'
         run: npm run lint
 
+      # mongodb-memory-server downloads its binary on first use. Test files run
+      # in parallel, and on a cold cache they race on the same lockfile and
+      # .downloading file (UnableToUnlockLockfileError / ENOENT). Fetch it once,
+      # serially, before any test starts.
+      - name: Fetch the MongoDB test binary
+        if: needs.changes.outputs.server == 'true'
+        run: node -e "import('mongodb-memory-server').then((m) => m.MongoBinary.getPath()).then((p) => console.log(p))"
+
       # Includes the 25 characterization tests that pin the frozen legacy
       # DataWeave contract — the safety net for redeploying the live proxy.
       - name: Test
