@@ -55,6 +55,11 @@ describe.skipIf(!URL)("BullMqJobQueue (real Redis)", () => {
 
   afterAll(async () => {
     await Promise.all(opened.map((q) => q.close()));
+    // A worker's background check that started before close() can still be
+    // mid-command when close() resolves; quitting under it rejects that command
+    // unhandled. Seen only under parallel load (about 1 run in 15 with the other
+    // Redis suites). Let in-flight commands land first.
+    await new Promise((r) => setTimeout(r, 500));
     await Promise.all(connections.map((c) => c.quit()));
   });
 
