@@ -75,9 +75,12 @@ export default tseslint.config(
     },
   },
 
-  // src/config/ is the one place allowed to touch process.env.
+  // src/config/ is the one place allowed to touch process.env — plus entry
+  // points that run outside the app (the Drizzle CLI config, operator scripts)
+  // and the database suites, which point each test at a fresh database by
+  // setting DATABASE_URL / MONGODB_URI before the lazy connection opens.
   {
-    files: ["src/config/**/*.ts"],
+    files: ["src/config/**/*.ts", "drizzle.config.ts", "scripts/**/*.ts", "tests/postgres/**/*.ts"],
     rules: { "no-restricted-properties": "off" },
   },
 
@@ -100,9 +103,9 @@ export default tseslint.config(
     },
   },
 
-  // Tests: console output and non-null assertions are fine.
+  // Tests and operator scripts: console output and non-null assertions are fine.
   {
-    files: ["tests/**/*.ts"],
+    files: ["tests/**/*.ts", "scripts/**/*.ts"],
     rules: {
       "no-console": "off",
       "@typescript-eslint/no-non-null-assertion": "off",

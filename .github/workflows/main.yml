@@ -38,6 +38,7 @@ jobs:
   changes:
     name: Detect changed areas
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       client: ${{ steps.filter.outputs.client }}
       server: ${{ steps.filter.outputs.server }}
@@ -70,9 +71,22 @@ jobs:
     name: Frontend · client
     needs: changes
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: client
+
+    # #23: a disposable Postgres for the integration tests. Each test file
+    # creates its own database. The Mongo parity suite runs in `parity` below.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dwcode_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
 
     steps:
       - uses: actions/checkout@v7
@@ -117,6 +131,13 @@ jobs:
       - name: Test
         if: needs.changes.outputs.client == 'true'
         run: npm test
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
+
+      # Fails when schema.ts and the committed migrations disagree.
+      - name: Postgres migrations match schema
+        if: needs.changes.outputs.client == 'true'
+        run: npx drizzle-kit check
 
       - name: Build
         if: needs.changes.outputs.client == 'true'
@@ -138,6 +159,65 @@ jobs:
         if: needs.changes.outputs.client != 'true'
         run: echo "No changes under client/ — checks skipped."
 
+  # ── Mongo ↔ Postgres parity (#23) ───────────────────────────────────────────
+  # Runs every repository function against both stores in shadow mode.
+  #
+  # ubuntu-22.04, not ubuntu-latest: MongoDB refuses to start on Linux 6.19+
+  # (SERVER-121912, no fixed release yet), and a container shares the host's
+  # kernel, so no image tag avoids it. Move back once MongoDB ships the fix.
+  parity:
+    name: Database parity · Mongo ↔ Postgres
+    needs: changes
+    if: needs.changes.outputs.client == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: client
+
+    services:
+      mongo:
+        image: mongo:8.0
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'" --health-interval 5s --health-timeout 5s --health-retries 12
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dwcode_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+
+    steps:
+      - name: Runner kernel (MongoDB needs < 6.19)
+        working-directory: .
+        run: uname -r
+
+      - uses: actions/checkout@v7
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies (workspace root)
+        working-directory: .
+        run: npm ci
+
+      - name: Build shared package
+        working-directory: .
+        run: npm run build:shared
+
+      - name: Parity suite
+        run: npx vitest run __tests__/postgres/parity.integration.test.ts
+        env:
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
+          MONGO_TEST_URL: mongodb://localhost:27017/dwcode_parity
+
   # ── Backend ─────────────────────────────────────────────────────────────────
   backend:
     name: Backend · server
@@ -152,6 +232,7 @@ jobs:
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: server
@@ -260,6 +341,7 @@ jobs:
   security:
     name: Secret hygiene
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
 
@@ -335,6 +417,7 @@ jobs:
   dependencies:
     name: Dependency audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
 
@@ -376,6 +459,7 @@ jobs:
     name: Docker image builds
     needs: changes
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 

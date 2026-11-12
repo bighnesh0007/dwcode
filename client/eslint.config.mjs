@@ -47,6 +47,34 @@ const eslintConfig = defineConfig([
       "no-implicit-coercion": "error",
     },
   },
+  // Data access goes through lib/repositories — the ONLY code that may touch
+  // Mongoose (docs/audit/07-architecture-improvements.md, REF-06). Keeping the
+  // ORM behind one layer is what lets the database be replaced (issue #23)
+  // without rewriting every route. Type-only imports are allowed: they are
+  // erased at compile time.
+  {
+    files: typeScriptFiles,
+    ignores: ["lib/repositories/**", "models/**", "lib/db.ts", "db/**", "scripts/**", "__tests__/**"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/models/*", "mongoose", "@/lib/db"],
+              allowTypeImports: true,
+              message: "Use a repository from @/lib/repositories instead of reaching the database directly.",
+            },
+            {
+              group: ["@/db/*", "drizzle-orm", "drizzle-orm/*", "pg"],
+              allowTypeImports: true,
+              message: "PostgreSQL is reached only through @/lib/repositories (issue #23).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

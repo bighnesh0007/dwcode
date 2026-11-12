@@ -35,6 +35,13 @@ const envSchema = z.object({
   // builds indexes on production collections. Use `npm run indexes` deliberately.
   MONGO_AUTO_INDEX: booleanish.default(false),
 
+  // ── PostgreSQL migration (issue #23) ───────────────────────────────────────
+  // Which database the repositories in src/data/ run on: "mongo" only,
+  // "shadow" (serve Mongo, mirror writes and compare reads on Postgres, log any
+  // difference, never surface it), or "postgres" only.
+  DATA_BACKEND: z.enum(["mongo", "shadow", "postgres"]).default("mongo"),
+  DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\//, "must be a postgres:// URL").optional(),
+
   // ── Clerk ──────────────────────────────────────────────────────────────────
   CLERK_SECRET_KEY: z.string().min(1).optional(),
   CLERK_PUBLISHABLE_KEY: z.string().min(1).optional(),
@@ -130,6 +137,9 @@ const envSchema = z.object({
 
 /** Cross-field rules a per-field schema cannot express. */
 const validatedEnvSchema = envSchema.superRefine((env, ctx) => {
+  if (env.DATA_BACKEND !== "mongo" && env.DATABASE_URL === undefined) {
+    ctx.addIssue({ code: "custom", path: ["DATABASE_URL"], message: `required when DATA_BACKEND=${env.DATA_BACKEND}` });
+  }
   // In production the compiler runs untrusted code and must only answer us.
   if (env.DW_BACKEND === "service" && env.NODE_ENV === "production" && env.COMPILER_AUTH_TOKEN === undefined) {
     ctx.addIssue({ code: "custom", path: ["COMPILER_AUTH_TOKEN"], message: "required in production" });

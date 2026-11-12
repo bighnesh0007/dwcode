@@ -316,7 +316,7 @@
 | **REF-03** | Port problems + submissions to `/api/v1`; Next.js routes become thin proxies | XL | 6d | FEAT-01, REF-02 |
 | **REF-04** | Port contests + leaderboard to `/api/v1` | L | 4d | REF-03 |
 | **REF-05** | Port blog, comments, bookmarks, notes to `/api/v1` | L | 4d | REF-03 |
-| **REF-06** | Repository layer for all client-side data access (no Mongoose in route handlers) | L | 3d | REF-02 |
+| **REF-06** | ✅ Done — repository layer for all client-side data access (`client/lib/repositories/`), enforced by ESLint `no-restricted-imports` | L | 3d | REF-02 |
 | **REF-07** | Validated config module for the client, mirroring [server/src/config/env.ts](../../server/src/config/env.ts) | M | 1d | — |
 | **REF-08** | Structured logging in the client (pino), request-id correlation across both halves | M | 1d | SEC-16 |
 | **REF-09** | Central RBAC module: `can(user, action, resource)` replacing ad-hoc `isAdmin` checks | M | 1d | — |

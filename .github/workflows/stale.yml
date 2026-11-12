@@ -1,0 +1,35 @@
+name: Stale
+
+# Nudges, then closes, issues and PRs with no activity. Anything a maintainer
+# has prioritised, scheduled or pinned is exempt, so real work is never closed.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/stale@v9
+        with:
+          days-before-stale: 60
+          days-before-close: 14
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: pinned,security,P0-critical,P1-high,blocked,in-progress,good first issue,help wanted
+          exempt-pr-labels: pinned,security,dependencies
+          exempt-all-milestones: true
+          stale-issue-message: >-
+            This issue has had no activity for 60 days. It will close in 14 days
+            unless someone comments or a maintainer adds the `pinned` label.
+          stale-pr-message: >-
+            This pull request has had no activity for 60 days. It will close in
+            14 days unless it is updated.
+          close-issue-reason: not_planned

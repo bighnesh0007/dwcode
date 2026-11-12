@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "DWCode application backend — business logic, data access, validation and integrations.",
+  "description": "DWCode application backend \u2014 business logic, data access, validation and integrations.",
   "license": "MIT",
   "engines": {
     "node": ">=22"
@@ -20,7 +20,11 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "audit:problems": "node --env-file-if-exists=.env scripts/audit-problems.mjs",
-    "migrate:odd-even": "node --env-file-if-exists=.env scripts/migrations/003-fix-odd-even-solution.mjs"
+    "migrate:odd-even": "node --env-file-if-exists=.env scripts/migrations/003-fix-odd-even-solution.mjs",
+    "pg:generate": "drizzle-kit generate",
+    "pg:migrate": "drizzle-kit migrate",
+    "pg:check": "drizzle-kit check",
+    "pg:copy": "node --env-file-if-exists=.env --import tsx/esm scripts/pg/copy-from-mongo.ts"
   },
   "dependencies": {
     "@clerk/backend": "3.26.1",
@@ -38,7 +42,9 @@
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",
     "rate-limit-redis": "^4.3.1",
-    "zod": "^4.0.0"
+    "zod": "^4.0.0",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/compression": "^1.8.0",
@@ -54,6 +60,8 @@
     "tsx": "^4.0.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.64.0",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11"
   }
 }

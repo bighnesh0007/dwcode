@@ -1,0 +1,74 @@
+name: PR checks
+
+# Fast, metadata-level checks on every pull request. The build and tests live in
+# main.yml; these catch what a build cannot.
+
+on:
+  pull_request:
+    branches: [master]
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  # A new dependency with a known vulnerability or a disallowed licence fails
+  # here, before it reaches master — main.yml's audit only sees the result.
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-3.0, AGPL-3.0
+          comment-summary-in-pr: on-failure
+
+  # PR titles become squash-commit subjects and release notes, so they follow
+  # the Conventional Commits style CONTRIBUTING.md already asks for.
+  # pull_request_target so it also works on fork PRs; it reads only the title
+  # and never checks out PR code.
+  title:
+    name: Conventional PR title
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@e32d7e603df1aa1ba07e981f2a23455dee596825 # v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            refactor
+            perf
+            test
+            chore
+            ci
+            build
+            revert
+
+  # Area labels from the paths a PR touches (.github/labeler.yml).
+  label:
+    name: Label by path
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          sync-labels: false

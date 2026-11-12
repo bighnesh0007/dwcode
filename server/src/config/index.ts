@@ -89,6 +89,24 @@ export const config = Object.freeze({
 
 export type Config = typeof config;
 
+/** Which database the src/data repositories use (issue #23). */
+export const DATA_BACKEND = env.DATA_BACKEND;
+export type DataBackend = Env["DATA_BACKEND"];
+
+/*
+ * Connection strings read LIVE, not from the frozen snapshot above. The
+ * Postgres pool and the repositories' Mongo connection are created lazily on
+ * first use, and the database test suites point them at a fresh database per
+ * suite by setting these variables first. Still the only process.env reads.
+ */
+export function liveDatabaseUrl(): string | undefined {
+  return process.env.DATABASE_URL ?? env.DATABASE_URL;
+}
+
+export function liveMongoUri(): string | undefined {
+  return process.env.MONGODB_URI ?? env.MONGODB_URI;
+}
+
 export const capabilities = resolveCapabilities(env);
 
 export function hasCapability(capability: Capability): boolean {

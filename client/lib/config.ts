@@ -106,6 +106,7 @@ export const GUEST_MIGRATION_ENABLED = booleanish(
  */
 export const GRADE_HIDDEN_TESTS = booleanish("GRADE_HIDDEN_TESTS", RAW.GRADE_HIDDEN_TESTS);
 
+
 // ── Capability reporting ─────────────────────────────────────────────────────
 
 /**

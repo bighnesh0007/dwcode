@@ -1,0 +1,129 @@
+# Repository labels, as code.
+#
+# Applied by .github/workflows/repo-sync.yml on every push to master that
+# changes this file (and on manual dispatch). Labels are created or updated —
+# never deleted — so renaming one here leaves the old one in place for a
+# maintainer to remove by hand.
+#
+# Names used by issue templates, Dependabot and the PR labeler must exist here:
+#   bug, enhancement, content, problem-submission, needs-triage,
+#   dependencies, ci, area/*.
+
+# ── Type: what kind of change ────────────────────────────────────────────────
+- name: bug
+  color: "d73a4a"
+  description: Something is broken
+- name: enhancement
+  color: "a2eeef"
+  description: New feature or improvement
+- name: documentation
+  color: "0075ca"
+  description: Docs only
+- name: security
+  color: "b60205"
+  description: Security fix or hardening (report vulnerabilities privately — see SECURITY.md)
+- name: performance
+  color: "fbca04"
+  description: Faster or cheaper, same behaviour
+- name: refactor
+  color: "c5def5"
+  description: Restructuring with no behaviour change
+- name: chore
+  color: "ededed"
+  description: Maintenance, tooling, housekeeping
+- name: dependencies
+  color: "0366d6"
+  description: Dependency updates
+- name: ci
+  color: "1d76db"
+  description: CI/CD, workflows, deployment config
+- name: content
+  color: "5319e7"
+  description: Problem bank and learning content
+- name: migration
+  color: "8a2be2"
+  description: Database or data migration work (see ROADMAP.md)
+- name: breaking-change
+  color: "b60205"
+  description: Changes an API, schema or deployment contract
+
+# ── Area: where in the codebase ──────────────────────────────────────────────
+- name: area/client
+  color: "bfdadc"
+  description: Next.js app in client/
+- name: area/server
+  color: "bfdadc"
+  description: Express backend in server/
+- name: area/shared
+  color: "bfdadc"
+  description: "@dwcode/shared package"
+- name: area/playground
+  color: "bfdadc"
+  description: The free DataWeave playground
+- name: area/grading
+  color: "bfdadc"
+  description: Submission grading and the compiler proxy
+- name: area/database
+  color: "bfdadc"
+  description: Models, repositories, migrations
+- name: area/infra
+  color: "bfdadc"
+  description: Docker, Vercel, Render, GitHub config
+- name: area/docs
+  color: "bfdadc"
+  description: docs/ and top-level markdown
+
+# ── Priority ─────────────────────────────────────────────────────────────────
+- name: P0-critical
+  color: "b60205"
+  description: Production broken or data at risk — drop everything
+- name: P1-high
+  color: "d93f0b"
+  description: Important; next up
+- name: P2-medium
+  color: "fbca04"
+  description: Should be done
+- name: P3-low
+  color: "c2e0c6"
+  description: Nice to have
+
+# ── Status / triage ──────────────────────────────────────────────────────────
+- name: needs-triage
+  color: "ededed"
+  description: Not yet reviewed by a maintainer
+- name: needs-info
+  color: "d876e3"
+  description: Waiting on the reporter for details
+- name: blocked
+  color: "000000"
+  description: Waiting on something outside this issue
+- name: in-progress
+  color: "0e8a16"
+  description: Someone is working on it
+- name: problem-submission
+  color: "5319e7"
+  description: A proposed new problem
+- name: good first issue
+  color: "7057ff"
+  description: Small, well-scoped — good for new contributors
+- name: help wanted
+  color: "008672"
+  description: Maintainers would welcome a PR
+- name: question
+  color: "d876e3"
+  description: A question rather than a change request
+- name: duplicate
+  color: "cfd3d7"
+  description: Already tracked elsewhere
+- name: wontfix
+  color: "ffffff"
+  description: Will not be worked on
+- name: invalid
+  color: "e4e669"
+  description: Not a valid report
+- name: stale
+  color: "eeeeee"
+  description: No activity for a while — will close soon unless updated
+- name: pinned
+  color: "0e8a16"
+  description: Exempt from the stale bot
