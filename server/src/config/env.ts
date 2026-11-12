@@ -137,6 +137,17 @@ const envSchema = z.object({
 
 /** Cross-field rules a per-field schema cannot express. */
 const validatedEnvSchema = envSchema.superRefine((env, ctx) => {
+  // The server's repositories still query Mongo directly; the backend switch
+  // only reaches the data/repositories facades. Until every repository goes
+  // through them, `shadow`/`postgres` would silently keep serving Mongo, so
+  // refuse to start rather than pretend. Remove when the wiring is complete.
+  if (env.DATA_BACKEND !== "mongo") {
+    ctx.addIssue({
+      code: "custom",
+      path: ["DATA_BACKEND"],
+      message: `${env.DATA_BACKEND} is not wired into the server's repositories yet; only "mongo" is supported`,
+    });
+  }
   if (env.DATA_BACKEND !== "mongo" && env.DATABASE_URL === undefined) {
     ctx.addIssue({ code: "custom", path: ["DATABASE_URL"], message: `required when DATA_BACKEND=${env.DATA_BACKEND}` });
   }
