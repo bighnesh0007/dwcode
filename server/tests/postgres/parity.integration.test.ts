@@ -286,7 +286,8 @@ describe.skipIf(!MONGO_TEST_URL || !PG_TEST_URL)("Mongo ↔ Postgres parity in s
     await submissions.listRecentByUser("u1", 5);
     await submissions.listRecentByUser("u1", 5, "odd-or-even");
     await submissions.activityStats("u1", new Date(0));
-    await submissions.leaderboardRows(["", "Anonymous", "Migrated"]);
+    const board = await submissions.leaderboardRows(["", "Anonymous", "Migrated"]);
+    expect(board.find((r) => r.userId === "u4")?.firstReal?.name).toBe("Early");
     await problems.countByDifficulty();
     await problems.findFullByIdOrSlug("odd-or-even");
     await problems.summariesByIdsOrSlugs({ ids: [String(created._id)], slugs: ["odd-or-even"] }, 10);
