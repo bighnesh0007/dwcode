@@ -10,8 +10,6 @@ export class BookmarkService {
   }
 
   async toggle(userId: string, problemId: string, problemSlug: string): Promise<{ bookmarked: boolean }> {
-    if (await this.bookmarks.remove(userId, problemId)) return { bookmarked: false };
-    await this.bookmarks.create(userId, problemId, problemSlug);
-    return { bookmarked: true };
+    return { bookmarked: await this.bookmarks.toggle(userId, problemId, problemSlug) };
   }
 }

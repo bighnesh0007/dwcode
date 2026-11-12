@@ -1,19 +1,13 @@
-/** Bookmark persistence. */
-import mongoose from "mongoose";
-import { Bookmark } from "../models/Bookmark.ts";
+/** Bookmark persistence. Delegates to data/repositories, where DATA_BACKEND picks the database. */
+import * as bookmarks from "../data/repositories/bookmarks.ts";
 
 export class BookmarkRepository {
   listByUser(userId: string) {
-    return Bookmark.find({ userId }).lean();
+    return bookmarks.listByUser(userId);
   }
 
-  /** Deletes the bookmark if present; true when one was removed. */
-  async remove(userId: string, problemId: string): Promise<boolean> {
-    const res = await Bookmark.deleteOne({ userId, problemId: new mongoose.Types.ObjectId(problemId) });
-    return res.deletedCount > 0;
-  }
-
-  async create(userId: string, problemId: string, problemSlug: string): Promise<void> {
-    await Bookmark.create({ userId, problemId: new mongoose.Types.ObjectId(problemId), problemSlug });
+  /** Add the bookmark if absent, remove it if present. Returns the new state. */
+  toggle(userId: string, problemId: string, problemSlug: string): Promise<boolean> {
+    return bookmarks.toggle(userId, problemId, problemSlug);
   }
 }

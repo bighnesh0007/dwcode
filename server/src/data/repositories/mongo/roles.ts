@@ -29,7 +29,9 @@ export async function grantAdmin(targetUserId: string, targetUserName: string, g
   );
 }
 
-export async function revokeAdmin(targetUserId: string) {
+/** True when a role row was removed. */
+export async function revokeAdmin(targetUserId: string): Promise<boolean> {
   await connect();
-  await UserRole.deleteOne({ userId: targetUserId });
+  const res = await UserRole.deleteOne({ userId: targetUserId });
+  return res.deletedCount > 0;
 }

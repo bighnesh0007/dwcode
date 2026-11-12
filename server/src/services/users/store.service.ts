@@ -51,15 +51,10 @@ export class StoreService {
     const balance = await this.coins.debitIfSufficient(userId, item.cost, "store_purchase", `Purchased ${item.name}`);
     if (balance === null) throw new InsufficientCoinsError(item.cost, await this.coins.balance(userId));
 
-    try {
-      await this.purchases.record(userId, item.id, item.cost);
-    } catch (err) {
-      if ((err as { code?: unknown }).code === 11000) {
-        // A concurrent purchase of the same item recorded first: refund ours.
-        await this.coins.award(userId, item.cost, "store_refund", `Refund — ${item.name} already owned`);
-        return { success: true, alreadyOwned: true, itemId: item.id, balance: await this.coins.balance(userId) };
-      }
-      throw err;
+    if ((await this.purchases.record(userId, item.id, item.cost)) === "duplicate") {
+      // A concurrent purchase of the same item recorded first: refund ours.
+      await this.coins.award(userId, item.cost, "store_refund", `Refund — ${item.name} already owned`);
+      return { success: true, alreadyOwned: true, itemId: item.id, balance: await this.coins.balance(userId) };
     }
     return { success: true, itemId: item.id, balance };
   }

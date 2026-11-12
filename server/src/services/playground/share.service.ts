@@ -37,14 +37,9 @@ export class PlaygroundShareService {
       expectedOutput: t.expectedOutput ?? "",
     }));
 
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      try {
-        return await this.repo.create({ slug: this.makeId(), script: input.script, files, testCases, userId: userId ?? "" });
-      } catch (error) {
-        if ((error as { code?: number }).code !== 11000) throw error;
-      }
-    }
-    throw new InternalError("Could not create share link.");
+    const slug = await this.repo.create(this.makeId, { script: input.script, files, testCases, userId: userId ?? "" });
+    if (!slug) throw new InternalError("Could not create share link.");
+    return slug;
   }
 
   async load(id: string): Promise<SnippetView> {

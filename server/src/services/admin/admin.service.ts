@@ -8,7 +8,6 @@
 import { ForbiddenError, NotFoundError } from "../../errors/AppError.ts";
 import { ErrorCode } from "../../errors/codes.ts";
 import type { AdminRepository, AdminRoleRow } from "../../repositories/admin.repository.ts";
-import type { Clock } from "../../types/ports.ts";
 
 export interface AdminUserRow {
   userId: string;
@@ -36,7 +35,6 @@ export interface AdminUsersView {
 export class AdminService {
   constructor(
     private readonly repo: AdminRepository,
-    private readonly clock: Clock,
     private readonly superAdminId: string,
   ) {}
 
@@ -111,7 +109,6 @@ export class AdminService {
       targetUserId: target.userId,
       targetUserName: target.userName,
       grantedBy: callerId,
-      now: this.clock.now(),
     });
   }
 

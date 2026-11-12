@@ -22,6 +22,8 @@ export async function grantAdmin(targetUserId: string, targetUserName: string, g
   await db().insert(userRoles).values(row).onConflictDoUpdate({ target: userRoles.userId, set: row });
 }
 
-export async function revokeAdmin(targetUserId: string) {
-  await db().delete(userRoles).where(eq(userRoles.userId, targetUserId));
+/** True when a role row was removed. */
+export async function revokeAdmin(targetUserId: string): Promise<boolean> {
+  const removed = await db().delete(userRoles).where(eq(userRoles.userId, targetUserId)).returning({ userId: userRoles.userId });
+  return removed.length > 0;
 }

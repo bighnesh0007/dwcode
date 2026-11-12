@@ -262,6 +262,8 @@ describe.skipIf(!MONGO_TEST_URL || !PG_TEST_URL)("Mongo ↔ Postgres parity in s
     await github.findByUserId("u3");
     const slug = await snippets.createWithUniqueSlug(() => "shared1", EMPTY_SNIPPET);
     await snippets.findBySlug(slug ?? "");
+    const owned = await snippets.createWithUniqueSlug(() => "shared2", { ...EMPTY_SNIPPET, userId: "u3" });
+    await snippets.findBySlug(owned ?? "");
 
     await problems.deleteById(String(created._id));
     await problems.listPublic({});
