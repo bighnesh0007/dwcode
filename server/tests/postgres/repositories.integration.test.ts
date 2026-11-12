@@ -151,13 +151,17 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       await profiles.follow("u2", "u1");
       await profiles.follow("u2", "u2");
       expect(await profiles.findByUserId("u2")).toMatchObject({ following: ["u1"] });
-      await profiles.unfollow("u2", "u1");
+      expect(await profiles.unfollow("u2", "u1")).toBe(true);
       expect(await profiles.isFollowing("u2", "u1")).toBe(false);
+      expect(await profiles.unfollow("u2", "u1")).toBe(false);
     });
 
     it("creates and renames profiles, rejecting a taken username", async () => {
       expect(await profiles.create("u3", "carol")).toMatchObject({ userId: "u3", bio: "", followers: [] });
       expect(await profiles.upsertUsernameAndBio("u3", "caroline", "hi")).toMatchObject({ username: "caroline", bio: "hi" });
+      // A rename without a bio keeps the stored one.
+      expect(await profiles.upsertUsernameAndBio("u3", "carrie")).toMatchObject({ username: "carrie", bio: "hi" });
+      expect(await profiles.upsertUsernameAndBio("u3", "caroline", "hi")).toMatchObject({ bio: "hi" });
       await expect(profiles.create("u4", "alice")).rejects.toSatisfy(isDuplicateKeyError);
       expect((await profiles.usernamesByUserId(["u1", "u3"])).get("u3")).toBe("caroline");
     });

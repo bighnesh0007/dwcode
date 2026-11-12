@@ -34,12 +34,15 @@ export async function create(userId: string, username: string) {
   return doc.toObject();
 }
 
-/** Set username and bio, creating the profile if it does not exist. */
-export async function upsertUsernameAndBio(userId: string, username: string, bio: unknown) {
+/**
+ * Set username (and bio when given), creating the profile if it does not exist.
+ * An omitted bio leaves the stored one alone, so a rename never wipes it.
+ */
+export async function upsertUsernameAndBio(userId: string, username: string, bio?: string) {
   await connect();
   return UserProfile.findOneAndUpdate(
     { userId },
-    { username, bio },
+    { $set: { username, ...(bio === undefined ? {} : { bio }) } },
     { returnDocument: "after", upsert: true },
   ).lean();
 }
@@ -56,10 +59,16 @@ export async function follow(followerId: string, targetUserId: string) {
   await UserProfile.updateOne({ userId: targetUserId }, { $addToSet: { followers: followerId } });
 }
 
-export async function unfollow(followerId: string, targetUserId: string) {
+/** Remove the follow edge if present. True when an edge was removed. */
+export async function unfollow(followerId: string, targetUserId: string): Promise<boolean> {
   await connect();
-  await UserProfile.updateOne({ userId: followerId }, { $pull: { following: targetUserId } });
+  const res = await UserProfile.updateOne(
+    { userId: followerId, following: targetUserId },
+    { $pull: { following: targetUserId } },
+  );
+  if (res.modifiedCount === 0) return false;
   await UserProfile.updateOne({ userId: targetUserId }, { $pull: { followers: followerId } });
+  return true;
 }
 
 /** userId → username, for the given users. One query, never per-row. */

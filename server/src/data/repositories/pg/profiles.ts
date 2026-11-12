@@ -42,10 +42,14 @@ export async function create(userId: string, username: string, preset?: { create
 }
 
 /** Set username and bio, creating the profile if it does not exist. */
-export async function upsertUsernameAndBio(userId: string, username: string, bio: unknown) {
-  const set = { username, bio: typeof bio === "string" ? bio : "", updatedAt: new Date() };
-  await db().insert(profiles).values({ userId, ...set })
-    .onConflictDoUpdate({ target: profiles.userId, set });
+/** An omitted bio leaves the stored one alone, so a rename never wipes it. */
+export async function upsertUsernameAndBio(userId: string, username: string, bio?: string) {
+  const now = new Date();
+  await db().insert(profiles).values({ userId, username, bio: bio ?? "", updatedAt: now })
+    .onConflictDoUpdate({
+      target: profiles.userId,
+      set: { username, ...(bio === undefined ? {} : { bio }), updatedAt: now },
+    });
   return findByUserId(userId);
 }
 
@@ -68,10 +72,15 @@ export async function follow(followerId: string, targetUserId: string) {
   });
 }
 
-export async function unfollow(followerId: string, targetUserId: string) {
-  await db().transaction(async (t) => {
-    await t.delete(follows).where(and(eq(follows.followerId, followerId), eq(follows.followedId, targetUserId)));
+/** True when an edge was removed; nothing is touched otherwise, as on Mongo. */
+export async function unfollow(followerId: string, targetUserId: string): Promise<boolean> {
+  return db().transaction(async (t) => {
+    const removed = await t.delete(follows)
+      .where(and(eq(follows.followerId, followerId), eq(follows.followedId, targetUserId)))
+      .returning({ f: follows.followerId });
+    if (removed.length === 0) return false;
     await touch(t, [followerId, targetUserId]);
+    return true;
   });
 }
 
