@@ -1,6 +1,6 @@
-/** Comment persistence. Mongoose queries only — no business rules. */
-import mongoose from "mongoose";
-import { Comment, type CommentTargetType } from "../models/Comment.ts";
+/** Comment persistence — no business rules. Delegates to data/repositories, where DATA_BACKEND picks the database. */
+import type { CommentTargetType } from "../models/Comment.ts";
+import * as comments from "../data/repositories/comments.ts";
 
 export interface CommentTarget {
   targetType: CommentTargetType;
@@ -14,48 +14,28 @@ export interface NewComment extends CommentTarget {
   content: string;
 }
 
-/**
- * Match documents written BEFORE and AFTER migration 002: a problem comment from
- * the previous release has `problemSlug` but no `targetId`.
- */
-function matchFor(target: CommentTarget): Record<string, unknown> {
-  if (target.targetType === "problem") {
-    return {
-      $or: [
-        { targetType: "problem", targetId: target.targetId },
-        { targetId: { $exists: false }, problemSlug: target.targetId },
-      ],
-    };
-  }
-  return { targetType: target.targetType, targetId: target.targetId };
-}
 
 export class CommentRepository {
-  /** Newest first. Served by { targetType, targetId, createdAt }. */
+  /** Newest first; also matches problem comments written before migration 002. */
   listForTarget(target: CommentTarget, limit: number) {
-    return Comment.find(matchFor(target)).sort({ createdAt: -1 }).limit(limit).lean();
+    return comments.listForTarget(target, limit);
   }
 
-  async create(data: NewComment) {
-    const doc = await Comment.create({
-      targetType: data.targetType,
-      targetId: data.targetId,
-      // Dual-write during the 002 rollout so the previous release still sees it.
-      ...(data.targetType === "problem" ? { problemSlug: data.targetId } : {}),
-      userId: data.userId,
-      userName: data.userName,
-      userImageUrl: data.userImageUrl,
-      content: data.content,
-    });
-    return doc.toObject();
+  /** Dual-writes `problemSlug` for problem comments during the 002 rollout. */
+  create(data: NewComment) {
+    return comments.create(
+      { targetType: data.targetType, targetId: data.targetId },
+      { userId: data.userId, userName: data.userName, userImageUrl: data.userImageUrl },
+      data.content,
+    );
   }
 
   async findOwner(id: string): Promise<{ userId: string } | null> {
-    const doc = await Comment.findById(new mongoose.Types.ObjectId(id)).select("userId").lean();
-    return doc ? { userId: doc.userId } : null;
+    const userId = await comments.findAuthorId(id);
+    return userId === null ? null : { userId };
   }
 
-  async deleteById(id: string): Promise<void> {
-    await Comment.deleteOne({ _id: new mongoose.Types.ObjectId(id) });
+  deleteById(id: string): Promise<void> {
+    return comments.deleteById(id);
   }
 }

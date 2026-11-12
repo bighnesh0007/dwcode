@@ -213,7 +213,10 @@ describe.skipIf(!MONGO_TEST_URL || !PG_TEST_URL)("Mongo ↔ Postgres parity in s
 
     await profiles.create("u3", "carol");
     await profiles.upsertUsernameAndBio("u3", "caroline", "bio");
+    await profiles.upsertUsernameAndBio("u3", "caroline");
+    await profiles.findByUserId("u3");
     await profiles.follow("u3", "u1");
+    await profiles.unfollow("u1", "u2");
     await profiles.unfollow("u1", "u2");
     await profiles.findByUserId("u1");
     await profiles.findByUserId("u3");

@@ -1,5 +1,8 @@
-/** UserProfile persistence. Mongoose queries only — no business rules. */
-import { UserProfile } from "../models/UserProfile.ts";
+/**
+ * UserProfile persistence — no business rules. Delegates to data/repositories,
+ * where DATA_BACKEND picks the database.
+ */
+import * as profiles from "../data/repositories/profiles.ts";
 
 export interface ProfileRecord {
   userId: string;
@@ -30,72 +33,51 @@ function toRecord(doc: LeanProfile): ProfileRecord {
   };
 }
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 export class UserProfileRepository {
   async findByUserId(userId: string): Promise<ProfileRecord | null> {
-    const doc = await UserProfile.findOne({ userId }).lean();
+    const doc = await profiles.findByUserId(userId);
     return doc ? toRecord(doc) : null;
   }
 
   /** Exact username match (case-sensitive), as the follow route did. */
   async findByUsername(username: string): Promise<ProfileRecord | null> {
-    const doc = await UserProfile.findOne({ username }).lean();
+    const doc = await profiles.findByUsername(username);
     return doc ? toRecord(doc) : null;
   }
 
   /** Case-insensitive exact match; the input is regex-escaped. */
   async findByUsernameInsensitive(username: string): Promise<ProfileRecord | null> {
-    const doc = await UserProfile.findOne({
-      username: { $regex: `^${escapeRegex(username)}$`, $options: "i" },
-    }).lean();
+    const doc = await profiles.findByUsernameIgnoreCase(username);
     return doc ? toRecord(doc) : null;
   }
 
-  async usernameExists(username: string): Promise<boolean> {
-    return (await UserProfile.exists({ username })) !== null;
+  usernameExists(username: string): Promise<boolean> {
+    return profiles.usernameExists(username);
   }
 
   async create(userId: string, username: string): Promise<ProfileRecord> {
-    const doc = await UserProfile.create({ userId, username, bio: "" });
-    return toRecord(doc.toObject());
+    return toRecord(await profiles.create(userId, username));
   }
 
   /** Sets username (and bio when given); creates the profile when absent. */
   async upsertIdentity(userId: string, username: string, bio: string | undefined): Promise<ProfileRecord> {
-    const doc = await UserProfile.findOneAndUpdate(
-      { userId },
-      { $set: { username, ...(bio === undefined ? {} : { bio }) } },
-      { returnDocument: "after", upsert: true },
-    ).lean();
+    const doc = await profiles.upsertUsernameAndBio(userId, username, bio);
     if (!doc) throw new Error("upsert returned no document");
     return toRecord(doc);
   }
 
   /** Removes the follow edge if present. True when an edge was removed. */
-  async unfollow(userId: string, targetUserId: string): Promise<boolean> {
-    const res = await UserProfile.updateOne(
-      { userId, following: targetUserId },
-      { $pull: { following: targetUserId } },
-    );
-    if (res.modifiedCount === 0) return false;
-    await UserProfile.updateOne({ userId: targetUserId }, { $pull: { followers: userId } });
-    return true;
+  unfollow(userId: string, targetUserId: string): Promise<boolean> {
+    return profiles.unfollow(userId, targetUserId);
   }
 
-  async follow(userId: string, targetUserId: string): Promise<void> {
-    await UserProfile.updateOne({ userId }, { $addToSet: { following: targetUserId } });
-    await UserProfile.updateOne({ userId: targetUserId }, { $addToSet: { followers: userId } });
+  follow(userId: string, targetUserId: string): Promise<void> {
+    return profiles.follow(userId, targetUserId);
   }
 
   /** userId → username for a batch of users (one query, never per row). */
-  async usernamesFor(userIds: string[]): Promise<Map<string, string>> {
-    const map = new Map<string, string>();
-    if (userIds.length === 0) return map;
-    const rows = await UserProfile.find({ userId: { $in: userIds } }).select("userId username").lean();
-    for (const r of rows) map.set(r.userId, r.username);
-    return map;
+  usernamesFor(userIds: string[]): Promise<Map<string, string>> {
+    return profiles.usernamesByUserId(userIds);
   }
 }

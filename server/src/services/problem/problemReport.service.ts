@@ -5,7 +5,7 @@
  */
 import { NotFoundError } from "../../errors/AppError.ts";
 import type { ReportStatus } from "../../models/ProblemReport.ts";
-import { isDuplicateKeyError, type ProblemCatalogRepository } from "../../repositories/problemCatalog.repository.ts";
+import type { ProblemCatalogRepository } from "../../repositories/problemCatalog.repository.ts";
 import type { ProblemReportRepository } from "../../repositories/problemReport.repository.ts";
 import type { IdentityProvider } from "../../types/ports.ts";
 import type { CreateReportInput, UpdateReportInput } from "../../validation/problem.schema.ts";
@@ -33,21 +33,17 @@ export class ProblemReportService {
     if (!problemSlug) throw new NotFoundError("Problem not found.");
 
     const user = await this.identity.getUser(userId);
-    try {
-      const report = await this.reports.create({
-        problemId: input.problemId,
-        problemSlug,
-        userId,
-        userName: user?.displayName || "Anonymous",
-        reason: input.reason,
-        details: input.details,
-      });
-      return { report, alreadyReported: false };
-    } catch (error) {
-      // The partial unique index refused a second OPEN report: the intended outcome.
-      if (isDuplicateKeyError(error)) return { report: null, alreadyReported: true };
-      throw error;
-    }
+    const report = await this.reports.create({
+      problemId: input.problemId,
+      problemSlug,
+      userId,
+      userName: user?.displayName || "Anonymous",
+      reason: input.reason,
+      details: input.details,
+    });
+    // The partial unique index refused a second OPEN report: the intended outcome.
+    if (report === "duplicate") return { report: null, alreadyReported: true };
+    return { report, alreadyReported: false };
   }
 
   async update(id: string, input: UpdateReportInput, adminId: string) {

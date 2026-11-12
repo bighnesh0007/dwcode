@@ -1,17 +1,18 @@
-/** Problem-report persistence. Mongoose queries only. */
-import { ProblemReport, type ReportReason, type ReportStatus } from "../models/ProblemReport.ts";
+/** Problem-report persistence. Delegates to data/repositories, where DATA_BACKEND picks the database. */
+import type { ReportReason, ReportStatus } from "../models/ProblemReport.ts";
+import * as reports from "../data/repositories/reports.ts";
 
 export class ProblemReportRepository {
-  async listByStatus(status: ReportStatus, limit: number) {
-    return ProblemReport.find({ status }).sort({ createdAt: -1 }).limit(limit).lean();
+  listByStatus(status: ReportStatus, limit: number) {
+    return reports.listByStatus(status, limit);
   }
 
-  async findOpenFor(problemId: string, userId: string) {
-    return ProblemReport.findOne({ problemId, userId, status: "open" }).select("reason details status createdAt").lean();
+  findOpenFor(problemId: string, userId: string) {
+    return reports.findOwnOpen(userId, problemId);
   }
 
-  /** Throws a duplicate-key error when the user already has an open report. */
-  async create(data: {
+  /** "duplicate" when the user already has an open report for the problem. */
+  create(data: {
     problemId: string;
     problemSlug: string;
     userId: string;
@@ -19,14 +20,13 @@ export class ProblemReportRepository {
     reason: ReportReason;
     details: string;
   }) {
-    const doc = await ProblemReport.create({ ...data, status: "open" });
-    return doc.toObject();
+    return reports.create(data);
   }
 
-  async setStatus(
+  setStatus(
     id: string,
     update: { status: ReportStatus; resolutionNote: string; resolvedBy: string; resolvedAt: Date | null },
   ) {
-    return ProblemReport.findByIdAndUpdate(id, { $set: update }, { returnDocument: "after", runValidators: true }).lean();
+    return reports.updateById(id, update);
   }
 }

@@ -1,14 +1,12 @@
 /**
- * Admin reads across user-bearing collections.
- *
- * `comments` and `userprofiles` are read through the raw collections rather
- * than models: those models belong to other domains, and compiling a second
- * copy of a model under the same name would race their ports.
+ * Admin reads across user-bearing collections. Delegates to data/repositories,
+ * where DATA_BACKEND picks the database.
  */
-import mongoose from "mongoose";
-import { Submission } from "../models/Submission.ts";
-import { UserCoins } from "../models/UserCoins.ts";
+import * as coins from "../data/repositories/coins.ts";
+import * as commentStats from "../data/repositories/comments.ts";
+import * as profiles from "../data/repositories/profiles.ts";
 import * as roles from "../data/repositories/roles.ts";
+import * as submissionStats from "../data/repositories/submissions.ts";
 
 export interface SubmissionUserAggregate {
   _id: string;
@@ -46,54 +44,22 @@ export interface UserSources {
 
 export class AdminRepository {
   async userSources(): Promise<UserSources> {
-    const db = mongoose.connection.db;
-    if (!db) throw new Error("Database not connected.");
-    const [profiles, submissions, comments, coins, adminIds] = await Promise.all([
-      db
-        .collection<{ userId: string; username: string; createdAt?: Date }>("userprofiles")
-        .find({}, { projection: { _id: 0, userId: 1, username: 1, createdAt: 1 } })
-        .toArray(),
-      Submission.aggregate<SubmissionUserAggregate>([
-        {
-          $group: {
-            _id: "$userId",
-            userName: { $last: "$userName" },
-            userImageUrl: { $last: "$userImageUrl" },
-            totalSubmissions: { $sum: 1 },
-            accepted: { $sum: { $cond: [{ $eq: ["$status", "Accepted"] }, 1, 0] } },
-            firstSeenAt: { $min: "$createdAt" },
-            lastActiveAt: { $max: "$createdAt" },
-            solvedSlugs: {
-              $addToSet: { $cond: [{ $eq: ["$status", "Accepted"] }, "$problemSlug", "$$REMOVE"] },
-            },
-          },
-        },
-      ]),
-      db
-        .collection("comments")
-        .aggregate<CommentUserAggregate>([
-          {
-            $group: {
-              _id: "$userId",
-              count: { $sum: 1 },
-              userName: { $last: "$userName" },
-              userImageUrl: { $last: "$userImageUrl" },
-            },
-          },
-        ])
-        .toArray(),
-      UserCoins.find().select("userId balance").lean(),
+    const [profileRows, submissions, comments, balances, adminIds] = await Promise.all([
+      profiles.listAllSummaries(),
+      submissionStats.statsByUser(),
+      commentStats.statsByUser(),
+      coins.listBalances(),
       roles.listAdminUserIds(),
     ]);
     return {
-      profiles: profiles.map((p) => ({
+      profiles: profileRows.map((p) => ({
         userId: p.userId,
         username: p.username,
         ...(p.createdAt ? { createdAt: p.createdAt } : {}),
       })),
       submissions,
       comments,
-      coins: coins.map((c) => ({ userId: c.userId, balance: c.balance })),
+      coins: balances.map((c) => ({ userId: c.userId, balance: c.balance })),
       adminIds,
     };
   }

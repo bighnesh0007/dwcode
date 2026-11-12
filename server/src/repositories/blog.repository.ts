@@ -1,7 +1,6 @@
-/** Blog post and vote persistence. */
-import { Blog } from "../models/Blog.ts";
-import { BlogVote } from "../models/BlogVote.ts";
-import { UserRole } from "../models/UserRole.ts";
+/** Blog post and vote persistence. Delegates to data/repositories, where DATA_BACKEND picks the database. */
+import * as blog from "../data/repositories/blog.ts";
+import { hasAdminRole } from "../data/repositories/roles.ts";
 
 export interface NewBlogPost {
   title: string;
@@ -15,75 +14,50 @@ export interface NewBlogPost {
 
 export class BlogRepository {
   listPublished() {
-    return Blog.find({ published: true }).sort({ createdAt: -1 }).lean();
+    return blog.listPublished();
   }
 
   findPublished(slug: string) {
-    return Blog.findOne({ slug, published: true }).lean();
+    return blog.findPublished(slug);
   }
 
-  async slugExists(slug: string): Promise<boolean> {
-    return (await Blog.exists({ slug })) !== null;
+  slugExists(slug: string): Promise<boolean> {
+    return blog.slugExists(slug);
   }
 
-  async create(data: NewBlogPost) {
-    const doc = await Blog.create({ ...data, published: true });
-    return doc.toObject();
+  create(data: NewBlogPost) {
+    return blog.create({ ...data, published: true });
   }
 
   async findAuthor(slug: string): Promise<{ authorId: string } | null> {
-    const doc = await Blog.findOne({ slug }).select("authorId").lean();
+    const doc = await blog.findBySlug(slug);
     return doc ? { authorId: doc.authorId } : null;
   }
 
   /** Deletes the post and its votes: slugs are reusable, stale votes must not seed a new post. */
-  async deleteWithVotes(slug: string): Promise<void> {
-    await Blog.deleteOne({ slug });
-    await BlogVote.deleteMany({ blogSlug: slug });
+  deleteWithVotes(slug: string): Promise<void> {
+    return blog.deleteWithVotes(slug);
   }
 
-  async hasAdminRole(userId: string): Promise<boolean> {
-    return (await UserRole.exists({ userId, role: "admin" })) !== null;
+  hasAdminRole(userId: string): Promise<boolean> {
+    return hasAdminRole(userId);
   }
 
-  async findVote(slug: string, userId: string): Promise<number> {
-    const vote = await BlogVote.findOne({ blogSlug: slug, userId }).lean();
-    return vote?.value ?? 0;
+  findVote(slug: string, userId: string): Promise<number> {
+    return blog.findVoteValue(slug, userId);
   }
 
   /** Removes the vote; returns its previous value (0 if none). */
-  async retractVote(slug: string, userId: string): Promise<number> {
-    const prev = await BlogVote.findOneAndDelete({ blogSlug: slug, userId }).lean();
-    return prev?.value ?? 0;
+  retractVote(slug: string, userId: string): Promise<number> {
+    return blog.retractVote(slug, userId);
   }
 
-  /**
-   * Upserts the vote and returns the PREVIOUS value (0 when this call inserted).
-   * The retry keeps upsert: a retry without it could race a concurrent retract
-   * and $inc a counter with no vote document behind it.
-   */
-  async setVote(slug: string, userId: string, value: 1 | -1): Promise<number> {
-    const MAX_ATTEMPTS = 3;
-    for (let attempt = 1; ; attempt++) {
-      try {
-        const prev = await BlogVote.findOneAndUpdate(
-          { blogSlug: slug, userId },
-          { $set: { value } },
-          { upsert: true, returnDocument: "before" },
-        ).lean();
-        return prev?.value ?? 0;
-      } catch (error) {
-        // E11000: a concurrent insert from the same user won; retrying converges.
-        if (!isDuplicateKeyError(error) || attempt >= MAX_ATTEMPTS) throw error;
-      }
-    }
+  /** Upserts the vote and returns the PREVIOUS value (0 when this call inserted). */
+  setVote(slug: string, userId: string, value: 1 | -1): Promise<number> {
+    return blog.castVote(slug, userId, value);
   }
 
-  async incrementCounters(slug: string, up: number, down: number): Promise<void> {
-    await Blog.updateOne({ slug }, { $inc: { upvotes: up, downvotes: down } });
+  incrementCounters(slug: string, up: number, down: number): Promise<void> {
+    return blog.adjustVoteCounts(slug, up, down);
   }
-}
-
-function isDuplicateKeyError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === 11000;
 }
