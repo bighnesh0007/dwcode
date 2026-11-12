@@ -76,17 +76,6 @@ jobs:
       run:
         working-directory: client
 
-    # #23: a disposable Postgres for the integration tests. Each test file
-    # creates its own database. The Mongo parity suite runs in `parity` below.
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: dwcode_test
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
 
     steps:
       - uses: actions/checkout@v7
@@ -131,13 +120,6 @@ jobs:
       - name: Test
         if: needs.changes.outputs.client == 'true'
         run: npm test
-        env:
-          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
-
-      # Fails when schema.ts and the committed migrations disagree.
-      - name: Postgres migrations match schema
-        if: needs.changes.outputs.client == 'true'
-        run: npx drizzle-kit check
 
       - name: Build
         if: needs.changes.outputs.client == 'true'
@@ -168,12 +150,12 @@ jobs:
   parity:
     name: Database parity · Mongo ↔ Postgres
     needs: changes
-    if: needs.changes.outputs.client == 'true'
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: client
+        working-directory: server
 
     services:
       mongo:
@@ -213,7 +195,7 @@ jobs:
         run: npm run build:shared
 
       - name: Parity suite
-        run: npx vitest run __tests__/postgres/parity.integration.test.ts
+        run: npx vitest run tests/postgres/parity.integration.test.ts
         env:
           PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
           MONGO_TEST_URL: mongodb://localhost:27017/dwcode_parity
@@ -232,6 +214,16 @@ jobs:
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+      # #23: a disposable Postgres for the repository suites. Each test file
+      # creates its own database; the Mongo parity suite runs in `parity`.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: dwcode_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     timeout-minutes: 15
     defaults:
       run:
@@ -272,9 +264,15 @@ jobs:
           NODE_ENV: test
           HEALTHCHECK_ENABLED: "false"
           TEST_REDIS_URL: redis://127.0.0.1:6379
+          PG_TEST_URL: postgresql://postgres:postgres@localhost:5432/dwcode_test
 
-      # Compiles with the same command Render runs, so a build break surfaces
-      # here rather than during deploy.
+      # Fails when schema.ts and the committed migrations disagree.
+      - name: Postgres migrations match schema
+        if: needs.changes.outputs.server == 'true'
+        run: npx drizzle-kit check
+
+      # Compiles with the same command the launcher runs, so a build break surfaces
+      # here rather than at startup.
       - name: Build
         if: needs.changes.outputs.server == 'true'
         run: npm run build

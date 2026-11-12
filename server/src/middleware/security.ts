@@ -62,6 +62,8 @@ export function legacyCors(): RequestHandler {
   return cors();
 }
 
+const POISON_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 function stripOperators(value: unknown, depth = 0): unknown {
   if (depth > 20 || value === null || typeof value !== "object") return value;
 
@@ -71,6 +73,8 @@ function stripOperators(value: unknown, depth = 0): unknown {
   for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
     // Drop `$gt`-style operators and dotted paths that could reach into subdocs.
     if (key.startsWith("$") || key.includes(".")) continue;
+    // JSON.parse yields `__proto__` as an own key; assigning it would swap `out`'s prototype.
+    if (POISON_KEYS.has(key)) continue;
     out[key] = stripOperators(val, depth + 1);
   }
   return out;
