@@ -1,0 +1,4 @@
+{
+  "generate-dynamic-erp-mapping-keys": "%dw 2.0\noutput application/json\nvar prefix = if (payload.targetSystem == \"SAP\") \"Z_\" else if (payload.targetSystem == \"Oracle\") \"XX_\" else if (payload.targetSystem == \"NetSuite\") \"NS_\" else \"GEN_\"\n---\npayload.data mapObject (value, key) -> { (prefix ++ key): if (value is String) (value as String)[0 to 19] default value else value }",
+  "transform-configuration-object-into-deployment-format": "%dw 2.0\noutput application/json\n---\npayload mapObject (value, key) ->\n  do {\n    var snakeKey = upper((key as String) replace /([a-z0-9])([A-Z])/ with ((m) -> m[1] ++ \"_\" ++ m[2]))\n    ---\n    { (snakeKey): if (value is String) '\"' ++ value ++ '\"' else value }\n  }\n"
+}

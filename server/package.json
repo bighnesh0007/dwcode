@@ -21,6 +21,8 @@
     "test:cov": "vitest run --coverage",
     "audit:problems": "node --env-file-if-exists=.env scripts/audit-problems.mjs",
     "migrate:odd-even": "node --env-file-if-exists=.env scripts/migrations/003-fix-odd-even-solution.mjs",
+    "migrate:expectations": "node --env-file-if-exists=.env scripts/migrations/004-regenerate-mismatched-expectations.mjs",
+    "migrate:solutions": "node --env-file-if-exists=.env scripts/migrations/005-fix-broken-solutions.mjs",
     "pg:generate": "drizzle-kit generate",
     "pg:migrate": "drizzle-kit migrate",
     "pg:check": "drizzle-kit check",
