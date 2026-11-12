@@ -7,6 +7,7 @@ interface SnippetContent {
   script: string;
   files: PlaygroundFile[];
   testCases: PlaygroundTestCase[];
+  userId?: string;
 }
 
 /** Insert one snippet; `preset` carries Mongo's id and time when mirroring. */

@@ -195,8 +195,9 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       expect(await roles.hasAdminRole("u1")).toBe(true);
       await roles.grantAdmin("u2", "bob", "u1");
       expect((await roles.listAdminUserIds()).sort()).toEqual(["u1", "u2"]);
-      await roles.revokeAdmin("u2");
+      expect(await roles.revokeAdmin("u2")).toBe(true);
       expect(await roles.hasAdminRole("u2")).toBe(false);
+      expect(await roles.revokeAdmin("u2")).toBe(false);
     });
   });
 
@@ -287,6 +288,11 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       const slug = await snippets.createWithUniqueSlug(() => slugs.shift() ?? "zzz", EMPTY_SNIPPET);
       expect(slug).toBe("def");
       expect(await snippets.findBySlug("def")).toMatchObject({ script: "%dw 2.0" });
+    });
+
+    it("keeps the snippet's owner", async () => {
+      await snippets.createWithUniqueSlug(() => "owned", { ...EMPTY_SNIPPET, userId: "u7" });
+      expect(await snippets.findBySlug("owned")).toMatchObject({ userId: "u7" });
     });
   });
 });

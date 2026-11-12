@@ -8,7 +8,7 @@
 import mongoose from "mongoose";
 import { Submission } from "../models/Submission.ts";
 import { UserCoins } from "../models/UserCoins.ts";
-import { UserRole } from "../models/UserRole.ts";
+import * as roles from "../data/repositories/roles.ts";
 
 export interface SubmissionUserAggregate {
   _id: string;
@@ -48,7 +48,7 @@ export class AdminRepository {
   async userSources(): Promise<UserSources> {
     const db = mongoose.connection.db;
     if (!db) throw new Error("Database not connected.");
-    const [profiles, submissions, comments, coins, roles] = await Promise.all([
+    const [profiles, submissions, comments, coins, adminIds] = await Promise.all([
       db
         .collection<{ userId: string; username: string; createdAt?: Date }>("userprofiles")
         .find({}, { projection: { _id: 0, userId: 1, username: 1, createdAt: 1 } })
@@ -83,7 +83,7 @@ export class AdminRepository {
         ])
         .toArray(),
       UserCoins.find().select("userId balance").lean(),
-      UserRole.find({ role: "admin" }).select("userId").lean(),
+      roles.listAdminUserIds(),
     ]);
     return {
       profiles: profiles.map((p) => ({
@@ -94,12 +94,12 @@ export class AdminRepository {
       submissions,
       comments,
       coins: coins.map((c) => ({ userId: c.userId, balance: c.balance })),
-      adminIds: roles.map((r) => r.userId),
+      adminIds,
     };
   }
 
   async listAdmins(): Promise<AdminRoleRow[]> {
-    const rows = await UserRole.find({ role: "admin" }).lean();
+    const rows = await roles.listAdminRoles();
     return rows.map((r) => ({
       userId: r.userId,
       userName: r.userName ?? "",
@@ -109,19 +109,13 @@ export class AdminRepository {
     }));
   }
 
-  async grantAdmin(input: { targetUserId: string; targetUserName: string; grantedBy: string; now: Date }): Promise<void> {
-    await UserRole.updateOne(
-      { userId: input.targetUserId },
-      {
-        $set: { userName: input.targetUserName, role: "admin", grantedBy: input.grantedBy, createdAt: input.now },
-        $setOnInsert: { userId: input.targetUserId },
-      },
-      { upsert: true },
-    );
+  /** Grant (or re-grant) admin; the grant time is stamped by the store. */
+  grantAdmin(input: { targetUserId: string; targetUserName: string; grantedBy: string }): Promise<void> {
+    return roles.grantAdmin(input.targetUserId, input.targetUserName, input.grantedBy);
   }
 
-  async revokeAdmin(targetUserId: string): Promise<boolean> {
-    const result = await UserRole.deleteOne({ userId: targetUserId });
-    return result.deletedCount > 0;
+  /** True when a role row was removed. */
+  revokeAdmin(targetUserId: string): Promise<boolean> {
+    return roles.revokeAdmin(targetUserId);
   }
 }

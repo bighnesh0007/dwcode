@@ -1,8 +1,14 @@
-import type { InferSchemaType } from "mongoose";
-import { PlaygroundSnippet, type PlaygroundSnippetSchema } from "../../../models/PlaygroundSnippet.ts";
+import { PlaygroundSnippet } from "../../../models/PlaygroundSnippet.ts";
+import type { PlaygroundFile, PlaygroundTestCase } from "../../postgres/schema.ts";
 import { connect, isDuplicateKeyError } from "../shared.ts";
 
-type SnippetContent = Pick<InferSchemaType<typeof PlaygroundSnippetSchema>, "script" | "files" | "testCases">;
+/** Same shape as the Postgres side, so both implementations accept plain arrays. */
+interface SnippetContent {
+  script: string;
+  files: PlaygroundFile[];
+  testCases: PlaygroundTestCase[];
+  userId?: string;
+}
 
 /**
  * Store a shared snippet under a fresh random slug, retrying if a slug collides

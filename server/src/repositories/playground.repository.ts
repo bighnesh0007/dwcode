@@ -1,4 +1,4 @@
-import { PlaygroundSnippet } from "../models/PlaygroundSnippet.ts";
+import * as snippets from "../data/repositories/snippets.ts";
 
 export type FileKind = "payload" | "vars" | "attributes" | "custom";
 export type FileLanguage = "json" | "xml" | "csv" | "yaml" | "text" | "java" | "ndjson" | "multipart";
@@ -17,7 +17,6 @@ export interface SnippetTestCase {
 }
 
 export interface NewSnippet {
-  slug: string;
   script: string;
   files: SnippetFile[];
   testCases: SnippetTestCase[];
@@ -34,20 +33,21 @@ export interface SnippetView {
 }
 
 export class PlaygroundRepository {
-  /** Throws Mongo's E11000 on a slug collision; the service retries. */
-  async create(input: NewSnippet): Promise<string> {
-    const doc = await PlaygroundSnippet.create({
-      slug: input.slug,
+  /**
+   * Stores under a fresh slug from `makeSlug`, retrying on collision. Returns
+   * the slug, or null when every attempt collided. DATA_BACKEND picks the database.
+   */
+  create(makeSlug: () => string, input: NewSnippet): Promise<string | null> {
+    return snippets.createWithUniqueSlug(makeSlug, {
       script: input.script,
       files: input.files,
       testCases: input.testCases,
       userId: input.userId,
     });
-    return doc.slug;
   }
 
   async findBySlug(slug: string): Promise<SnippetView | null> {
-    const row = await PlaygroundSnippet.findOne({ slug }).lean();
+    const row = await snippets.findBySlug(slug);
     if (!row) return null;
     const file = (f: { name: string; kind?: string | null; language?: string | null; content?: string | null }): SnippetFile => ({
       name: f.name,

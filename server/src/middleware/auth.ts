@@ -9,7 +9,7 @@ import type { Request, RequestHandler } from "express";
 import { config } from "../config/index.ts";
 import { ForbiddenError, UnauthenticatedError } from "../errors/AppError.ts";
 import { ErrorCode } from "../errors/codes.ts";
-import { UserRole } from "../models/UserRole.ts";
+import { hasAdminRole } from "../data/repositories/roles.ts";
 import type { TokenVerifier } from "../types/ports.ts";
 
 function extractBearer(header: string | undefined): string | null {
@@ -135,9 +135,9 @@ export function requireAdmin(): RequestHandler {
       next();
       return;
     }
-    UserRole.exists({ userId, role: "admin" })
-      .then((row) => {
-        if (!row) throw new ForbiddenError("Admin access required.", ErrorCode.ADMIN_REQUIRED);
+    hasAdminRole(userId)
+      .then((isAdmin) => {
+        if (!isAdmin) throw new ForbiddenError("Admin access required.", ErrorCode.ADMIN_REQUIRED);
         req.isSuperAdmin = false;
         next();
       })

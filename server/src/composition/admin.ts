@@ -21,7 +21,7 @@ import type { DomainDeps, DomainModule } from "./types.ts";
 export function buildAdminDomain(deps: DomainDeps): DomainModule[] {
   const github = new GitHubRepository(config.secrets.tokenEncryptionKey);
 
-  const admin = new AdminController(new AdminService(new AdminRepository(), deps.clock, config.superAdminUserId ?? ""));
+  const admin = new AdminController(new AdminService(new AdminRepository(), config.superAdminUserId ?? ""));
 
   const oauth = new GitHubOAuthService(github, deps.fetchImpl, deps.store, deps.clock, {
     ...(config.github.clientId ? { clientId: config.github.clientId } : {}),
