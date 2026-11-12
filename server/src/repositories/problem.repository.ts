@@ -1,10 +1,10 @@
 /**
- * Problem persistence for background jobs. Mongoose queries only — no business
- * rules here.
+ * Problem persistence for background jobs — no business rules. Delegates to
+ * data/repositories, where DATA_BACKEND picks the database.
  */
-import mongoose from "mongoose";
+import type mongoose from "mongoose";
 import type { Example, TestCase } from "@dwcode/shared";
-import { Problem } from "../models/Problem.ts";
+import * as problems from "../data/repositories/problems.ts";
 
 export interface GradableProblem {
   id: string;
@@ -26,26 +26,18 @@ export interface SampledProblem {
 export class ProblemRepository {
   /** Uniformly sample up to `n` problems of the given difficulty. */
   async sampleByDifficulty(difficulty: string, n: number): Promise<SampledProblem[]> {
-    return Problem.aggregate<SampledProblem>([
-      { $match: { difficulty } },
-      { $sample: { size: n } },
-      { $project: { _id: 1, slug: 1, difficulty: 1 } },
-    ]);
+    return (await problems.sample(n, { difficulty })) as SampledProblem[];
   }
 
   /** Uniformly sample up to `n` problems of any difficulty, excluding `excludeIds`. */
   async sampleAny(n: number, excludeIds: mongoose.Types.ObjectId[]): Promise<SampledProblem[]> {
-    return Problem.aggregate<SampledProblem>([
-      { $match: { _id: { $nin: excludeIds } } },
-      { $sample: { size: n } },
-      { $project: { _id: 1, slug: 1, difficulty: 1 } },
-    ]);
+    return (await problems.sample(n, { excludeIds })) as SampledProblem[];
   }
 
   /** Everything grading needs, and nothing else — never the solution. */
   async findForGrading(id: string): Promise<GradableProblem | null> {
-    if (!mongoose.Types.ObjectId.isValid(id)) return null;
-    const p = await Problem.findById(id).select("title slug difficulty testCases examples hiddenTestCases").lean();
+    if (!problems.isValidId(id)) return null;
+    const p = await problems.findForGrading(id);
     if (!p) return null;
     return {
       id: String(p._id),
@@ -59,7 +51,7 @@ export class ProblemRepository {
   }
 
   async findSummariesBySlugs(slugs: string[]): Promise<{ title: string; slug: string; difficulty: string }[]> {
-    const rows = await Problem.find({ slug: { $in: slugs } }).select("title slug difficulty").lean();
+    const rows = await problems.summariesForSlugs(slugs);
     return rows.map((r) => ({ title: r.title, slug: r.slug, difficulty: r.difficulty }));
   }
 }

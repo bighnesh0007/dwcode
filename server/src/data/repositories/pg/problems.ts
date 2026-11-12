@@ -1,4 +1,4 @@
-import { and, count as countRows, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, count as countRows, desc, eq, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { problems } from "../../postgres/schema.ts";
 import { isDuplicateKeyError, type RecordId } from "../shared.ts";
 import { countOf, db, hex, isHexId, oid, returnedRow } from "./db.ts";
@@ -75,6 +75,40 @@ async function findOne(where: SQL | undefined) {
 }
 
 const byId = (id: string) => (isHexId(id) ? findOne(eq(problems.id, id)) : Promise.resolve(null));
+
+export async function findFullByIdOrSlug(idOrSlug: string) {
+  const row = isHexId(idOrSlug) ? await byId(idOrSlug) : await findOne(eq(problems.slug, idOrSlug));
+  return row ? toDoc(row) : null;
+}
+
+const SUMMARY_OMIT = ["testCases", "hiddenTestCases", "solution"];
+
+export async function listSummariesByCreator(userId: string, limit: number) {
+  const rows = await db().select().from(problems).where(eq(problems.createdBy, userId))
+    .orderBy(desc(problems.createdAt)).limit(limit);
+  return rows.map((r) => toDoc(r, SUMMARY_OMIT));
+}
+
+export async function summariesByIdsOrSlugs(keys: { ids?: string[]; slugs?: string[] }, limit: number) {
+  const parts: SQL[] = [];
+  const idList = ids(keys.ids ?? []);
+  if (idList.length) parts.push(inArray(problems.id, idList));
+  if (keys.slugs?.length) parts.push(inArray(problems.slug, keys.slugs));
+  if (parts.length === 0) return [];
+  const rows = await db().select().from(problems).where(or(...parts)).limit(limit);
+  return rows.map((r) => toDoc(r, SUMMARY_OMIT));
+}
+
+export async function sample(n: number, options: { difficulty?: string; excludeIds?: RecordId[] } = {}) {
+  const parts: SQL[] = [];
+  if (options.difficulty !== undefined) parts.push(eq(problems.difficulty, options.difficulty));
+  const exclude = ids(options.excludeIds ?? []);
+  if (exclude.length) parts.push(notInArray(problems.id, exclude));
+  const rows = await db().select({ id: problems.id, slug: problems.slug, difficulty: problems.difficulty })
+    .from(problems).where(parts.length ? and(...parts) : undefined)
+    .orderBy(sql`random()`).limit(n);
+  return rows.map((r) => ({ _id: oid(r.id), slug: r.slug, difficulty: r.difficulty }));
+}
 
 export async function findPublicByIdOrSlug(idOrSlug: string) {
   const row = isHexId(idOrSlug) ? await byId(idOrSlug) : await findOne(eq(problems.slug, idOrSlug));

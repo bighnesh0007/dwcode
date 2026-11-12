@@ -268,6 +268,13 @@ describe.skipIf(!MONGO_TEST_URL || !PG_TEST_URL)("Mongo ↔ Postgres parity in s
     const owned = await snippets.createWithUniqueSlug(() => "shared2", { ...EMPTY_SNIPPET, userId: "u3" });
     await snippets.findBySlug(owned ?? "");
 
+    await submissions.listRecentByUser("u1", 5);
+    await submissions.listRecentByUser("u1", 5, "odd-or-even");
+    await submissions.activityStats("u1", new Date(0));
+    await problems.findFullByIdOrSlug("odd-or-even");
+    await problems.summariesByIdsOrSlugs({ ids: [String(created._id)], slugs: ["odd-or-even"] }, 10);
+    await problems.listSummariesByCreator("u1", 5);
+    await problems.sample(2);
     await problems.deleteById(String(created._id));
     await problems.listPublic({});
   });

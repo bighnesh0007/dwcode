@@ -1,6 +1,6 @@
-import { and, count, desc, eq, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { problems, submissions } from "../../postgres/schema.ts";
-import type { NewSubmission, SubmissionUserStats } from "../mongo/submissions.ts";
+import type { ActivityStats, NewSubmission, SubmissionUserStats } from "../mongo/submissions.ts";
 import { countOf, db, hex, isHexId, oid, returnedRow } from "./db.ts";
 import type { RecordId } from "../shared.ts";
 
@@ -27,6 +27,43 @@ const joined = () => db().select(columns).from(submissions).innerJoin(problems, 
 export async function listByUser(userId: string) {
   const rows = await joined().where(eq(submissions.userId, userId)).orderBy(desc(submissions.createdAt));
   return rows.map(toDoc);
+}
+
+export async function listRecentByUser(userId: string, limit: number, problemSlug?: string) {
+  const where = problemSlug
+    ? and(eq(submissions.userId, userId), eq(problems.slug, problemSlug))
+    : eq(submissions.userId, userId);
+  const rows = await db()
+    .select({
+      id: submissions.id,
+      problemId: submissions.problemId,
+      problemSlug: problems.slug,
+      status: submissions.status,
+      executionTime: submissions.executionTime,
+      createdAt: submissions.createdAt,
+      code: submissions.code,
+      output: submissions.output,
+    })
+    .from(submissions).innerJoin(problems, eq(problems.id, submissions.problemId))
+    .where(where).orderBy(desc(submissions.createdAt)).limit(limit);
+  return rows.map(toDoc);
+}
+
+/** Days are UTC, matching Mongo's $dateToString default. */
+export async function activityStats(userId: string, since: Date): Promise<ActivityStats> {
+  const [totals] = await db().select({
+    total: sql<number>`count(*)::int`,
+    accepted: sql<number>`(count(*) filter (where ${submissions.status} = 'Accepted'))::int`,
+  }).from(submissions).where(eq(submissions.userId, userId));
+  const day = sql<string>`to_char(${submissions.createdAt} at time zone 'UTC', 'YYYY-MM-DD')`;
+  const days = await db().select({ day, n: sql<number>`count(*)::int` }).from(submissions)
+    .where(and(eq(submissions.userId, userId), gte(submissions.createdAt, since)))
+    .groupBy(day);
+  return {
+    total: totals?.total ?? 0,
+    accepted: totals?.accepted ?? 0,
+    daily: Object.fromEntries(days.map((d) => [d.day, d.n])),
+  };
 }
 
 export async function listAll() {

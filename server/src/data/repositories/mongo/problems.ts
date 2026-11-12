@@ -15,6 +15,46 @@ export async function listPublic(filter: { difficulty?: string; category?: strin
     .lean();
 }
 
+/** One problem by id or slug, every field — for admins and the problem's author. */
+export async function findFullByIdOrSlug(idOrSlug: string) {
+  await connect();
+  const query = isValidId(idOrSlug) ? { _id: idOrSlug } : { slug: idOrSlug };
+  return Problem.findOne(query).lean();
+}
+
+/** The creator's newest problems, in listing shape (no test cases or solution). */
+export async function listSummariesByCreator(userId: string, limit: number) {
+  await connect();
+  return Problem.find({ createdBy: userId })
+    .select("-testCases -hiddenTestCases -solution")
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+}
+
+/** Problems matching any of `ids` or `slugs`, in listing shape, capped at `limit`. */
+export async function summariesByIdsOrSlugs(keys: { ids?: string[]; slugs?: string[] }, limit: number) {
+  const or: Record<string, unknown>[] = [];
+  if (keys.ids?.length) or.push({ _id: { $in: keys.ids.filter((id) => isValidId(id)) } });
+  if (keys.slugs?.length) or.push({ slug: { $in: keys.slugs } });
+  if (or.length === 0) return [];
+  await connect();
+  return Problem.find({ $or: or }).select("-testCases -hiddenTestCases -solution").limit(limit).lean();
+}
+
+/** Uniformly sample up to `n` problems, optionally of one difficulty and excluding some ids. */
+export async function sample(n: number, options: { difficulty?: string; excludeIds?: RecordId[] } = {}) {
+  await connect();
+  const match: Record<string, unknown> = {};
+  if (options.difficulty !== undefined) match.difficulty = options.difficulty;
+  if (options.excludeIds?.length) match._id = { $nin: options.excludeIds };
+  return Problem.aggregate<{ _id: RecordId; slug: string; difficulty: string }>([
+    { $match: match },
+    { $sample: { size: n } },
+    { $project: { _id: 1, slug: 1, difficulty: 1 } },
+  ]);
+}
+
 /** One problem by id or slug, without hidden cases or solution. */
 export async function findPublicByIdOrSlug(idOrSlug: string) {
   await connect();

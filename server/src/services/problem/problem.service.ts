@@ -122,13 +122,8 @@ export class ProblemService {
     if (input.solution !== undefined) patch.solution = input.solution;
     if (input.hints !== undefined) patch.hints = input.hints;
 
-    let updated;
-    try {
-      updated = await this.problems.update(id, patch);
-    } catch (error) {
-      if (isDuplicateKeyError(error)) throw new ConflictError("A problem with that title already exists.");
-      throw error;
-    }
+    const updated = await this.problems.update(id, patch);
+    if (updated === "duplicate") throw new ConflictError("A problem with that title already exists.");
     if (!updated) throw new NotFoundError("Problem not found.");
     return updated;
   }

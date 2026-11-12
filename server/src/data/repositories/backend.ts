@@ -171,6 +171,23 @@ export function read<F extends Fn>(op: string, mongo: F, postgres: F, options: C
 }
 
 /**
+ * A read whose answer is legitimately different on each run (random sampling).
+ * Shadow mode serves Mongo and still runs Postgres so its failures are
+ * reported, but never compares the two: they would always disagree.
+ */
+export function readUncompared<F extends Fn>(op: string, mongo: F, postgres: F): F {
+  return (async (...args: Parameters<F>) => {
+    const mode = dataBackend();
+    if (mode === "mongo") return mongo(...args);
+    if (mode === "postgres") return postgres(...args);
+    const [served, shadow] = await Promise.allSettled([mongo(...args), postgres(...args)]);
+    if (served.status === "rejected") throw served.reason;
+    if (shadow.status === "rejected") report({ op, kind: "read-error", error: errorText(shadow.reason) });
+    return served.value;
+  }) as F;
+}
+
+/**
  * A write. In shadow mode Mongo runs first and its result is returned; then
  * `mirror` repeats the write on Postgres, given Mongo's result so a create can
  * reuse Mongo's id. `mirror` defaults to calling `postgres` with the same

@@ -15,12 +15,22 @@ type Data = { userId: string; mode: "ok" | "unavailable" | "notfound" | "slow" }
 
 describe.skipIf(!URL)("BullMqJobQueue (real Redis)", () => {
   const opened: JobQueue<Data, string>[] = [];
+  // BullMQ never closes a connection it is handed, so the test closes its own.
+  // Left open, the socket drops at process exit and a pending command rejects
+  // with an unhandled "Connection is closed" that fails the run.
+  const connections: Redis[] = [];
   const calls = new Map<string, number>();
+
+  function connect(): Redis {
+    const connection = new Redis(URL!, { maxRetriesPerRequest: null });
+    connections.push(connection);
+    return connection;
+  }
 
   function queue(opts: { maxWaiting?: number; concurrency?: number } = {}) {
     const q = new BullMqJobQueue<Data, string>(
       `test-${randomUUID()}`,
-      new Redis(URL!, { maxRetriesPerRequest: null }),
+      connect(),
       async (d) => {
         calls.set(d.userId, (calls.get(d.userId) ?? 0) + 1);
         if (d.mode === "unavailable") throw new CompilerUnavailableError("down", 5);
@@ -45,6 +55,12 @@ describe.skipIf(!URL)("BullMqJobQueue (real Redis)", () => {
 
   afterAll(async () => {
     await Promise.all(opened.map((q) => q.close()));
+    // A worker's background check that started before close() can still be
+    // mid-command when close() resolves; quitting under it rejects that command
+    // unhandled. Seen only under parallel load (about 1 run in 15 with the other
+    // Redis suites). Let in-flight commands land first.
+    await new Promise((r) => setTimeout(r, 500));
+    await Promise.all(connections.map((c) => c.quit()));
   });
 
   it("runs a job and returns its result to a poller", async () => {

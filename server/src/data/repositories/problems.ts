@@ -3,7 +3,7 @@
  */
 import * as m from "./mongo/problems.ts";
 import * as p from "./pg/problems.ts";
-import { pgImpl, read, write } from "./backend.ts";
+import { pgImpl, read, readUncompared, write } from "./backend.ts";
 
 export { isValidId } from "./shared.ts";
 const preset = (doc: { _id: unknown; createdAt: Date }) => ({ id: String(doc._id), createdAt: doc.createdAt });
@@ -15,6 +15,14 @@ export const findForWorkspace = read("problems.findForWorkspace", m.findForWorks
   pgImpl<typeof m.findForWorkspace>(p.findForWorkspace));
 export const findForGrading = read("problems.findForGrading", m.findForGrading,
   pgImpl<typeof m.findForGrading>(p.findForGrading));
+export const findFullByIdOrSlug = read("problems.findFullByIdOrSlug", m.findFullByIdOrSlug,
+  pgImpl<typeof m.findFullByIdOrSlug>(p.findFullByIdOrSlug));
+export const listSummariesByCreator = read("problems.listSummariesByCreator", m.listSummariesByCreator,
+  pgImpl<typeof m.listSummariesByCreator>(p.listSummariesByCreator));
+export const summariesByIdsOrSlugs = read("problems.summariesByIdsOrSlugs", m.summariesByIdsOrSlugs,
+  pgImpl<typeof m.summariesByIdsOrSlugs>(p.summariesByIdsOrSlugs));
+/** Random by design, so shadow mode never compares the two answers. */
+export const sample = readUncompared("problems.sample", m.sample, pgImpl<typeof m.sample>(p.sample));
 export const findSlugById = read("problems.findSlugById", m.findSlugById, p.findSlugById);
 export const findIdBySlug = read("problems.findIdBySlug", m.findIdBySlug, pgImpl<typeof m.findIdBySlug>(p.findIdBySlug));
 export const slugsForIds = read("problems.slugsForIds", m.slugsForIds, p.slugsForIds);
