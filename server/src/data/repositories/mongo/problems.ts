@@ -111,6 +111,13 @@ export async function summariesForSlugs(slugs: string[]) {
   return Problem.find({ slug: { $in: slugs } }).select("title slug difficulty").lean();
 }
 
+/** difficulty → number of problems, for every difficulty actually stored. */
+export async function countByDifficulty(): Promise<Record<string, number>> {
+  await connect();
+  const rows = await Problem.aggregate<{ _id: string; n: number }>([{ $group: { _id: "$difficulty", n: { $sum: 1 } } }]);
+  return Object.fromEntries(rows.map((r) => [r._id, r.n]));
+}
+
 /** slug → difficulty for every problem. */
 export async function difficultyBySlug(): Promise<Record<string, string>> {
   await connect();

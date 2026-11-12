@@ -58,6 +58,76 @@ export async function activityStats(userId: string, since: Date): Promise<Activi
   };
 }
 
+/** One leaderboard row per user, aggregated in the database. */
+export interface LeaderboardRow {
+  userId: string;
+  totalSubmissions: number;
+  accepted: number;
+  solvedSlugs: string[];
+  /** Earliest submission carrying a real, non-placeholder name. */
+  firstReal: { name: string; imageUrl: string } | null;
+  /** Earliest submission of any kind. */
+  firstAny: { imageUrl: string };
+}
+
+/**
+ * Per-user leaderboard totals, ordered by userId. `placeholderNames` are names written by system
+ * code ("Migrated", …); the earliest real name wins over them (issue #43).
+ * "Earliest" is by `createdAt`, then `_id` for ties — the same rule as Postgres,
+ * whose ids are random. `$min` over a document compares field by field, so
+ * leading with the time picks the earliest match, and `$min` ignores the nulls
+ * produced for placeholder rows.
+ */
+export async function leaderboardRows(placeholderNames: readonly string[]): Promise<LeaderboardRow[]> {
+  await connect();
+  const rows = await Submission.aggregate<{
+    _id: string;
+    totalSubmissions: number;
+    accepted: number;
+    solvedSlugs: string[];
+    firstReal: { at: unknown; id: unknown; name: string; imageUrl: string } | null;
+    firstAny: { at: unknown; id: unknown; imageUrl: string };
+  }>([
+    { $match: { userId: { $nin: [null, ""] } } },
+    {
+      $addFields: {
+        _isAccepted: { $eq: ["$status", "Accepted"] },
+        _isReal: { $not: [{ $in: [{ $ifNull: ["$userName", ""] }, [...placeholderNames]] }] },
+        // A row without createdAt sorts as the epoch, as the Postgres copy stores it.
+        _at: { $ifNull: ["$createdAt", new Date(0)] },
+      },
+    },
+    {
+      $group: {
+        _id: "$userId",
+        totalSubmissions: { $sum: 1 },
+        accepted: { $sum: { $cond: ["$_isAccepted", 1, 0] } },
+        solvedSlugs: { $addToSet: { $cond: ["$_isAccepted", "$problemSlug", "$$REMOVE"] } },
+        firstReal: {
+          $min: {
+            $cond: [
+              "$_isReal",
+              { at: "$_at", id: "$_id", name: "$userName", imageUrl: { $ifNull: ["$userImageUrl", ""] } },
+              null,
+            ],
+          },
+        },
+        firstAny: { $min: { at: "$_at", id: "$_id", imageUrl: { $ifNull: ["$userImageUrl", ""] } } },
+      },
+    },
+    // A stable order, so both stores answer identically (and diffs line up).
+    { $sort: { _id: 1 } },
+  ]).allowDiskUse(true);
+  return rows.map((r) => ({
+    userId: r._id,
+    totalSubmissions: r.totalSubmissions,
+    accepted: r.accepted,
+    solvedSlugs: r.solvedSlugs,
+    firstReal: r.firstReal ? { name: r.firstReal.name, imageUrl: r.firstReal.imageUrl } : null,
+    firstAny: { imageUrl: r.firstAny.imageUrl },
+  }));
+}
+
 /** Every submission. The leaderboard still aggregates in memory (see its route). */
 export async function listAll() {
   await connect();
@@ -109,10 +179,15 @@ export interface SubmissionUserStats {
   solvedSlugs: string[];
 }
 
-/** Per-user activity totals — for the admin directory. */
+/**
+ * Per-user activity totals — for the admin directory. The name and image are
+ * the user's latest by time (then id), as on Postgres; without the sort,
+ * `$last` would mean whatever document the collection happens to hold last.
+ */
 export async function statsByUser() {
   await connect();
   return Submission.aggregate<SubmissionUserStats>([
+    { $sort: { createdAt: 1, _id: 1 } },
     {
       $group: {
         _id: "$userId",

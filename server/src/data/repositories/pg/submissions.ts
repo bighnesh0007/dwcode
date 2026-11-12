@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { problems, submissions } from "../../postgres/schema.ts";
-import type { ActivityStats, NewSubmission, SubmissionUserStats } from "../mongo/submissions.ts";
+import type { ActivityStats, LeaderboardRow, NewSubmission, SubmissionUserStats } from "../mongo/submissions.ts";
 import { countOf, db, hex, isHexId, oid, returnedRow } from "./db.ts";
 import type { RecordId } from "../shared.ts";
 
@@ -107,6 +107,39 @@ export async function slugsByOutcome(userId: string) {
   };
 }
 
+/**
+ * Per-user leaderboard totals in one SQL pass. "Earliest" is by created_at,
+ * then id for ties — the same rule as Mongo (Postgres ids are random, so they
+ * cannot carry time order themselves).
+ */
+export async function leaderboardRows(placeholderNames: readonly string[]): Promise<LeaderboardRow[]> {
+  const placeholders = sql.join(placeholderNames.map((n) => sql`${n}`), sql`, `);
+  const isReal = placeholderNames.length ? sql`coalesce(s.user_name, '') not in (${placeholders})` : sql`true`;
+  const rows = await db().execute<{
+    userId: string; totalSubmissions: number; accepted: number; solvedSlugs: string[] | null;
+    realName: string | null; realImage: string | null; anyImage: string | null;
+  }>(sql`
+    select s.user_id as "userId",
+      count(*)::int as "totalSubmissions",
+      (count(*) filter (where s.status = 'Accepted'))::int as "accepted",
+      array_agg(distinct p.slug) filter (where s.status = 'Accepted') as "solvedSlugs",
+      (array_agg(s.user_name order by s.created_at, s.id) filter (where ${isReal}))[1] as "realName",
+      (array_agg(coalesce(s.user_image_url, '') order by s.created_at, s.id) filter (where ${isReal}))[1] as "realImage",
+      (array_agg(coalesce(s.user_image_url, '') order by s.created_at, s.id))[1] as "anyImage"
+    from ${submissions} s join ${problems} p on p.id = s.problem_id
+    where s.user_id <> ''
+    group by s.user_id
+    order by s.user_id collate "C"`);
+  return rows.rows.map((r) => ({
+    userId: r.userId,
+    totalSubmissions: r.totalSubmissions,
+    accepted: r.accepted,
+    solvedSlugs: r.solvedSlugs ?? [],
+    firstReal: r.realName === null ? null : { name: r.realName, imageUrl: r.realImage ?? "" },
+    firstAny: { imageUrl: r.anyImage ?? "" },
+  }));
+}
+
 /** Per-user totals, aggregated in SQL rather than in memory. */
 export async function statsByUser(): Promise<SubmissionUserStats[]> {
   const rows = await db().execute<{
@@ -114,8 +147,8 @@ export async function statsByUser(): Promise<SubmissionUserStats[]> {
     firstSeenAt: string; lastActiveAt: string; solvedSlugs: string[] | null;
   }>(sql`
     select s.user_id as "_id",
-      (array_agg(s.user_name order by s.created_at desc))[1] as "userName",
-      (array_agg(s.user_image_url order by s.created_at desc))[1] as "userImageUrl",
+      (array_agg(s.user_name order by s.created_at desc, s.id desc))[1] as "userName",
+      (array_agg(s.user_image_url order by s.created_at desc, s.id desc))[1] as "userImageUrl",
       count(*)::int as "totalSubmissions",
       count(*) filter (where s.status = 'Accepted')::int as "accepted",
       min(s.created_at) as "firstSeenAt",

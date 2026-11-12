@@ -110,6 +110,11 @@ export async function sample(n: number, options: { difficulty?: string; excludeI
   return rows.map((r) => ({ _id: oid(r.id), slug: r.slug, difficulty: r.difficulty }));
 }
 
+export async function countByDifficulty(): Promise<Record<string, number>> {
+  const rows = await db().select({ difficulty: problems.difficulty, n: countRows() }).from(problems).groupBy(problems.difficulty);
+  return Object.fromEntries(rows.map((r) => [r.difficulty, r.n]));
+}
+
 export async function findPublicByIdOrSlug(idOrSlug: string) {
   const row = isHexId(idOrSlug) ? await byId(idOrSlug) : await findOne(eq(problems.slug, idOrSlug));
   return row ? toDoc(row, ["hiddenTestCases", "solution"]) : null;

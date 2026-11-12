@@ -20,6 +20,9 @@ export const fixtures: Record<string, Record<string, unknown>[]> = {
   submissions: [
     { _id: oid(100), problemId: P1, problemSlug: "odd-or-even", userId: "u1", code: "x", status: "Accepted" },
     { _id: oid(101), problemId: DELETED_PROBLEM, problemSlug: "gone", userId: "u1", code: "x" },
+    // Id order is the reverse of time order: the leaderboard's "earliest" must follow time on both stores.
+    { _id: oid(160), problemId: P2, problemSlug: "two", userId: "u4", userName: "Late", code: "x", createdAt: new Date("2026-02-01") },
+    { _id: oid(161), problemId: P2, problemSlug: "two", userId: "u4", userName: "Early", code: "x", createdAt: new Date("2026-01-01") },
   ],
   bookmarks: [
     { _id: oid(110), problemId: P1, problemSlug: "odd-or-even", userId: "u1" },
