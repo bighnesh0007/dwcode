@@ -2,6 +2,7 @@
  * The repository facades in DATA_BACKEND=postgres mode, against a real
  * PostgreSQL seeded from the copy fixtures. Runs when PG_TEST_URL is set.
  */
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { PgDatabase } from "../../src/data/postgres/client.ts";
 import { applyPlan, buildPlan } from "../../src/data/postgres/copy.ts";
@@ -331,6 +332,72 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
     it("keeps the snippet's owner", async () => {
       await snippets.createWithUniqueSlug(() => "owned", { ...EMPTY_SNIPPET, userId: "u7" });
       expect(await snippets.findBySlug("owned")).toMatchObject({ userId: "u7" });
+    });
+  });
+  describe("contest joins and the weekly series", () => {
+    const later = (h: number) => new Date(Date.now() + h * 3_600_000);
+    const newContest = (over: Partial<Parameters<typeof contests.create>[0]> = {}) =>
+      contests.create({
+        title: "Cap", description: "", createdBy: "u1", createdByName: "alice", problems: [P1],
+        problemSlugs: ["odd-or-even"], startTime: later(-1), endTime: later(1), duration: 120,
+        status: "active", isPublic: true, maxParticipants: 2, inviteCode: undefined, ...over,
+      });
+    const joiner = (userId: string) => ({ userId, userName: userId, userImageUrl: "", score: 0, solvedProblems: [], joinedAt: new Date() });
+
+    it("never lets concurrent joins overfill a contest", async () => {
+      const c = String((await newContest())._id);
+      // Many more joiners than the pool has connections, so transactions overlap.
+      const users = Array.from({ length: 30 }, (_, i) => `racer${i}`);
+      const outcomes = await Promise.all(users.map((u) =>
+        contests.joinIfOpen(c, joiner(u), { now: new Date(), requirePublic: true })));
+      expect(outcomes.filter((o) => o === "joined")).toHaveLength(2);
+      expect(await contests.joinState(c, "a")).toMatchObject({ participantCount: 2, maxParticipants: 2 });
+    });
+
+    // The race above rarely overlaps on a local database, so it cannot prove the
+    // lock exists. This can: hold the contest row's lock from another
+    // transaction and check a join waits for it rather than counting stale rows.
+    it("takes the contest row lock before counting places", async () => {
+      const c = String((await newContest())._id);
+      let joined = false;
+      await seed.transaction(async (t) => {
+        // NO KEY UPDATE, not UPDATE: the participant insert's foreign-key check
+        // takes KEY SHARE, which UPDATE would block even without the join's own lock.
+        await t.execute(sql`select id from contests where id = ${c} for no key update`);
+        const pending = contests.joinIfOpen(c, joiner("waiter"), { now: new Date(), requirePublic: true })
+          .then((o) => { joined = true; return o; });
+        await new Promise((r) => setTimeout(r, 300));
+        expect(joined).toBe(false);
+        void pending;
+      });
+      await new Promise((r) => setTimeout(r, 300));
+      expect(joined).toBe(true);
+    });
+
+    it("refuses ended, private (when public is required) and repeat joins", async () => {
+      const ended = String((await newContest({ startTime: later(-3), endTime: later(-2) }))._id);
+      expect(await contests.joinIfOpen(ended, joiner("u5"), { now: new Date(), requirePublic: false })).toBe("not_applied");
+      const priv = String((await newContest({ isPublic: false, inviteCode: "PRIV9" }))._id);
+      expect(await contests.joinIfOpen(priv, joiner("u5"), { now: new Date(), requirePublic: true })).toBe("not_applied");
+      expect(await contests.joinIfOpen(priv, joiner("u5"), { now: new Date(), requirePublic: false })).toBe("joined");
+      expect(await contests.joinIfOpen(priv, joiner("u5"), { now: new Date(), requirePublic: false })).toBe("not_applied");
+      expect(await contests.joinState(priv, "u5")).toMatchObject({ isParticipant: true, isPublic: false });
+    });
+
+    it("leaves, and deletes only for the owner", async () => {
+      const c = String((await newContest())._id);
+      expect(await contests.removeParticipant(c, "nobody")).toBe(true);
+      expect(await contests.removeParticipant("0".repeat(24), "u1")).toBe(false);
+      expect(await contests.deleteOwned(c, "u2")).toBe(false);
+      expect(await contests.deleteOwned(c, "u1")).toBe(true);
+      expect(await contests.findById(c)).toBeNull();
+    });
+
+    it("rejects a second contest with the same series key", async () => {
+      expect(await contests.existsBySeriesKey("weekly-2026-W46")).toBe(false);
+      await newContest({ seriesKey: "weekly-2026-W46" });
+      expect(await contests.existsBySeriesKey("weekly-2026-W46")).toBe(true);
+      await expect(newContest({ seriesKey: "weekly-2026-W46" })).rejects.toSatisfy(isDuplicateKeyError);
     });
   });
 });

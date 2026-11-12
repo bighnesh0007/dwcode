@@ -1,8 +1,8 @@
-import { and, asc, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, or, sql, type SQL } from "drizzle-orm";
 import { contestParticipants, contestProblems, contests, problems } from "../../postgres/schema.ts";
-import type { Participant } from "../mongo/contests.ts";
+import type { JoiningParticipant, JoinState, Participant } from "../mongo/contests.ts";
 import type { RecordId } from "../shared.ts";
-import { db, hex, isHexId, oid, returnedRow } from "./db.ts";
+import { countOf, db, hex, isHexId, oid, returnedRow } from "./db.ts";
 
 type ContestRow = typeof contests.$inferSelect;
 type ProblemRow = typeof problems.$inferSelect;
@@ -56,6 +56,7 @@ function toDoc(c: ContestRow, ps: ProblemRow[], parts: ParticipantRow[], populat
     maxParticipants: c.maxParticipants,
     participants: parts.map(participant),
     ...(c.inviteCode ? { inviteCode: c.inviteCode } : {}),
+    ...(c.seriesKey ? { seriesKey: c.seriesKey } : {}),
     createdAt: c.createdAt,
   };
 }
@@ -108,6 +109,7 @@ export async function create(
     isPublic: boolean;
     maxParticipants: number;
     inviteCode: string | undefined;
+    seriesKey?: string;
   },
   preset?: { id: string; createdAt: Date },
 ) {
@@ -120,6 +122,7 @@ export async function create(
       ...rest,
       durationMinutes: duration,
       inviteCode: inviteCode?.toUpperCase() ?? null,
+      seriesKey: fields.seriesKey ?? null,
       ...(preset && { id: preset.id, createdAt: preset.createdAt }),
     }).returning({ id: contests.id }), "contests.create");
     const unique = [...new Set(problemIds.map(hex))];
@@ -140,9 +143,70 @@ export async function addParticipant(contestId: RecordId, p: Participant) {
     .onConflictDoNothing();
 }
 
-export async function removeParticipant(contestId: RecordId, userId: string) {
+/** Returns false when the contest does not exist. */
+export async function removeParticipant(contestId: RecordId, userId: string): Promise<boolean> {
+  const id = hex(contestId);
+  if (!isHexId(id)) return false;
   await db().delete(contestParticipants)
-    .where(and(eq(contestParticipants.contestId, hex(contestId)), eq(contestParticipants.userId, userId)));
+    .where(and(eq(contestParticipants.contestId, id), eq(contestParticipants.userId, userId)));
+  return (await db().select({ id: contests.id }).from(contests).where(eq(contests.id, id)).limit(1)).length === 1;
+}
+
+/** Migrations own Postgres's indexes; nothing to build at runtime. */
+export function ensureIndexes(): Promise<void> {
+  return Promise.resolve();
+}
+
+export async function existsBySeriesKey(seriesKey: string): Promise<boolean> {
+  return (await db().select({ id: contests.id }).from(contests).where(eq(contests.seriesKey, seriesKey)).limit(1)).length === 1;
+}
+
+export async function joinState(contestId: string, userId: string): Promise<JoinState | null> {
+  if (!isHexId(contestId)) return null;
+  const [c] = await db().select({ id: contests.id, isPublic: contests.isPublic, endTime: contests.endTime,
+    maxParticipants: contests.maxParticipants }).from(contests).where(eq(contests.id, contestId));
+  if (!c) return null;
+  const rows = await db().select({ userId: contestParticipants.userId }).from(contestParticipants)
+    .where(eq(contestParticipants.contestId, contestId));
+  return { ...c, participantCount: rows.length, isParticipant: rows.some((r) => r.userId === userId) };
+}
+
+/**
+ * The same checks as Mongo's single conditional update, made atomic by locking
+ * the contest row: concurrent joins queue on the lock, so the capacity count
+ * each one sees includes every join committed before it.
+ */
+export async function joinIfOpen(
+  contestId: string,
+  p: JoiningParticipant,
+  opts: { now: Date; requirePublic: boolean },
+): Promise<"joined" | "not_applied"> {
+  if (!isHexId(contestId)) return "not_applied";
+  return db().transaction(async (t) => {
+    const where = and(
+      eq(contests.id, contestId),
+      gte(contests.endTime, opts.now),
+      ...(opts.requirePublic ? [eq(contests.isPublic, true)] : []),
+    );
+    const [c] = await t.select({ max: contests.maxParticipants }).from(contests).where(where).for("update");
+    if (!c) return "not_applied";
+    const taken = countOf(await t.select({ n: count() }).from(contestParticipants)
+      .where(eq(contestParticipants.contestId, contestId)));
+    if (taken >= c.max) return "not_applied";
+    const inserted = await t.insert(contestParticipants).values({
+      contestId, userId: p.userId, userName: p.userName, userImageUrl: p.userImageUrl,
+      score: p.score, solvedProblemSlugs: p.solvedProblems, joinedAt: p.joinedAt,
+    }).onConflictDoNothing().returning({ userId: contestParticipants.userId });
+    return inserted.length === 1 ? "joined" : "not_applied";
+  });
+}
+
+/** Delete only when `createdBy` still matches — no check-then-act gap. */
+export async function deleteOwned(contestId: string, userId: string): Promise<boolean> {
+  if (!isHexId(contestId)) return false;
+  const removed = await db().delete(contests)
+    .where(and(eq(contests.id, contestId), eq(contests.createdBy, userId))).returning({ id: contests.id });
+  return removed.length === 1;
 }
 
 export async function deleteById(id: string) {

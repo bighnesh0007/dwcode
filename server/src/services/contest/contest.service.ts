@@ -47,11 +47,8 @@ export class ContestService {
   ) {}
 
   async list(userId: string | undefined): Promise<Record<string, unknown>[]> {
-    const filter = userId
-      ? { $or: [{ isPublic: true }, { createdBy: userId }, { "participants.userId": userId }] }
-      : { isPublic: true };
     const now = this.clock.now();
-    const rows = await this.contests.list(filter);
+    const rows = await this.contests.list(userId);
     return rows.map((c) => {
       const participants = participantsOf(c);
       // Participants (and thus other users' ids) are not part of the list view.
