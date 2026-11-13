@@ -29,14 +29,14 @@
     "pg:copy": "node --env-file-if-exists=.env --import tsx/esm scripts/pg/copy-from-mongo.ts"
   },
   "dependencies": {
-    "@clerk/backend": "3.26.1",
+    "@clerk/backend": "3.27.0",
     "@dwcode/shared": "*",
     "@google/genai": "^2.8.0",
     "bullmq": "^5.81.5",
     "compression": "^1.8.0",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.0.0",
+    "express-rate-limit": "^8.7.3",
     "helmet": "^8.0.0",
     "ioredis": "^5.11.1",
     "lru-cache": "^11.0.0",
