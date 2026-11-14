@@ -5,7 +5,7 @@
 #
 # Build context is the repo root. This is an npm workspace: the only lockfile is
 # at the root, and client/ depends on packages/shared, so both are copied in.
-FROM node:22-alpine AS base
+FROM node:26-alpine AS base
 
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
