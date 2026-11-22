@@ -18,7 +18,18 @@ import { interopDefault } from "../lib/interop.ts";
  * declaration files, so it imports normally. See lib/interop.ts.
  */
 type RateLimitFactory = (options?: Partial<Options>) => RateLimitRequestHandler;
-const rateLimit = interopDefault<RateLimitFactory>(rateLimitImport);
+/*
+ * At runtime the default import is the factory itself (the package's ESM
+ * entry); the interop path covers a resolver that hands us the CJS namespace.
+ * Calling the import directly when we can also keeps the call visible to
+ * CodeQL, whose rate-limiting model looks for express-rate-limit's factory —
+ * behind interopDefault alone, every limiter here read as missing.
+ */
+const rateLimit: RateLimitFactory =
+  typeof rateLimitImport === "function"
+    ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- needed where the resolver picks the CJS declaration (see lib/interop.ts)
+      (rateLimitImport as unknown as RateLimitFactory)
+    : interopDefault<RateLimitFactory>(rateLimitImport);
 
 /**
  * Where counters live. Unset = express-rate-limit's in-process memory store,
