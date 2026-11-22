@@ -4,7 +4,7 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run build:shared && npm run build:client",
   "outputDirectory": "client/.next",
-  "ignoreCommand": "[ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- client packages package.json package-lock.json",
+  "ignoreCommand": "[ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git cat-file -e \"$VERCEL_GIT_PREVIOUS_SHA^{commit}\" 2>/dev/null && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- client packages package.json package-lock.json",
   "headers": [
     {
       "source": "/(.*)",

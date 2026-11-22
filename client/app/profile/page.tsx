@@ -529,7 +529,7 @@ export default function ProfilePage() {
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2"><ProgressPanel /></div>
-                {data && <CompetitionPanel initialCountry={data.country ?? null} />}
+                <CompetitionPanel initialCountry={data.country ?? null} />
             </div>
 
             {/* ── Solved breakdown + Activity heatmap ── */}
