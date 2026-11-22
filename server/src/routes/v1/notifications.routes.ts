@@ -13,8 +13,8 @@ const json = () => express.json({ limit: LIMITS.body.default });
 export function notificationRoutes(c: NotificationsController, verifier: TokenVerifier): Router {
   const router = Router();
   const auth = requireAuth(verifier);
-  router.get("/", auth, c.list);
-  router.get("/unread", auth, c.unread);
+  router.get("/", auth, createLimiter("read"), c.list);
+  router.get("/unread", auth, createLimiter("read"), c.unread);
   router.post("/read", auth, createLimiter("write"), json(), validate({ body: markReadSchema }), c.markRead);
   return router;
 }
@@ -22,7 +22,7 @@ export function notificationRoutes(c: NotificationsController, verifier: TokenVe
 /** /api/v1/announcement */
 export function announcementRoutes(c: NotificationsController, verifier: TokenVerifier): Router {
   const router = Router();
-  router.get("/", c.announcement);
+  router.get("/", createLimiter("read"), c.announcement);
   router.put("/", requireAuth(verifier), requireAdmin(), createLimiter("write"), json(), validate({ body: announcementSchema }), c.setAnnouncement);
   return router;
 }

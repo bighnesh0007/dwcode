@@ -46,6 +46,8 @@ export const RATE_LIMIT_POLICIES = {
   aiDaily: { windowMs: 24 * 60 * 60 * 1000, limit: 100, keyBy: "user" },
   generation: { windowMs: 60_000, limit: 4, keyBy: "user" },
   write: { windowMs: 60_000, limit: 60, keyBy: "user" },
+  /** Reads that touch the database per call (the notification bell polls one). */
+  read: { windowMs: 60_000, limit: 120, keyBy: "user" },
 } as const satisfies Record<
   string,
   { windowMs: number; limit: number; keyBy: "ip" | "user" }
