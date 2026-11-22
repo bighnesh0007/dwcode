@@ -23,6 +23,7 @@ const COLUMNS: {
     links: [
       { label: "Blog", href: "/blog" },
       { label: "Add a Problem", href: "/create" },
+      { label: "Contribute", href: "/contribute" },
       { label: "Store", href: "/store" },
       { label: "Sponsor", href: "/sponsor" },
       { label: "Discussions", href: `${REPO_URL}/discussions`, external: true },
@@ -35,7 +36,7 @@ const COLUMNS: {
       { label: "Changelog", href: "/changelog" },
       { label: "Source Code", href: REPO_URL, external: true },
       { label: "Report an Issue", href: `${REPO_URL}/issues/new`, external: true },
-      { label: "Contribute", href: `${REPO_URL}/blob/master/README.md`, external: true },
+      { label: "Contribute code", href: `${REPO_URL}/blob/master/README.md`, external: true },
     ],
   },
 ];

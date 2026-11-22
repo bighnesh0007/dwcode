@@ -31,6 +31,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "contribute-phase-e-001",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "feature",
+        title: "Contribute problems and certification questions",
+        description:
+            "Write a DataWeave problem and the automatic check runs your solution on the compiler for every input, so the expected answers are always what DataWeave actually returns. You never type them by hand. Submit it, an admin reviews it, and it's published with coins for you. You can also write original MCD Level 1 practice questions, or apply to become a contributor.",
+        tags: ["contribute", "community", "certification"],
+    },
+    {
         id: "learning-phase-d-001",
         date: "2026-11-22",
         status: "shipped",
