@@ -79,7 +79,7 @@ export default function ContributePage() {
                 <ul className="divide-y">
                   {mine.items.map((c) => (
                     <li key={c.id} className="py-2 flex items-center justify-between gap-3 text-sm">
-                      <Link href={c.kind === "application" ? "/contribute" : `/contribute/${c.id}`} className="hover:underline truncate">
+                      <Link href={c.kind === "application" || c.kind === "job" ? "/contribute" : `/contribute/${c.id}`} className="hover:underline truncate">
                         <span className="text-muted-foreground capitalize mr-2">{c.kind}</span>{contributionTitle(c)}
                       </Link>
                       <span className={`rounded px-2 py-0.5 text-xs capitalize ${STATUS_STYLE[c.status]}`}>{c.status}</span>

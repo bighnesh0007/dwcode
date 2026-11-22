@@ -23,12 +23,13 @@ import { ProgressiveHints } from "@/components/ProgressiveHints";
 import { LearningPanel } from "@/components/LearningPanel";
 import { CodeSizePanel } from "@/components/CodeSizePanel";
 import { ExplainError } from "@/components/ExplainError";
+import { useEditorTheme } from "@/components/useEditorTheme";
 import type { AcceptedRewards } from "@dwcode/shared";
 
 export default function Workspace({ problem }: { problem: Problem }) {
   const { resolvedTheme } = useTheme();
   const { getToken } = useAuth();
-  const editorTheme = resolvedTheme === "light" ? "vs-light" : "vs-dark";
+  const editorTheme = useEditorTheme(resolvedTheme);
 
   const [code, setCode] = useState(problem.starterCode || "%dw 2.0\noutput application/json\n---\n");
   // Seeded from the first example, formatted — the stored value is usually compact

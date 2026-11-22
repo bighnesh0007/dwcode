@@ -43,6 +43,13 @@
       "when": 1795364049120,
       "tag": "0005_contributions",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795364778120,
+      "tag": "0006_profile_details",
+      "breakpoints": true
     }
   ]
 }

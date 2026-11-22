@@ -38,12 +38,22 @@ export interface ApplicationPayload {
   link?: string;
 }
 
+export interface JobPayload {
+  title: string;
+  company: string;
+  location: string;
+  remote: boolean;
+  url: string;
+  description: string;
+  tags: string[];
+}
+
 export interface Contribution {
   id: string;
-  kind: "problem" | "question" | "application";
+  kind: "problem" | "question" | "application" | "job";
   authorId: string;
   status: "draft" | "submitted" | "approved" | "rejected";
-  payload: ProblemPayload | QuestionPayload | ApplicationPayload;
+  payload: ProblemPayload | QuestionPayload | ApplicationPayload | JobPayload;
   check: DraftCheck | null;
   reviewNote: string;
   publishedRef: string;

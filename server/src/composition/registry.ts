@@ -5,6 +5,7 @@ import { buildCompetitionDomain } from "./competition.ts";
 import { buildContestsDomain } from "./contests.ts";
 import { buildEngagementDomain } from "./engagement.ts";
 import { buildNotificationsDomain } from "./notifications.ts";
+import { buildCommunity2Domain } from "./community2.ts";
 import { buildContributionDomain } from "./contribute.ts";
 import { buildLearningDomain } from "./learning.ts";
 import { buildPracticeDomain } from "./practice.ts";
@@ -25,5 +26,6 @@ export function buildDomains(deps: DomainDeps): DomainModule[] {
     ...buildPracticeDomain(deps),
     ...buildLearningDomain(deps),
     ...buildContributionDomain(deps),
+    ...buildCommunity2Domain(deps),
   ];
 }

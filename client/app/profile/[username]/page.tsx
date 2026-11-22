@@ -11,6 +11,10 @@ import {
   CalendarDays, Users, Clock,
 } from "lucide-react";
 import FollowButton from "./FollowButton";
+import { SkillRadar } from "@/components/SkillRadar";
+import { MentorAsk } from "@/components/MentorAsk";
+import { safeHref, type PublicDetails } from "@/lib/profileExtras";
+import { rarityOf } from "@dwcode/shared";
 
 /** GET /api/v1/profile/u/:username — public fields only. */
 interface PublicProfile {
@@ -65,6 +69,13 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   // The visitor's session is forwarded, so isOwnProfile / isFollowing are theirs.
   const profile = await serverApiOrNull<PublicProfile>(`/api/v1/profile/u/${encodeURIComponent(username)}`);
   if (!profile) notFound();
+  const details = await serverApiOrNull<PublicDetails>(`/api/v1/profile-details/u/${encodeURIComponent(username)}`, { asUser: false });
+  const frame = details?.equipped.frame?.token ?? "";
+  const badge = details?.equipped.badge;
+  const banner = details?.equipped.banner?.token || "bg-gradient-to-r from-primary/20 via-primary/10 to-transparent";
+  const links = (["website", "github", "linkedin"] as const)
+    .map((k) => ({ k, href: safeHref(details?.links[k]) }))
+    .filter((l): l is { k: "website" | "github" | "linkedin"; href: string } => l.href !== null);
 
   const {
     score, attempted, acceptanceRate, totalSubmissions, streak, activityData, recentLog, imageUrl,
@@ -120,9 +131,10 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
 
       {/* ── Hero ── */}
       <Card className="overflow-hidden pt-0">
-        <div className="h-24 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
+        <div className={`h-24 ${banner}`} />
         <CardContent className="px-6 pb-6">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5 -mt-14">
+            <div className={`rounded-full ${frame}`}>
             <RankAvatar
               name={`@${profile.username}`}
               imageUrl={imageUrl || undefined}
@@ -130,8 +142,13 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               size={96}
               showTierBadge
             />
+            </div>
             <div className="flex-1 min-w-0 sm:pb-1">
-              <h1 className="text-2xl font-bold tracking-tight truncate">@{profile.username}</h1>
+              <h1 className="text-2xl font-bold tracking-tight truncate">
+                @{profile.username}
+                {badge?.token && <span className={`ml-2 text-xl ${rarityOf(badge.rarity).className.split(" ")[0] ?? ""}`} title={badge.name}>{badge.token}</span>}
+              </h1>
+              {details?.headline && <p className="text-sm font-medium mt-0.5">{details.headline}</p>}
               <p className="text-muted-foreground text-sm mt-1 max-w-xl">
                 {profile.bio || "No bio provided."}
               </p>
@@ -159,6 +176,33 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           </div>
         </CardContent>
       </Card>
+
+      {details && (details.about || links.length > 0 || details.mentor || details.skills.length > 0) && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card className="md:col-span-2">
+            <CardHeader className="pb-2"><CardTitle className="text-base">About</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {details.about ? <p className="whitespace-pre-wrap">{details.about}</p> : <p className="text-muted-foreground">Nothing here yet.</p>}
+              {links.length > 0 && (
+                <div className="flex flex-wrap gap-3">
+                  {links.map((l) => <a key={l.k} href={l.href} target="_blank" rel="noopener noreferrer nofollow" className="text-primary hover:underline capitalize">{l.k}</a>)}
+                </div>
+              )}
+              {details.mentor && (
+                <div className="rounded-md border p-3 space-y-2">
+                  <p className="font-medium">Mentoring: {details.mentor.topics.join(", ")}</p>
+                  {details.mentor.note && <p className="text-muted-foreground">{details.mentor.note}</p>}
+                  {!isOwnProfile && <MentorAsk username={profile.username} />}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Skills</CardTitle></CardHeader>
+            <CardContent><SkillRadar skills={details.skills} /></CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* ── Stat cards ── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

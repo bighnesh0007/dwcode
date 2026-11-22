@@ -463,3 +463,22 @@ export const contributions = pgTable(
     index("contributions_status_idx").on(t.status, t.kind, t.createdAt),
   ],
 );
+
+// ── Profile extras (SFCode parity, Phase E) ─────────────────────────────────
+
+/** Headline, about and links, equipped cosmetics and the mentor listing — one row per user. */
+export const profileDetails = pgTable(
+  "profile_details",
+  {
+    userId: text("user_id").primaryKey(),
+    headline: text("headline").notNull().default(""),
+    about: text("about").notNull().default(""),
+    links: jsonb("links").$type<Record<string, string>>().notNull().default({}),
+    equipped: jsonb("equipped").$type<Record<string, string>>().notNull().default({}),
+    mentorActive: boolean("mentor_active").notNull().default(false),
+    mentorTopics: jsonb("mentor_topics").$type<string[]>().notNull().default([]),
+    mentorNote: text("mentor_note").notNull().default(""),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("profile_details_mentor_idx").on(t.mentorActive, t.updatedAt)],
+);

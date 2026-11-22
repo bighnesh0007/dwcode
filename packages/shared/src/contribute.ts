@@ -3,7 +3,7 @@
  * questions and contributor applications. Shared by the server (which
  * enforces them) and the client (which shows them).
  */
-export const CONTRIBUTION_KINDS = ["problem", "question", "application"] as const;
+export const CONTRIBUTION_KINDS = ["problem", "question", "application", "job"] as const;
 export type ContributionKind = (typeof CONTRIBUTION_KINDS)[number];
 
 export const CONTRIBUTION_STATUSES = ["draft", "submitted", "approved", "rejected"] as const;
@@ -15,8 +15,8 @@ export const OPEN_LIMIT = { member: 5, contributor: 25 } as const;
 /** Test cases a problem draft needs: at least one shown to learners, at most this many in all. */
 export const DRAFT_CASES = { min: 2, max: 12 } as const;
 
-/** Coins paid when a contribution is approved. */
-export const CONTRIBUTION_REWARD: Record<Exclude<ContributionKind, "application">, number> = { problem: 25, question: 10 };
+/** Coins paid when a contribution is approved (applications and job posts earn none). */
+export const CONTRIBUTION_REWARD: Record<ContributionKind, number> = { problem: 25, question: 10, application: 0, job: 0 };
 
 export interface DraftCase {
   input: string;

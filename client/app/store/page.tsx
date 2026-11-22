@@ -15,11 +15,13 @@ import { useSkin } from "@/components/SkinProvider";
 import { DEFAULT_SKIN, type ThemeSkin } from "@/lib/themes";
 import { getErrorMessage } from "@/lib/errors";
 import { apiRequest } from "@/lib/apiClient";
-import type { StreakFreezeItem } from "@dwcode/shared";
+import type { Cosmetic, StreakFreezeItem } from "@dwcode/shared";
+import { CosmeticsShop } from "@/components/CosmeticsShop";
 
 interface StoreResponse {
     items: ThemeSkin[];
     freezes?: StreakFreezeItem[];
+    cosmetics?: Cosmetic[];
     owned: string[];
     balance: number;
     signedIn: boolean;
@@ -318,6 +320,10 @@ export default function StorePage() {
                         })}
                     </div>
                 </section>
+            )}
+
+            {(data?.cosmetics?.length ?? 0) > 0 && (
+                <CosmeticsShop cosmetics={data?.cosmetics ?? []} owned={owned} balance={balance} signedIn={Boolean(isSignedIn)} onChanged={load} />
             )}
 
             <p className="border-t pt-6 text-xs text-muted-foreground">
