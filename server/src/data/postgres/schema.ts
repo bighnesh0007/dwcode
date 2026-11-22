@@ -430,3 +430,12 @@ export const teamMembers = pgTable("team_members", {
   userId: text("user_id").notNull().unique(),
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ── Learning paths (SFCode parity, Phase D) ─────────────────────────────────
+
+/** One row per learner: onboarding, placement, quizzes, review boxes, mock scores. */
+export const learnerStates = pgTable("learner_states", {
+  userId: text("user_id").primaryKey(),
+  state: jsonb("state").$type<unknown>().notNull(),
+  updatedAt: updatedAt(),
+});

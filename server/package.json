@@ -22,6 +22,7 @@
     "audit:problems": "node --env-file-if-exists=.env scripts/audit-problems.mjs",
     "migrate:odd-even": "node --env-file-if-exists=.env scripts/migrations/003-fix-odd-even-solution.mjs",
     "migrate:expectations": "node --env-file-if-exists=.env scripts/migrations/004-regenerate-mismatched-expectations.mjs",
+    "check:learning": "node scripts/check-learning-content.mjs",
     "seed:debugging": "node --env-file-if-exists=.env scripts/seed-debugging-problems.mjs",
     "migrate:solutions": "node --env-file-if-exists=.env scripts/migrations/005-fix-broken-solutions.mjs",
     "pg:generate": "drizzle-kit generate",

@@ -23,6 +23,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       '/playground',
       '/store',
       '/blog',
+      '/roadmap',
+      '/roadmap/beginner',
+      '/roadmap/integration',
+      '/roadmap/interviews',
+      '/certification',
       '/sign-in',
       '/sign-up'
     ].map((route) => ({

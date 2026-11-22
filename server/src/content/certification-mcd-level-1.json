@@ -1,0 +1,605 @@
+{
+  "exam": {
+    "id": "mcd-level-1",
+    "title": "MuleSoft Certified Developer – Level 1 (practice)",
+    "passPercent": 70,
+    "mockQuestions": 20,
+    "mockMinutes": 40,
+    "note": "Original practice questions written for DWCode. They are not taken from the real exam.",
+    "sections": [
+      {
+        "id": "app-network",
+        "title": "Application networks and API-led connectivity",
+        "weight": 8
+      },
+      {
+        "id": "api-design",
+        "title": "Designing and consuming APIs",
+        "weight": 8
+      },
+      {
+        "id": "mule-events",
+        "title": "Accessing and modifying Mule events",
+        "weight": 8
+      },
+      {
+        "id": "structure",
+        "title": "Structuring Mule applications",
+        "weight": 8
+      },
+      {
+        "id": "apikit",
+        "title": "Building API implementations with APIkit",
+        "weight": 8
+      },
+      {
+        "id": "routing",
+        "title": "Routing events",
+        "weight": 8
+      },
+      {
+        "id": "errors",
+        "title": "Handling errors",
+        "weight": 8
+      },
+      {
+        "id": "dataweave",
+        "title": "Transforming data with DataWeave",
+        "weight": 16
+      },
+      {
+        "id": "connectors",
+        "title": "Using connectors",
+        "weight": 8
+      },
+      {
+        "id": "batch",
+        "title": "Processing batches",
+        "weight": 6
+      },
+      {
+        "id": "debugging",
+        "title": "Debugging and troubleshooting",
+        "weight": 6
+      },
+      {
+        "id": "deploy",
+        "title": "Deploying and managing APIs",
+        "weight": 8
+      }
+    ]
+  },
+  "questions": [
+    {
+      "id": "an-1",
+      "section": "app-network",
+      "prompt": "In API-led connectivity, which layer unlocks data from core systems of record?",
+      "options": [
+        "Experience APIs",
+        "Presentation APIs",
+        "Process APIs",
+        "System APIs"
+      ],
+      "answer": 3,
+      "explanation": "System APIs expose systems of record; Process APIs orchestrate them; Experience APIs shape data for a channel."
+    },
+    {
+      "id": "an-2",
+      "section": "app-network",
+      "prompt": "What is the main purpose of a Center for Enablement (C4E)?",
+      "options": [
+        "To centralise every integration build in one team",
+        "To host the production runtime",
+        "To drive reuse and self-service of integration assets across teams",
+        "To replace API governance with code reviews"
+      ],
+      "answer": 2,
+      "explanation": "A C4E enables lines of business to build and reuse assets themselves, rather than funnelling everything through one central team."
+    },
+    {
+      "id": "an-3",
+      "section": "app-network",
+      "prompt": "What is Anypoint Exchange used for?",
+      "options": [
+        "Deploying applications to CloudHub",
+        "Discovering and sharing reusable assets such as API specs, connectors and templates",
+        "Monitoring application logs",
+        "Applying policies to API instances"
+      ],
+      "answer": 1,
+      "explanation": "Exchange is the catalog of reusable assets; Runtime Manager deploys and API Manager applies policies."
+    },
+    {
+      "id": "ad-1",
+      "section": "api-design",
+      "prompt": "In a RAML spec, what does `/{orderId}` nested under `/orders` declare?",
+      "options": [
+        "A nested resource with a URI parameter named orderId",
+        "A request header named orderId",
+        "A query parameter named orderId",
+        "A required request body field"
+      ],
+      "answer": 0,
+      "explanation": "Curly braces in a resource path declare a URI parameter."
+    },
+    {
+      "id": "ad-2",
+      "section": "api-design",
+      "prompt": "Which HTTP method is defined as idempotent?",
+      "options": [
+        "CONNECT",
+        "POST",
+        "PATCH",
+        "PUT"
+      ],
+      "answer": 3,
+      "explanation": "Repeating a PUT leaves the resource in the same state; POST and PATCH are not guaranteed to be idempotent."
+    },
+    {
+      "id": "ad-3",
+      "section": "api-design",
+      "prompt": "What does the mocking service let you do with an API spec in Design Center?",
+      "options": [
+        "Generate the production implementation automatically",
+        "Enforce rate limits",
+        "Let consumers try the API before it is implemented",
+        "Encrypt request payloads"
+      ],
+      "answer": 2,
+      "explanation": "The mocking service returns example responses from the spec, so consumers can give feedback early."
+    },
+    {
+      "id": "me-1",
+      "section": "mule-events",
+      "prompt": "What does a Mule 4 event contain?",
+      "options": [
+        "Headers and a body only",
+        "A message (payload and attributes) and variables",
+        "Only the payload",
+        "The payload and a session"
+      ],
+      "answer": 1,
+      "explanation": "A Mule event is a message (payload plus attributes) and the event's variables."
+    },
+    {
+      "id": "me-2",
+      "section": "mule-events",
+      "prompt": "In a flow started by an HTTP Listener, which expression reads the query parameter `name`?",
+      "options": [
+        "attributes.queryParams.name",
+        "vars.queryParams.name",
+        "payload.queryParams.name",
+        "message.query.name"
+      ],
+      "answer": 0,
+      "explanation": "Request metadata from the HTTP Listener — query parameters, URI parameters, headers — is in `attributes`."
+    },
+    {
+      "id": "me-3",
+      "section": "mule-events",
+      "prompt": "When a flow calls another flow through a Flow Reference, what happens to its variables?",
+      "options": [
+        "They are copied, and changes are discarded",
+        "They are only visible if marked global",
+        "They are cleared before the call",
+        "The referenced flow sees them, and its changes are visible after it returns"
+      ],
+      "answer": 3,
+      "explanation": "Flow Reference passes the same event, variables included, to the referenced flow and back."
+    },
+    {
+      "id": "st-1",
+      "section": "structure",
+      "prompt": "How does a subflow differ from a flow?",
+      "options": [
+        "It cannot call connectors",
+        "It runs asynchronously",
+        "It has no event source and no error handling of its own",
+        "It must live in its own file"
+      ],
+      "answer": 2,
+      "explanation": "A subflow is a reusable block executed inline by Flow Reference; it has no source and inherits the caller's error handling."
+    },
+    {
+      "id": "st-2",
+      "section": "structure",
+      "prompt": "Where do you define a configuration (such as an HTTP Listener config) reused by several flows?",
+      "options": [
+        "In the POM file",
+        "As a global element",
+        "In a DataWeave module",
+        "Inside each flow"
+      ],
+      "answer": 1,
+      "explanation": "Global elements hold shared configurations referenced by name from any flow in the application."
+    },
+    {
+      "id": "st-3",
+      "section": "structure",
+      "prompt": "Which syntax reads a property such as `http.port` from a properties file in a configuration?",
+      "options": [
+        "${http.port}",
+        "{{http.port}}",
+        "#[http.port]",
+        "$(http.port)"
+      ],
+      "answer": 0,
+      "explanation": "Property placeholders use `${...}`; `#[...]` is a DataWeave expression."
+    },
+    {
+      "id": "ak-1",
+      "section": "apikit",
+      "prompt": "What does APIkit generate from a RAML or OAS specification?",
+      "options": [
+        "Only the RAML documentation",
+        "A database schema",
+        "A deployment descriptor for CloudHub",
+        "A router plus a flow for each resource and method, with error handlers"
+      ],
+      "answer": 3,
+      "explanation": "APIkit scaffolds a main flow with the APIkit Router, one flow per resource/method, and error handling."
+    },
+    {
+      "id": "ak-2",
+      "section": "apikit",
+      "prompt": "An APIkit-based API receives a request for a resource that is not in its spec. Which error does the router raise?",
+      "options": [
+        "APIKIT:BAD_REQUEST",
+        "MULE:ROUTING",
+        "APIKIT:NOT_FOUND",
+        "HTTP:NOT_FOUND"
+      ],
+      "answer": 2,
+      "explanation": "The APIkit Router raises APIKIT:NOT_FOUND, which the scaffolded handler maps to 404."
+    },
+    {
+      "id": "ak-3",
+      "section": "apikit",
+      "prompt": "What does the APIkit Router check before routing a request?",
+      "options": [
+        "That the database is reachable",
+        "That the request matches the spec (resource, method, parameters, body)",
+        "That the payload is under 1 MB",
+        "That the client has a valid OAuth token"
+      ],
+      "answer": 1,
+      "explanation": "The router validates requests against the spec; authentication is the job of policies."
+    },
+    {
+      "id": "ro-1",
+      "section": "routing",
+      "prompt": "How does the Choice router pick a route?",
+      "options": [
+        "It runs the first route whose condition is true, else the default route",
+        "It runs every route whose condition is true",
+        "It runs routes in parallel",
+        "It picks a route at random"
+      ],
+      "answer": 0,
+      "explanation": "Choice evaluates conditions in order and runs only the first match, falling back to the default."
+    },
+    {
+      "id": "ro-2",
+      "section": "routing",
+      "prompt": "What is the output of a Scatter-Gather?",
+      "options": [
+        "An array of payloads only",
+        "The payload of the fastest route",
+        "The original payload, unchanged",
+        "An object keyed by route index, holding each route's result message"
+      ],
+      "answer": 3,
+      "explanation": "Scatter-Gather runs routes concurrently and aggregates each route's resulting Mule message into one object keyed by route."
+    },
+    {
+      "id": "ro-3",
+      "section": "routing",
+      "prompt": "What does the First Successful router do?",
+      "options": [
+        "Runs all routes and keeps the first result",
+        "Retries the same route until it succeeds",
+        "Tries its routes in order until one completes without an error",
+        "Runs routes in parallel and cancels the slow ones"
+      ],
+      "answer": 2,
+      "explanation": "First Successful moves to the next route only when the current one fails."
+    },
+    {
+      "id": "er-1",
+      "section": "errors",
+      "prompt": "An error is handled by On Error Continue. What does the caller of the flow see?",
+      "options": [
+        "The original error",
+        "A successful result: the handler's output",
+        "Nothing; the flow stops silently",
+        "An HTTP 500"
+      ],
+      "answer": 1,
+      "explanation": "On Error Continue handles the error and completes the flow successfully; On Error Propagate rethrows it to the caller."
+    },
+    {
+      "id": "er-2",
+      "section": "errors",
+      "prompt": "What is the format of a Mule error type?",
+      "options": [
+        "NAMESPACE:IDENTIFIER, for example HTTP:NOT_FOUND",
+        "A numeric code",
+        "A Java exception class name",
+        "IDENTIFIER only"
+      ],
+      "answer": 0,
+      "explanation": "Error types are namespaced identifiers such as HTTP:NOT_FOUND or MULE:EXPRESSION."
+    },
+    {
+      "id": "er-3",
+      "section": "errors",
+      "prompt": "What does a Try scope let you do?",
+      "options": [
+        "Run processors in parallel",
+        "Retry a whole flow automatically",
+        "Roll back a database transaction by default",
+        "Handle errors for a group of processors inside a flow"
+      ],
+      "answer": 3,
+      "explanation": "Try wraps processors with its own error handling, so errors can be handled without ending the flow."
+    },
+    {
+      "id": "dw-1",
+      "section": "dataweave",
+      "prompt": "What does `[\"a\", \"b\", \"c\"] map $$` return?",
+      "options": [
+        "An error",
+        "[1, 2, 3]",
+        "[0, 1, 2]",
+        "[\"a\", \"b\", \"c\"]"
+      ],
+      "answer": 2,
+      "explanation": "`$$` is the index inside `map`.",
+      "check": {
+        "script": "[\"a\",\"b\",\"c\"] map $$",
+        "expected": [
+          0,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "dw-2",
+      "section": "dataweave",
+      "prompt": "Which header directive makes a script produce JSON?",
+      "options": [
+        "%output json",
+        "output application/json",
+        "input application/json",
+        "type json"
+      ],
+      "answer": 1,
+      "explanation": "`output` sets the format of the script's result; `input` declares how an input is read."
+    },
+    {
+      "id": "dw-3",
+      "section": "dataweave",
+      "prompt": "What does `{a: 1} ++ {b: 2}` return?",
+      "options": [
+        "{a: 1, b: 2}",
+        "[{a: 1}, {b: 2}]",
+        "{b: 2}",
+        "An error"
+      ],
+      "answer": 0,
+      "explanation": "`++` concatenates objects.",
+      "check": {
+        "script": "{a: 1} ++ {b: 2}",
+        "expected": {
+          "a": 1,
+          "b": 2
+        }
+      }
+    },
+    {
+      "id": "dw-4",
+      "section": "dataweave",
+      "prompt": "What does `sizeOf(\"hello\")` return?",
+      "options": [
+        "4",
+        "\"hello\"",
+        "An error",
+        "5"
+      ],
+      "answer": 3,
+      "explanation": "`sizeOf` counts characters in a string.",
+      "check": {
+        "script": "sizeOf(\"hello\")",
+        "expected": 5
+      }
+    },
+    {
+      "id": "dw-5",
+      "section": "dataweave",
+      "prompt": "`payload` is `[{\"id\": 1, \"active\": true}, {\"id\": 2, \"active\": false}]`. What does `payload filter $.active` return?",
+      "options": [
+        "An error",
+        "[true]",
+        "[{\"id\": 1, \"active\": true}]",
+        "[{\"id\": 2, \"active\": false}]"
+      ],
+      "answer": 2,
+      "explanation": "`filter` keeps items whose condition is true; `$.active` is that condition.",
+      "check": {
+        "script": "payload filter $.active",
+        "input": "[{\"id\":1,\"active\":true},{\"id\":2,\"active\":false}]",
+        "expected": [
+          {
+            "id": 1,
+            "active": true
+          }
+        ]
+      }
+    },
+    {
+      "id": "dw-6",
+      "section": "dataweave",
+      "prompt": "What does `do { fun double(n) = n * 2 --- double(4) }` return?",
+      "options": [
+        "\"double(4)\"",
+        "8",
+        "An error",
+        "4"
+      ],
+      "answer": 1,
+      "explanation": "`do` scopes a local function declaration; calling it returns 8.",
+      "check": {
+        "script": "do { fun double(n) = n * 2 --- double(4) }",
+        "expected": 8
+      }
+    },
+    {
+      "id": "dw-7",
+      "section": "dataweave",
+      "prompt": "What does `upper(\"mule\")` return?",
+      "options": [
+        "\"MULE\"",
+        "\"Mule\"",
+        "\"mule\"",
+        "An error"
+      ],
+      "answer": 0,
+      "explanation": "`upper` converts a string to upper case.",
+      "check": {
+        "script": "upper(\"mule\")",
+        "expected": "MULE"
+      }
+    },
+    {
+      "id": "cn-1",
+      "section": "connectors",
+      "prompt": "What does a Database Select operation return?",
+      "options": [
+        "The number of rows",
+        "Only the first row",
+        "A SQL string",
+        "The matching rows, each as a key–value map of column to value"
+      ],
+      "answer": 3,
+      "explanation": "Select returns the result rows as a list of records keyed by column name."
+    },
+    {
+      "id": "cn-2",
+      "section": "connectors",
+      "prompt": "How does the Scheduler component start a flow?",
+      "options": [
+        "When an HTTP request arrives",
+        "When the application is undeployed",
+        "On a fixed frequency or a cron expression",
+        "When a file arrives"
+      ],
+      "answer": 2,
+      "explanation": "The Scheduler is an event source that triggers a flow on a schedule."
+    },
+    {
+      "id": "cn-3",
+      "section": "connectors",
+      "prompt": "Where should credentials such as a database password be kept in a Mule application?",
+      "options": [
+        "In a DataWeave variable",
+        "In secure (encrypted) properties, referenced by placeholder",
+        "Directly in the flow XML",
+        "In the RAML spec"
+      ],
+      "answer": 1,
+      "explanation": "Secure properties keep secrets encrypted and out of source; the configuration references them with a placeholder."
+    },
+    {
+      "id": "bt-1",
+      "section": "batch",
+      "prompt": "What are the phases of a batch job?",
+      "options": [
+        "Load and dispatch, process, on complete",
+        "Extract, transform, load",
+        "Read, write, commit",
+        "Validate, route, respond"
+      ],
+      "answer": 0,
+      "explanation": "A batch job loads and dispatches records into a queue, processes them through steps, then runs On Complete."
+    },
+    {
+      "id": "bt-2",
+      "section": "batch",
+      "prompt": "What is a Batch Aggregator for?",
+      "options": [
+        "Sorting records by key",
+        "Retrying failed records",
+        "Splitting a payload into records",
+        "Grouping records so a step can process them in bulk"
+      ],
+      "answer": 3,
+      "explanation": "An aggregator collects records into groups, for example for a bulk insert."
+    },
+    {
+      "id": "dg-1",
+      "section": "debugging",
+      "prompt": "What does the Anypoint Studio debugger let you do?",
+      "options": [
+        "Edit compiled bytecode",
+        "Profile JVM memory only",
+        "Pause at breakpoints and inspect the Mule event",
+        "Replay production traffic"
+      ],
+      "answer": 2,
+      "explanation": "The debugger stops at breakpoints on processors so you can inspect payload, attributes and variables."
+    },
+    {
+      "id": "dg-2",
+      "section": "debugging",
+      "prompt": "Where do you read the logs of an application deployed to CloudHub?",
+      "options": [
+        "In API Manager's policies tab",
+        "In Runtime Manager, on the application's logs page",
+        "In Exchange",
+        "In Design Center"
+      ],
+      "answer": 1,
+      "explanation": "Runtime Manager shows deployment and application logs."
+    },
+    {
+      "id": "dp-1",
+      "section": "deploy",
+      "prompt": "What does API Manager let you do with an API instance?",
+      "options": [
+        "Apply and configure policies, and manage client access",
+        "Host the Exchange portal",
+        "Build the implementation flows",
+        "Write the RAML specification"
+      ],
+      "answer": 0,
+      "explanation": "API Manager governs a running API: policies, SLA tiers and client applications."
+    },
+    {
+      "id": "dp-2",
+      "section": "deploy",
+      "prompt": "What does API Autodiscovery do?",
+      "options": [
+        "Finds APIs on the public internet",
+        "Generates documentation",
+        "Discovers database tables",
+        "Pairs a deployed application with its API Manager instance so policies apply"
+      ],
+      "answer": 3,
+      "explanation": "Autodiscovery links the running app to the API instance so API Manager can enforce its policies."
+    },
+    {
+      "id": "dp-3",
+      "section": "deploy",
+      "prompt": "What does the Client ID Enforcement policy require from a caller?",
+      "options": [
+        "A source IP on an allow list",
+        "A signed JWT only",
+        "A client_id and client_secret of an approved client application",
+        "An OAuth 2.0 access token"
+      ],
+      "answer": 2,
+      "explanation": "Client ID Enforcement checks the credentials of a client application registered for the API."
+    }
+  ]
+}

@@ -19,6 +19,7 @@ const NAV_LINKS = [
   { href: "/leaderboard", label: "Leaderboard", icon: <Trophy className="w-3.5 h-3.5 mr-1" /> },
   { href: "/blog", label: "Blog", icon: <BookOpen className="w-3.5 h-3.5 mr-1" /> },
   { href: "/contests", label: "Contests" },
+  { href: "/roadmap", label: "Learn" },
   { href: "/interview", label: "Interview" },
   { href: "/debugging", label: "Debugging" },
   { href: "/teams", label: "Teams" },

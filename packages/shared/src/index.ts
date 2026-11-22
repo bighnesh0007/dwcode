@@ -25,3 +25,4 @@ export * from "./reports.js";
 export * from "./engagement.js";
 export * from "./practice.js";
 export * from "./competition.js";
+export * from "./learning.js";

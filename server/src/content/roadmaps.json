@@ -1,0 +1,287 @@
+{
+  "roadmaps": [
+    {
+      "id": "beginner",
+      "title": "DataWeave from zero",
+      "summary": "Your first transformation to confident everyday DataWeave.",
+      "audience": [
+        "new",
+        "basics"
+      ],
+      "steps": [
+        {
+          "id": "b-first",
+          "title": "Your first transformation",
+          "lesson": "A DataWeave script has a **header** (`%dw 2.0`, `output ...`) and a **body** after `---`. The body is one expression whose value becomes the output. `payload` is the input.",
+          "categories": [
+            "Transformations"
+          ],
+          "solveCount": 1,
+          "quiz": [
+            {
+              "id": "bq-sep",
+              "prompt": "What separates the header from the body of a script?",
+              "options": [
+                "---",
+                "===",
+                "::",
+                "//"
+              ],
+              "answer": 0,
+              "explanation": "Three dashes on their own line end the header."
+            }
+          ]
+        },
+        {
+          "id": "b-arrays",
+          "title": "Arrays: map and filter",
+          "lesson": "`map` transforms every element (`$` is the item, `$$` its index); `filter` keeps the elements whose condition is true.",
+          "categories": [
+            "Arrays"
+          ],
+          "solveCount": 3,
+          "quiz": [
+            {
+              "id": "bq-index",
+              "prompt": "What does `[\"a\", \"b\", \"c\"] map $$` return?",
+              "options": [
+                "[1, 2, 3]",
+                "[\"a\", \"b\", \"c\"]",
+                "An error",
+                "[0, 1, 2]"
+              ],
+              "answer": 3,
+              "explanation": "`$$` is the index inside `map`.",
+              "check": {
+                "script": "[\"a\",\"b\",\"c\"] map $$",
+                "expected": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b-objects",
+          "title": "Objects and selectors",
+          "lesson": "Read fields with `.key`, every match with `.*key`, descendants with `..key`. Build objects with `{ key: value }`, merge them with `++`, transform pairs with `mapObject`.",
+          "categories": [
+            "Objects"
+          ],
+          "solveCount": 3,
+          "quiz": [
+            {
+              "id": "bq-merge",
+              "prompt": "What does `{a: 1} ++ {b: 2}` return?",
+              "options": [
+                "[{a: 1}, {b: 2}]",
+                "{b: 2}",
+                "{a: 1, b: 2}",
+                "An error"
+              ],
+              "answer": 2,
+              "explanation": "`++` concatenates two objects into one.",
+              "check": {
+                "script": "{a: 1} ++ {b: 2}",
+                "expected": {
+                  "a": 1,
+                  "b": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "b-strings",
+          "title": "Strings",
+          "lesson": "`upper`, `lower`, `splitBy`, `joinBy`, `replace`, `trim` and `sizeOf`. Interpolate with `\"Hello $(payload.name)\"`.",
+          "categories": [
+            "Strings"
+          ],
+          "solveCount": 2,
+          "quiz": []
+        },
+        {
+          "id": "b-core",
+          "title": "reduce, groupBy and pluck",
+          "lesson": "`reduce` folds an array into one value (give the accumulator a start value); `groupBy` buckets items by a key; `pluck` turns an object into an array.",
+          "categories": [
+            "Core Functions"
+          ],
+          "solveCount": 3,
+          "quiz": [
+            {
+              "id": "bq-size",
+              "prompt": "What does `sizeOf(\"hello\")` return?",
+              "options": [
+                "An error",
+                "5",
+                "\"hello\"",
+                "4"
+              ],
+              "answer": 1,
+              "explanation": "`sizeOf` counts characters in a string or elements in an array.",
+              "check": {
+                "script": "sizeOf(\"hello\")",
+                "expected": 5
+              }
+            }
+          ]
+        },
+        {
+          "id": "b-debug",
+          "title": "Read errors, fix bugs",
+          "lesson": "Most failures are precedence (`==` binds tighter than `mod`), nulls (use `default`), type mismatches (a function given an array instead of a string), or a `reduce` without a start value. The Debugging Arena drills each one.",
+          "categories": [
+            "Debugging"
+          ],
+          "solveCount": 2,
+          "quiz": []
+        }
+      ]
+    },
+    {
+      "id": "integration",
+      "title": "Integration developer",
+      "summary": "The transformations real integrations need: XML, nested payloads and reshaping.",
+      "audience": [
+        "basics",
+        "production"
+      ],
+      "steps": [
+        {
+          "id": "i-reshape",
+          "title": "Reshape payloads",
+          "lesson": "Most integration work is reshaping: pick fields, rename keys, nest and un-nest. Combine selectors with `map` and object construction.",
+          "categories": [
+            "Transformations",
+            "Objects"
+          ],
+          "solveCount": 3,
+          "quiz": []
+        },
+        {
+          "id": "i-xml",
+          "title": "XML in and out",
+          "lesson": "Read attributes with `.@name`, repeated elements with `.*item`, and set `output application/xml`. XML needs a single root element.",
+          "categories": [
+            "XML"
+          ],
+          "solveCount": 2,
+          "quiz": []
+        },
+        {
+          "id": "i-filter",
+          "title": "Filter and sort records",
+          "lesson": "`filter` by condition, `orderBy` by a key (it sorts ascending), and `distinctBy` to de-duplicate.",
+          "categories": [
+            "Arrays"
+          ],
+          "solveCount": 3,
+          "quiz": [
+            {
+              "id": "iq-order",
+              "prompt": "What does `[3, 1, 2] orderBy $` return?",
+              "options": [
+                "[1, 2, 3]",
+                "[3, 2, 1]",
+                "[3, 1, 2]",
+                "An error"
+              ],
+              "answer": 0,
+              "explanation": "`orderBy` sorts ascending by the criteria.",
+              "check": {
+                "script": "[3,1,2] orderBy $",
+                "expected": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "i-aggregate",
+          "title": "Aggregate",
+          "lesson": "Totals with `reduce` or `sum`, buckets with `groupBy`, counts with `sizeOf`.",
+          "categories": [
+            "Core Functions"
+          ],
+          "solveCount": 3,
+          "quiz": []
+        },
+        {
+          "id": "i-robust",
+          "title": "Handle messy input",
+          "lesson": "Real payloads have missing fields and wrong types. Guard with `default`, `is` checks and `if/else`; the Debugging Arena shows what breaks.",
+          "categories": [
+            "Debugging"
+          ],
+          "solveCount": 2,
+          "quiz": []
+        }
+      ]
+    },
+    {
+      "id": "interviews",
+      "title": "Interview preparation",
+      "summary": "The patterns technical screens ask for, then timed practice.",
+      "audience": [
+        "basics",
+        "production",
+        "expert"
+      ],
+      "steps": [
+        {
+          "id": "v-arrays",
+          "title": "Array patterns",
+          "lesson": "Map, filter, reduce, flatten, distinct: most screening questions are a pipeline of these.",
+          "categories": [
+            "Arrays",
+            "Core Functions"
+          ],
+          "solveCount": 4,
+          "quiz": []
+        },
+        {
+          "id": "v-objects",
+          "title": "Object patterns",
+          "lesson": "Merge, rename keys, pluck to arrays and back, and dynamic keys with `(key): value`.",
+          "categories": [
+            "Objects",
+            "Transformations"
+          ],
+          "solveCount": 4,
+          "quiz": []
+        },
+        {
+          "id": "v-strings",
+          "title": "String patterns",
+          "lesson": "Split, join, case, replace and interpolation.",
+          "categories": [
+            "Strings"
+          ],
+          "solveCount": 3,
+          "quiz": []
+        },
+        {
+          "id": "v-timed",
+          "title": "Timed practice",
+          "lesson": "Take an Interview mode session (/interview) to practise under the clock, then review what you missed.",
+          "categories": [
+            "Arrays",
+            "Objects",
+            "Strings",
+            "Transformations",
+            "Core Functions"
+          ],
+          "solveCount": 8,
+          "quiz": []
+        }
+      ]
+    }
+  ]
+}
