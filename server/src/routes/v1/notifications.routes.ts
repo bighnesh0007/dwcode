@@ -13,9 +13,11 @@ const json = () => express.json({ limit: LIMITS.body.default });
 export function notificationRoutes(c: NotificationsController, verifier: TokenVerifier): Router {
   const router = Router();
   const auth = requireAuth(verifier);
-  router.get("/", auth, createLimiter("read"), c.list);
-  router.get("/unread", auth, createLimiter("read"), c.unread);
-  router.post("/read", auth, createLimiter("write"), json(), validate({ body: markReadSchema }), c.markRead);
+  // Limiter BEFORE auth: token verification is itself work an unauthenticated
+  // flood could force, so it must be capped too (keyed by IP at that point).
+  router.get("/", createLimiter("read"), auth, c.list);
+  router.get("/unread", createLimiter("read"), auth, c.unread);
+  router.post("/read", createLimiter("write"), auth, json(), validate({ body: markReadSchema }), c.markRead);
   return router;
 }
 
@@ -23,6 +25,6 @@ export function notificationRoutes(c: NotificationsController, verifier: TokenVe
 export function announcementRoutes(c: NotificationsController, verifier: TokenVerifier): Router {
   const router = Router();
   router.get("/", createLimiter("read"), c.announcement);
-  router.put("/", requireAuth(verifier), requireAdmin(), createLimiter("write"), json(), validate({ body: announcementSchema }), c.setAnnouncement);
+  router.put("/", createLimiter("write"), requireAuth(verifier), requireAdmin(), json(), validate({ body: announcementSchema }), c.setAnnouncement);
   return router;
 }

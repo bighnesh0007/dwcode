@@ -7,13 +7,14 @@ import type { TokenVerifier } from "../../types/ports.ts";
 /** /api/v1/daily */
 export function dailyRoutes(c: EngagementController, verifier: TokenVerifier): Router {
   const router = Router();
-  router.get("/", optionalAuth(verifier), createLimiter("read"), c.daily);
+  // Limiter before auth, so token verification is capped too (keyed by IP).
+  router.get("/", createLimiter("read"), optionalAuth(verifier), c.daily);
   return router;
 }
 
 /** /api/v1/engagement */
 export function engagementRoutes(c: EngagementController, verifier: TokenVerifier): Router {
   const router = Router();
-  router.get("/me", requireAuth(verifier), createLimiter("read"), c.progress);
+  router.get("/me", createLimiter("read"), requireAuth(verifier), c.progress);
   return router;
 }
