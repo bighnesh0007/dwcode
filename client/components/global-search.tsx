@@ -17,11 +17,12 @@ export function GlobalSearch() {
   }
 
   return (
-    <form onSubmit={handleSearch} className="relative w-full md:w-64">
+    <form onSubmit={handleSearch} className="relative w-full">
       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         type="search"
-        placeholder="Search questions..."
+        placeholder="Search problems…"
+        aria-label="Search problems"
         className="pl-8 bg-muted/50 border-transparent focus-visible:border-ring"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
