@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Plus, Trash2, Pencil, ChevronDown, ChevronUp, Check, X, Users, ShieldOff, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { AnnouncementEditor } from "@/components/AnnouncementEditor";
 import type { Difficulty, ProblemSummary } from "@/lib/types";
 
 interface ProblemEdit {
@@ -203,6 +204,8 @@ function AdminPageContent() {
           </Button>
         </Link>
       </div>
+
+      <AnnouncementEditor />
 
       {/* AI Generate */}
       <Card>

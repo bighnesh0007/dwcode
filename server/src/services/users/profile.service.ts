@@ -9,6 +9,7 @@ import { BadRequestError, ConflictError, NotFoundError } from "../../errors/AppE
 import type { UserProfileRepository } from "../../repositories/userProfile.repository.ts";
 import type { UserStatsRepository } from "../../repositories/userStats.repository.ts";
 import type { Clock, IdentityProvider } from "../../types/ports.ts";
+import type { Notifier } from "../notifications/notification.service.ts";
 import { activityMapOf, countBy, last30Days, scoreOf, streakOf, withLegacyKeys, type ActivityDay } from "./activity.ts";
 
 const MONGO_DUPLICATE_KEY = 11000;
@@ -41,6 +42,7 @@ export class ProfileService {
     private readonly stats: UserStatsRepository,
     private readonly identity: IdentityProvider,
     private readonly clock: Clock,
+    private readonly notifier?: Notifier,
   ) {}
 
   /** The signed-in user's dashboard. Same shape as GET /api/profile. */
@@ -182,6 +184,11 @@ export class ProfileService {
       return { message: "Unfollowed successfully", following: false };
     }
     await this.profiles.follow(userId, target.userId);
+    await this.notifier?.notify(target.userId, {
+      kind: "follower",
+      title: `${me.username} followed you`,
+      link: `/profile/${encodeURIComponent(me.username)}`,
+    });
     return { message: "Followed successfully", following: true };
   }
 }

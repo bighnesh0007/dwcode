@@ -9,7 +9,7 @@
  * NOTHING was recorded — the user should simply try again. It is never shown as
  * a wrong answer.
  */
-import type { GradeResult } from "@dwcode/shared";
+import type { AcceptedRewards, GradeResult } from "@dwcode/shared";
 import { ApiError, apiRequest } from "./apiClient";
 import { explainCompilerError } from "./compilerErrors";
 
@@ -108,14 +108,14 @@ export async function playgroundRunViaApi(
 }
 
 export type SubmitOutcome =
-  | { kind: "graded"; result: GradeResult & { submissionId: string } }
+  | { kind: "graded"; result: GradeResult & { submissionId: string; rewards?: AcceptedRewards } }
   | { kind: "error"; message: string }
   | { kind: "unavailable"; message: string };
 
 interface JobData {
   state: "queued" | "active" | "completed" | "failed";
   position?: number;
-  result?: GradeResult & { submissionId: string };
+  result?: GradeResult & { submissionId: string; rewards?: AcceptedRewards };
   error?: { code: string; message: string };
 }
 

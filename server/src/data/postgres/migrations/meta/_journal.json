@@ -15,6 +15,13 @@
       "when": 1794493526398,
       "tag": "0001_contest_series_key",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795345894084,
+      "tag": "0002_engagement",
+      "breakpoints": true
     }
   ]
 }

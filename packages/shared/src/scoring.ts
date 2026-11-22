@@ -20,6 +20,8 @@ export const COIN_RULES = {
   comment: 1,
   blogPost: 2,
   problemCreated: 2,
+  /** Solving the daily challenge on its day (once per day). */
+  dailyChallenge: 15,
 } as const;
 
 /**

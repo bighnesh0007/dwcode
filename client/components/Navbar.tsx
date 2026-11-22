@@ -11,6 +11,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { cn } from "@/lib/utils";
 import { SHOW_ADMIN } from "@/lib/config";
 import { apiRequest } from "@/lib/apiClient";
+import { NotificationBell } from "@/components/NotificationBell";
 
 const NAV_LINKS = [
   { href: "/problems", label: "Problems" },
@@ -151,6 +152,7 @@ export default function Navbar() {
             ) : (
               <>
                 <CoinsBadge />
+                <NotificationBell />
                 <Link href="/profile">
                   <Button
                     variant="ghost"
@@ -173,6 +175,7 @@ export default function Navbar() {
 
         <div className="ml-auto flex items-center gap-1 md:hidden">
           {isSignedIn && <CoinsBadge />}
+          {isSignedIn && <NotificationBell />}
           <ModeToggle />
           <Button
             type="button"

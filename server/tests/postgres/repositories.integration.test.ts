@@ -15,6 +15,8 @@ import * as comments from "../../src/data/repositories/comments.ts";
 import * as contests from "../../src/data/repositories/contests.ts";
 import * as github from "../../src/data/repositories/githubIntegrations.ts";
 import * as notes from "../../src/data/repositories/notes.ts";
+import * as notifications from "../../src/data/repositories/notifications.ts";
+import * as settings from "../../src/data/repositories/settings.ts";
 import * as problems from "../../src/data/repositories/problems.ts";
 import * as profiles from "../../src/data/repositories/profiles.ts";
 import * as reports from "../../src/data/repositories/reports.ts";
@@ -420,6 +422,34 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       await newContest({ seriesKey: "weekly-2026-W46" });
       expect(await contests.existsBySeriesKey("weekly-2026-W46")).toBe(true);
       await expect(newContest({ seriesKey: "weekly-2026-W46" })).rejects.toSatisfy(isDuplicateKeyError);
+    });
+  });
+  describe("notifications and settings (Phase A)", () => {
+    it("lists a user's notifications newest first and counts the unread", async () => {
+      await notifications.create("n1", { kind: "follower", title: "first" });
+      await new Promise((r) => setTimeout(r, 5));
+      const second = await notifications.create("n1", { kind: "achievement", title: "second", body: "b", link: "/profile" });
+      await notifications.create("n2", { kind: "follower", title: "someone else's" });
+      const list = await notifications.listForUser("n1", 10);
+      expect(list.map((n) => n.title)).toEqual(["second", "first"]);
+      expect(list[0]).toMatchObject({ kind: "achievement", body: "b", link: "/profile", read: false });
+      expect(await notifications.countUnread("n1")).toBe(2);
+
+      await notifications.markRead("n1", [String(second._id), "not-a-hex-id"]);
+      expect(await notifications.countUnread("n1")).toBe(1);
+      await notifications.markRead("n2", [String(second._id)]);
+      expect(await notifications.countUnread("n1")).toBe(1);
+      await notifications.markRead("n1");
+      expect(await notifications.countUnread("n1")).toBe(0);
+      expect(await notifications.countUnread("n2")).toBe(1);
+    });
+
+    it("stores and replaces a setting by key", async () => {
+      expect(await settings.get("announcement")).toBeNull();
+      await settings.set("announcement", { message: "hi", level: "info" }, "admin");
+      expect(await settings.get("announcement")).toEqual({ message: "hi", level: "info" });
+      await settings.set("announcement", null, "admin");
+      expect(await settings.get("announcement")).toBeNull();
     });
   });
 });

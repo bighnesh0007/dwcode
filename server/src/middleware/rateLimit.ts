@@ -5,20 +5,18 @@
  * implements the same interface, so moving off memory later is a store swap in the
  * container, with no change to any policy or route.
  */
-import rateLimitImport, { ipKeyGenerator } from "express-rate-limit";
-import type { Options, RateLimitRequestHandler, Store } from "express-rate-limit";
+import { ipKeyGenerator, rateLimit } from "express-rate-limit";
+import type { RateLimitRequestHandler, Store } from "express-rate-limit";
 import { RATE_LIMIT_POLICIES, type RateLimitPolicyName } from "../config/constants.ts";
 import { RateLimitError } from "../errors/AppError.ts";
 import { logEvent } from "../lib/logger.ts";
-import { interopDefault } from "../lib/interop.ts";
 
-/**
- * Same CJS/ESM declaration split as helmet — the default export is only callable
- * under the ESM declaration. `ipKeyGenerator` is a real named export in BOTH
- * declaration files, so it imports normally. See lib/interop.ts.
+/*
+ * The NAMED export, not the default: `rateLimit` is a real named export in both
+ * the CJS and ESM declaration files (unlike the default — see lib/interop.ts),
+ * and it is the form CodeQL's rate-limiting model recognises, so every route
+ * built with createLimiter reads as rate-limited.
  */
-type RateLimitFactory = (options?: Partial<Options>) => RateLimitRequestHandler;
-const rateLimit = interopDefault<RateLimitFactory>(rateLimitImport);
 
 /**
  * Where counters live. Unset = express-rate-limit's in-process memory store,
