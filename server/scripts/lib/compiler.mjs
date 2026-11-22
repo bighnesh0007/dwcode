@@ -31,8 +31,30 @@ export function formatCompilerOutput(raw, script) {
   return JSON.stringify(raw, null, 2);
 }
 
+/**
+ * The compiler service itself (compiler/), when set: scripts can then run
+ * without the API server. Same engine as grading.
+ */
+export const COMPILER_SERVICE_URL = (process.env.COMPILER_SERVICE_URL || "").replace(/\/$/, "");
+
+async function runOnService(script, input) {
+  const response = await fetch(`${COMPILER_SERVICE_URL}/v1/execute`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(process.env.COMPILER_AUTH_TOKEN ? { Authorization: `Bearer ${process.env.COMPILER_AUTH_TOKEN}` } : {}),
+    },
+    body: JSON.stringify({ script, inputs: [{ name: "payload", value: input || "{}", mimeType: "application/json" }] }),
+    signal: AbortSignal.timeout(90_000),
+  });
+  const data = await response.json();
+  if (!data.ok) throw new Error(String(data.error?.message || `HTTP ${response.status}`));
+  return formatCompilerOutput(data.output, script);
+}
+
 /** Run `script` against one input. Throws with the compiler's message on failure. */
 export async function runScript(script, input) {
+  if (COMPILER_SERVICE_URL) return runOnService(script, input);
   let value = {};
   try {
     value = JSON.parse(input || "{}");

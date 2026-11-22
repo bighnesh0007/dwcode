@@ -1,0 +1,156 @@
+[
+  {
+    "slug": "debug-even-or-odd-precedence",
+    "title": "Debug: Even or Odd",
+    "difficulty": "Easy",
+    "bug": "precedence",
+    "description": "This script should report whether `payload.n` is even, but it throws on every input.\n\nFind the bug and fix it so the output is `{ \"n\": <n>, \"even\": true | false }`.\n\n**Hint:** in DataWeave, `==` binds tighter than `mod`.",
+    "starterCode": "%dw 2.0\noutput application/json\n---\n{\n  n: payload.n,\n  even: payload.n mod 2 == 0\n}",
+    "solution": "%dw 2.0\noutput application/json\n---\n{\n  n: payload.n,\n  even: (payload.n mod 2) == 0\n}",
+    "hints": [
+      "Read the error: which arguments did `mod` receive?",
+      "Parenthesise the `mod` expression before comparing."
+    ],
+    "examples": [
+      {
+        "input": "{\"n\": 4}",
+        "explanation": "4 mod 2 is 0, so it is even."
+      }
+    ],
+    "tests": [
+      "{\"n\": 7}",
+      "{\"n\": 0}"
+    ],
+    "hidden": [
+      "{\"n\": -3}",
+      "{\"n\": 1000}"
+    ]
+  },
+  {
+    "slug": "debug-adults-off-by-one",
+    "title": "Debug: Adults Only",
+    "difficulty": "Easy",
+    "bug": "off-by-one",
+    "description": "Return the names of everyone who is **18 or older**. The script runs, but someone who is exactly 18 is left out.\n\nFix the filter.",
+    "starterCode": "%dw 2.0\noutput application/json\n---\npayload filter ($.age > 18) map $.name",
+    "solution": "%dw 2.0\noutput application/json\n---\npayload filter ($.age >= 18) map $.name",
+    "hints": [
+      "Who should be included at exactly 18?"
+    ],
+    "examples": [
+      {
+        "input": "[{\"name\": \"Ana\", \"age\": 18}, {\"name\": \"Bo\", \"age\": 17}, {\"name\": \"Cy\", \"age\": 30}]",
+        "explanation": "Ana (18) and Cy (30) qualify."
+      }
+    ],
+    "tests": [
+      "[{\"name\": \"Dee\", \"age\": 18}]",
+      "[]"
+    ],
+    "hidden": [
+      "[{\"name\": \"Eli\", \"age\": 19}, {\"name\": \"Fay\", \"age\": 18}, {\"name\": \"Gus\", \"age\": 5}]"
+    ]
+  },
+  {
+    "slug": "debug-order-total-nulls",
+    "title": "Debug: Order Total with Missing Prices",
+    "difficulty": "Medium",
+    "bug": "null-handling",
+    "description": "Sum `price` across `payload.items`. Some items have no price yet and should count as `0`, but the script fails as soon as one is missing.\n\nOutput `{ \"total\": <number> }`.",
+    "starterCode": "%dw 2.0\noutput application/json\n---\n{\n  total: payload.items reduce ((item, acc = 0) -> acc + item.price)\n}",
+    "solution": "%dw 2.0\noutput application/json\n---\n{\n  total: payload.items reduce ((item, acc = 0) -> acc + (item.price default 0))\n}",
+    "hints": [
+      "What is `item.price` when the key is absent?",
+      "`default` supplies a value for null."
+    ],
+    "examples": [
+      {
+        "input": "{\"items\": [{\"price\": 10}, {\"sku\": \"x\"}, {\"price\": 5}]}",
+        "explanation": "The middle item has no price, so the total is 15."
+      }
+    ],
+    "tests": [
+      "{\"items\": [{\"price\": 2}, {\"price\": 3}]}",
+      "{\"items\": [{\"sku\": \"a\"}]}"
+    ],
+    "hidden": [
+      "{\"items\": [{\"price\": 1.5}, {\"price\": null}, {\"price\": 2.5}]}"
+    ]
+  },
+  {
+    "slug": "debug-shout-names-map",
+    "title": "Debug: Shout the Names",
+    "difficulty": "Easy",
+    "bug": "type-mismatch",
+    "description": "Return every name in `payload.names` in upper case. The script throws because `upper` expects a single String, and it is given the whole array.\n\nOutput an array of upper-case names.",
+    "starterCode": "%dw 2.0\noutput application/json\n---\nupper(payload.names)",
+    "solution": "%dw 2.0\noutput application/json\n---\npayload.names map upper($)",
+    "hints": [
+      "What type does `upper` take, and what type is `payload.names`?",
+      "Apply it to each element."
+    ],
+    "examples": [
+      {
+        "input": "{\"names\": [\"ana\", \"bo\"]}",
+        "explanation": "Each name is upper-cased."
+      }
+    ],
+    "tests": [
+      "{\"names\": [\"cy\"]}",
+      "{\"names\": []}"
+    ],
+    "hidden": [
+      "{\"names\": [\"dee\", \"Eli\", \"FAY\"]}"
+    ]
+  },
+  {
+    "slug": "debug-count-reduce-accumulator",
+    "title": "Debug: Count the Failed Jobs",
+    "difficulty": "Medium",
+    "bug": "reduce",
+    "description": "Count how many entries in `payload` have `status` equal to `\"FAILED\"`. The reduce has no starting value, so its first accumulator is the first job object, not a number.\n\nOutput `{ \"failed\": <count> }`.",
+    "starterCode": "%dw 2.0\noutput application/json\n---\n{\n  failed: payload reduce ((job, acc) -> if (job.status == \"FAILED\") acc + 1 else acc)\n}",
+    "solution": "%dw 2.0\noutput application/json\n---\n{\n  failed: payload reduce ((job, acc = 0) -> if (job.status == \"FAILED\") acc + 1 else acc)\n}",
+    "hints": [
+      "What is `acc` on the first call when it has no default?",
+      "Give the accumulator a starting value."
+    ],
+    "examples": [
+      {
+        "input": "[{\"status\": \"FAILED\"}, {\"status\": \"OK\"}, {\"status\": \"FAILED\"}]",
+        "explanation": "Two jobs failed."
+      }
+    ],
+    "tests": [
+      "[{\"status\": \"OK\"}, {\"status\": \"FAILED\"}]",
+      "[{\"status\": \"OK\"}, {\"status\": \"OK\"}]"
+    ],
+    "hidden": [
+      "[{\"status\": \"FAILED\"}, {\"status\": \"FAILED\"}, {\"status\": \"FAILED\"}]"
+    ]
+  },
+  {
+    "slug": "debug-reserved-key",
+    "title": "Debug: The Type Field",
+    "difficulty": "Easy",
+    "bug": "syntax",
+    "description": "Map `payload.kind` to an output field named `type`. The script fails to compile because `type` is a reserved word in DataWeave.\n\nOutput `{ \"type\": <kind> }`.",
+    "starterCode": "%dw 2.0\noutput application/json\n---\n{\n  type: payload.kind\n}",
+    "solution": "%dw 2.0\noutput application/json\n---\n{\n  \"type\": payload.kind\n}",
+    "hints": [
+      "Keys can be quoted."
+    ],
+    "examples": [
+      {
+        "input": "{\"kind\": \"invoice\"}",
+        "explanation": "The key is written as a quoted string."
+      }
+    ],
+    "tests": [
+      "{\"kind\": \"order\"}"
+    ],
+    "hidden": [
+      "{\"kind\": \"refund\"}"
+    ]
+  }
+]
