@@ -10,6 +10,7 @@ import { config } from "../config/index.ts";
 import { ForbiddenError, UnauthenticatedError } from "../errors/AppError.ts";
 import { ErrorCode } from "../errors/codes.ts";
 import { hasAdminRole } from "../data/repositories/roles.ts";
+import { isSuspended } from "./suspension.ts";
 import type { TokenVerifier } from "../types/ports.ts";
 
 function extractBearer(header: string | undefined): string | null {
@@ -78,10 +79,14 @@ export function requireAuth(verifier: TokenVerifier): RequestHandler {
 
     verifier
       .verify(found.token)
-      .then((identity) => {
+      .then(async (identity) => {
         req.auth = identity;
         // Re-bind the logger so every later line carries the user id.
         req.log = req.log.child({ userId: identity.userId });
+        // A suspended account can still read; every write is refused.
+        if (!SAFE_METHODS.has(req.method) && (await isSuspended(identity.userId))) {
+          throw new ForbiddenError("Your account is suspended.", ErrorCode.FORBIDDEN);
+        }
         next();
       })
       .catch(next);

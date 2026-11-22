@@ -198,7 +198,11 @@ function AdminPageContent() {
           <h1 className="text-3xl font-bold tracking-tight">Admin</h1>
           <p className="text-muted-foreground mt-1 text-sm">Manage problems, generate with AI, or create your own.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Link href="/admin/analytics"><Button variant="outline" size="sm">Analytics</Button></Link>
+          <Link href="/admin/moderation"><Button variant="outline" size="sm">Moderation</Button></Link>
+          <Link href="/admin/errors"><Button variant="outline" size="sm">Errors</Button></Link>
+          <Link href="/admin/audit"><Button variant="outline" size="sm">Audit log</Button></Link>
           <Link href="/admin/contributions">
             <Button variant="outline" size="sm">Review queue</Button>
           </Link>

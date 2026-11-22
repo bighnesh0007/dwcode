@@ -9,6 +9,7 @@ import { FooterGate } from "@/components/FooterGate";
 import { ThemeProvider } from "@/components/theme-provider";
 import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { Telemetry } from "@/components/Telemetry";
 import { ProductTour } from "@/components/ProductTour";
 import { SkinProvider } from "@/components/SkinProvider";
 import { SkinPreviewBanner } from "@/components/SkinPreviewBanner";
@@ -62,6 +63,7 @@ export default function RootLayout({
               <SkinPreviewBanner />
               <MaintenanceBanner />
               <AnnouncementBanner />
+              <Telemetry />
               <ProductTour />
               <main className="flex-1 flex flex-col">{children}</main>
               <FooterGate>

@@ -5,6 +5,7 @@
  *
  * Content is raw markdown, sanitised at render time (audit H-1).
  */
+import { hiddenRefs } from "../admin/hiddenContent.ts";
 import { COIN_RULES } from "@dwcode/shared";
 import { config } from "../../config/index.ts";
 import { BadRequestError, ForbiddenError, NotFoundError } from "../../errors/AppError.ts";
@@ -43,13 +44,15 @@ export class BlogService {
     private readonly identity: IdentityProvider,
   ) {}
 
-  list() {
-    return this.blogs.listPublished();
+  async list() {
+    const [posts, hidden] = await Promise.all([this.blogs.listPublished(), hiddenRefs("blog")]);
+    return hidden.size === 0 ? posts : posts.filter((p) => !hidden.has(p.slug));
   }
 
   async get(slug: string) {
     const post = await this.blogs.findPublished(slug);
-    if (!post) throw new NotFoundError("Post not found.");
+    // A post hidden by a moderator reads as not found.
+    if (!post || (await hiddenRefs("blog")).has(slug)) throw new NotFoundError("Post not found.");
     return post;
   }
 

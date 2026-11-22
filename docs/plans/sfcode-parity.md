@@ -187,6 +187,18 @@ Phase E ✅
 - Mentors directory, jobs board
 
 ### Phase F — Platform and admin
+
+F1 shipped:
+- Admin pages at `/admin/{analytics,audit,moderation,errors}`.
+- Moderation hides blog posts and comments for everyone, and suspends
+  users, with an optional end date. A suspended user can read but every
+  write is refused in `requireAuth`. Admins can't be suspended.
+- Every admin action (moderation, contribution reviews, role changes,
+  resolving errors) goes in the audit log.
+- Anonymous telemetry (`/api/v1/telemetry/{error,csp,pageview}`) feeds
+  analytics and a fingerprint-grouped error inbox. A resolved error
+  reopens if it happens again.
+- Data is in four tables (migration 0007).
 - Admin: analytics, audit log, moderation (blog/comment hide), user suspension, review queues, store editor, email test
 - Telemetry (client errors, CSP, page views) with an admin error inbox
 - Email notifications with per-user preferences

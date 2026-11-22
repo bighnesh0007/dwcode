@@ -9,6 +9,7 @@
  * exact solution and inputs it ran, so editing either means checking again,
  * and approval re-runs it so the published outputs come from today's engine.
  */
+import { recordAudit } from "../admin/audit.ts";
 import {
   CONTRIBUTION_REWARD,
   OPEN_LIMIT,
@@ -227,6 +228,7 @@ export class ContributionService {
 
     const approved = await this.contributions.transition(id, ["submitted"], { status: "approved", reviewNote: note, reviewedBy: adminId, publishedRef });
     if (!approved) throw new ConflictError("Someone else reviewed this contribution first.");
+    await recordAudit(adminId, "contribution.approve", id, { kind: doc.kind, publishedRef });
     const reward = CONTRIBUTION_REWARD[doc.kind as ContributionKind];
     if (reward) await this.coins.award(doc.authorId, reward, "contribution_approved", `Contribution approved: ${titleOf(doc)}`);
     await this.notifier.notify(doc.authorId, {
@@ -244,6 +246,7 @@ export class ContributionService {
     if (!doc) throw new NotFoundError("Contribution not found.");
     const rejected = await this.contributions.transition(id, ["submitted"], { status: "rejected", reviewNote: note, reviewedBy: adminId });
     if (!rejected) throw new ConflictError("Only submitted contributions can be rejected.");
+    await recordAudit(adminId, "contribution.reject", id, { kind: doc.kind, note });
     await this.notifier.notify(doc.authorId, { kind: "contribution", title: `Changes requested on your ${doc.kind}`, body: note, link: `/contribute/${id}` });
     return view(rejected);
   }

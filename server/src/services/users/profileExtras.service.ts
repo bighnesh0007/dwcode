@@ -7,6 +7,7 @@
  *  - Feed: recent solves and blog posts by the people you follow.
  *  - Mentors: opt in with topics; others can ask, a few times a day.
  */
+import { hiddenRefs } from "../admin/hiddenContent.ts";
 import {
   MENTOR_ASKS_PER_DAY,
   equippedItems,
@@ -141,11 +142,12 @@ export class ProfileExtrasService {
     const following = me?.following ?? [];
     if (following.length === 0) return { following: 0, items: [] };
     const followed = new Set(following);
-    const [solves, posts, catalog, names] = await Promise.all([
+    const [solves, posts, catalog, names, hiddenPosts] = await Promise.all([
       this.details.acceptedByUsers(following, FEED_SOLVES),
       this.blog.listPublished(),
       this.catalog.list({}),
       this.profiles.usernamesFor(following),
+      hiddenRefs("blog"),
     ]);
     const titles = new Map((catalog as unknown as { slug?: string; title?: string; difficulty?: string }[])
       .flatMap((p) => (p.slug ? [[p.slug, { title: p.title ?? p.slug, difficulty: p.difficulty ?? "" }] as const] : [])));
@@ -163,7 +165,7 @@ export class ProfileExtrasService {
       });
     }
     for (const post of (posts as unknown as { authorId: string; title: string; slug: string; createdAt: Date }[])
-      .filter((b) => followed.has(b.authorId)).slice(0, FEED_POSTS)) {
+      .filter((b) => followed.has(b.authorId) && !hiddenPosts.has(b.slug)).slice(0, FEED_POSTS)) {
       items.push({ type: "post", at: new Date(post.createdAt).toISOString(), username: names.get(post.authorId) ?? "someone", title: post.title, link: `/blog/${post.slug}` });
     }
     items.sort((a, b) => b.at.localeCompare(a.at));

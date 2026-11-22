@@ -482,3 +482,61 @@ export const profileDetails = pgTable(
   },
   (t) => [index("profile_details_mentor_idx").on(t.mentorActive, t.updatedAt)],
 );
+
+// ── Platform and admin (SFCode parity, Phase F) ─────────────────────────────
+
+/** Every admin action. Append-only. */
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: id(),
+    actorId: text("actor_id").notNull(),
+    action: text("action").notNull(),
+    target: text("target").notNull().default(""),
+    detail: jsonb("detail").$type<unknown>().notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("audit_log_created_idx").on(t.createdAt)],
+);
+
+/** Hidden posts and comments, suspended users. */
+export const moderation = pgTable(
+  "moderation",
+  {
+    kind: text("kind").notNull(),
+    ref: text("ref").notNull(),
+    reason: text("reason").notNull().default(""),
+    actorId: text("actor_id").notNull(),
+    until: timestamp("until", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.kind, t.ref] })],
+);
+
+/** Client errors and CSP reports, grouped by fingerprint. */
+export const clientErrors = pgTable(
+  "client_errors",
+  {
+    fingerprint: text("fingerprint").primaryKey(),
+    kind: text("kind").notNull(),
+    message: text("message").notNull(),
+    source: text("source").notNull().default(""),
+    sample: jsonb("sample").$type<Record<string, string>>().notNull().default({}),
+    count: integer("count").notNull().default(0),
+    resolved: boolean("resolved").notNull().default(false),
+    firstSeen: timestamp("first_seen", { withTimezone: true }).notNull().defaultNow(),
+    lastSeen: timestamp("last_seen", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("client_errors_open_idx").on(t.resolved, t.lastSeen)],
+);
+
+/** Page views per UTC day and path. */
+export const pageViews = pgTable(
+  "page_views",
+  {
+    day: text("day").notNull(),
+    path: text("path").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.path] })],
+);

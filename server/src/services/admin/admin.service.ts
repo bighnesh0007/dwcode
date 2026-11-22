@@ -5,6 +5,7 @@
  * Users are the UNION of every collection that records a Clerk userId, with
  * UserProfile as the primary registry; activity stats are left-joined on top.
  */
+import { recordAudit } from "./audit.ts";
 import { ForbiddenError, NotFoundError } from "../../errors/AppError.ts";
 import { ErrorCode } from "../../errors/codes.ts";
 import type { AdminRepository, AdminRoleRow } from "../../repositories/admin.repository.ts";
@@ -110,11 +111,13 @@ export class AdminService {
       targetUserName: target.userName,
       grantedBy: callerId,
     });
+    await recordAudit(callerId, "role.grant", target.userId, { role: "admin" });
   }
 
-  async revoke(callerIsSuperAdmin: boolean, targetUserId: string): Promise<void> {
+  async revoke(callerIsSuperAdmin: boolean, targetUserId: string, callerId = ""): Promise<void> {
     requireSuper(callerIsSuperAdmin);
     if (!(await this.repo.revokeAdmin(targetUserId))) throw new NotFoundError("That user is not an admin.");
+    await recordAudit(callerId, "role.revoke", targetUserId, { role: "admin" });
   }
 }
 
