@@ -31,6 +31,26 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "platform-phase-f-002",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "feature",
+        title: "Email notifications, installable app, home dashboard, privacy and terms",
+        description:
+            "Choose which notifications also reach your inbox; only replies to your own contributions and mentoring requests are on by default. Install DWCode as an app, and pages you've opened still load offline. The home page now shows the next contest with a countdown, your place on the rank ladder, and a short FAQ. There are new Privacy and Terms pages, and structured data for search engines.",
+        tags: ["email", "pwa", "dashboard", "seo"],
+    },
+    {
+        id: "platform-phase-f-001",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "improvement",
+        title: "Moderation, suspensions, an audit log, analytics and an error inbox",
+        description:
+            "Admins can hide blog posts and comments and suspend accounts (suspended users can still read). Every admin action goes in an audit log. Anonymous page views and browser errors feed an analytics page and an error inbox, so problems get noticed and fixed sooner. No user ids are sent, and query strings are stripped from every URL.",
+        tags: ["admin", "moderation", "analytics", "telemetry"],
+    },
+    {
         id: "community-phase-e-002",
         date: "2026-11-22",
         status: "shipped",
@@ -500,13 +520,4 @@ export const CHANGELOG: ChangelogEntry[] = [
     },
 
     // ── Ideas ─────────────────────────────────────────────────────────────────
-    {
-        id: "mobile-app-001",
-        status: "idea",
-        category: "feature",
-        title: "Mobile app (PWA)",
-        description:
-            "Progressive Web App version of DWCode for offline problem browsing and code reading on mobile.",
-        tags: ["mobile", "pwa"],
-    },
 ];

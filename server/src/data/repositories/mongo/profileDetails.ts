@@ -9,9 +9,10 @@ export interface ProfileDetailPatch {
   mentorActive?: boolean;
   mentorTopics?: string[];
   mentorNote?: string;
+  emailPrefs?: Record<string, boolean>;
 }
 
-const FIELDS = "userId headline about links equipped mentorActive mentorTopics mentorNote updatedAt -_id";
+const FIELDS = "userId headline about links equipped mentorActive mentorTopics mentorNote emailPrefs updatedAt -_id";
 
 export async function get(userId: string) {
   await connect();

@@ -37,6 +37,8 @@ const COLUMNS: {
     links: [
       // Moved out of the navbar and into the footer.
       { label: "Changelog", href: "/changelog" },
+      { label: "Privacy", href: "/privacy" },
+      { label: "Terms", href: "/terms" },
       { label: "Source Code", href: REPO_URL, external: true },
       { label: "Report an Issue", href: `${REPO_URL}/issues/new`, external: true },
       { label: "Contribute code", href: `${REPO_URL}/blob/master/README.md`, external: true },

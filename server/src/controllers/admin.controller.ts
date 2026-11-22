@@ -32,7 +32,7 @@ export class AdminController {
 
   revoke = async (req: Request, res: Response): Promise<void> => {
     const { userId } = validatedParams<{ userId: string }>(req);
-    await this.service.revoke(req.isSuperAdmin === true, userId);
+    await this.service.revoke(req.isSuperAdmin === true, userId, callerId(req));
     ok(res, { userId, revoked: true });
   };
 }

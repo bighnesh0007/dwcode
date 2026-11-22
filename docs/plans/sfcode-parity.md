@@ -187,6 +187,33 @@ Phase E ✅
 - Mentors directory, jobs board
 
 ### Phase F — Platform and admin
+
+F1 shipped:
+- Admin pages at `/admin/{analytics,audit,moderation,errors}`.
+- Moderation hides blog posts and comments for everyone, and suspends
+  users, with an optional end date. A suspended user can read but every
+  write is refused in `requireAuth`. Admins can't be suspended.
+- Every admin action (moderation, contribution reviews, role changes,
+  resolving errors) goes in the audit log.
+- Anonymous telemetry (`/api/v1/telemetry/{error,csp,pageview}`) feeds
+  analytics and a fingerprint-grouped error inbox. A resolved error
+  reopens if it happens again.
+- Data is in four tables (migration 0007).
+
+F2 shipped:
+- Email notifications through Resend (`RESEND_API_KEY`; without it,
+  nothing is sent), with per-category preferences in `profile_details`
+  (migration 0008). Only replies to your own contributions and mentoring
+  requests are on by default. Each learner gets at most 20 emails a day.
+- An admin email test, and a store editor: price overrides and taking
+  items off sale, stored in app settings and audited.
+- PWA: manifest, a service worker that caches built assets and public
+  pages only, and `/offline`.
+- `/privacy` and `/terms`, JSON-LD on the site, problems and blog posts,
+  and a signed-in home dashboard (next contest countdown, rank ladder,
+  FAQ).
+
+Phase F ✅. All six phases are done.
 - Admin: analytics, audit log, moderation (blog/comment hide), user suspension, review queues, store editor, email test
 - Telemetry (client errors, CSP, page views) with an admin error inbox
 - Email notifications with per-user preferences

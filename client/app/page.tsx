@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { DailyCard } from "@/components/DailyCard";
+import { DIFFICULTY_TIERS, difficultyClassName } from "@dwcode/shared";
+import { computeScore } from "@/lib/ranks";
+import { HomeDashboard } from "@/components/HomeDashboard";
 import { LearningPrompt } from "@/components/LearningPrompt";
 import { auth } from "@clerk/nextjs/server";
 import { GuestMigration } from "@/components/GuestMigration";
@@ -15,10 +18,11 @@ import type { ProblemSummary } from "@/lib/types";
 export default async function Home() {
   const { userId } = await auth();
 
-  let total = 0, easy = 0, medium = 0, hard = 0;
+  let total = 0;
+  let totalByDifficulty: Record<string, number> = {};
   let solved = 0, attempted = 0, bookmarked = 0;
   let totalSubmissions = 0, acceptanceRate = 0, streak = 0;
-  let solvedEasy = 0, solvedMedium = 0, solvedHard = 0;
+  const solvedByDifficulty: Record<string, number> = {};
   let recentProblems: ProblemSummary[] = [];
   let bookmarkedProblems: ProblemSummary[] = [];
   const activityData: { date: string; count: number }[] = [];
@@ -26,9 +30,7 @@ export default async function Home() {
   try {
     const stats = await serverApi<{ total: number; byDifficulty: Record<string, number> }>("/api/v1/problems/stats");
     total = stats.total;
-    easy = stats.byDifficulty.Easy ?? 0;
-    medium = stats.byDifficulty.Medium ?? 0;
-    hard = stats.byDifficulty.Hard ?? 0;
+    totalByDifficulty = stats.byDifficulty;
 
     if (userId) {
       const [mine, bookmarks] = await Promise.all([
@@ -58,9 +60,7 @@ export default async function Home() {
             body: { slugs: mine.solved },
           })
         : [];
-      solvedEasy = solvedProbs.filter((problem) => problem.difficulty === "Easy").length;
-      solvedMedium = solvedProbs.filter((problem) => problem.difficulty === "Medium").length;
-      solvedHard = solvedProbs.filter((problem) => problem.difficulty === "Hard").length;
+      for (const problem of solvedProbs) solvedByDifficulty[problem.difficulty] = (solvedByDifficulty[problem.difficulty] ?? 0) + 1;
 
       const activityMap = mine.daily;
       for (let i = 29; i >= 0; i--) {
@@ -88,10 +88,8 @@ export default async function Home() {
     console.error("Dashboard data error:", e);
   }
 
-  const difficultyColor = (d: string) =>
-    d === "Easy" ? "text-green-500 border-green-500/30 bg-green-500/10" :
-    d === "Medium" ? "text-yellow-500 border-yellow-500/30 bg-yellow-500/10" :
-    "text-red-500 border-red-500/30 bg-red-500/10";
+  const difficultyColor = (d: string) => difficultyClassName(d).badge;
+  const score = computeScore(solvedByDifficulty);
 
   const solvedPct = total > 0 ? Math.round((solved / total) * 100) : 0;
 
@@ -119,6 +117,7 @@ export default async function Home() {
       </div>
 
       <LearningPrompt />
+      {userId && <HomeDashboard score={score} />}
       <DailyCard />
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -199,11 +198,9 @@ export default async function Home() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-around gap-4 py-2">
-                {[
-                  { label: "Easy", value: solvedEasy, total: easy, color: "text-green-500" },
-                  { label: "Medium", value: solvedMedium, total: medium, color: "text-yellow-500" },
-                  { label: "Hard", value: solvedHard, total: hard, color: "text-red-500" },
-                ].map(({ label, value, total, color }) => (
+                {DIFFICULTY_TIERS.map((t) => ({
+                  label: t.label, value: solvedByDifficulty[t.id] ?? 0, total: totalByDifficulty[t.id] ?? 0, color: difficultyClassName(t.id).text,
+                })).map(({ label, value, total, color }) => (
                   <div key={label} className="flex flex-col items-center gap-1">
                     <div className="relative">
                       <ProgressRing value={value} max={total} color={color} size={72} />

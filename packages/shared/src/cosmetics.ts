@@ -95,3 +95,30 @@ export const PROFILE_LIMITS = { headline: 80, about: 2000, mentorTopics: 6, ment
 export const MENTOR_ASKS_PER_DAY = 5;
 /** Days a job posting stays listed after approval. */
 export const JOB_LISTING_DAYS = 60;
+
+// ── Email notifications (Phase F) ───────────────────────────────────────────
+
+/**
+ * Email categories a learner can turn on or off. Each maps to in-app
+ * notification kinds. Only replies to your own actions (contribution
+ * reviews, mentoring requests) are on by default; everything else is opt-in.
+ */
+export const EMAIL_CATEGORIES = [
+  { id: "contributions", label: "Reviews of my contributions", kinds: ["contribution"], default: true },
+  { id: "mentoring", label: "Mentoring requests", kinds: ["mentor"], default: true },
+  { id: "contests", label: "Contest reminders and results", kinds: ["contest_reminder", "contest_result"], default: false },
+  { id: "community", label: "New followers and comments on my posts", kinds: ["follower", "comment"], default: false },
+  { id: "achievements", label: "Achievements and daily bonuses", kinds: ["achievement", "daily_bonus"], default: false },
+] as const;
+export type EmailCategory = (typeof EMAIL_CATEGORIES)[number]["id"];
+export type EmailPrefs = Partial<Record<EmailCategory, boolean>>;
+
+/** Whether a notification of this kind should be emailed under these preferences. */
+export function emailAllowed(kind: string, prefs: EmailPrefs): boolean {
+  const cat = EMAIL_CATEGORIES.find((c) => (c.kinds as readonly string[]).includes(kind));
+  if (!cat) return false;
+  return prefs[cat.id] ?? cat.default;
+}
+
+/** Emails one learner can receive per UTC day, whatever their settings. */
+export const EMAILS_PER_DAY = 20;

@@ -7,6 +7,7 @@
  *
  * Overrides let tests replace any dependency (fetch, clock, stores) wholesale.
  */
+import { configureEmail, ResendMailer, type Mailer } from "./services/notifications/email.ts";
 import { Redis } from "ioredis";
 import { RedisStore } from "rate-limit-redis";
 import { config } from "./config/index.ts";
@@ -56,6 +57,8 @@ import {
 
 export interface ContainerOverrides {
   fetchImpl?: FetchLike;
+  /** Tests: the mailer for email notifications; null turns email off. */
+  mailer?: Mailer | null;
   /** Force the compiler backend in tests, independent of env. `null` forces the legacy upstream path. */
   compiler?: { url: string; authToken: string; timeoutMs?: number; cacheTtlMs?: number } | null;
   clock?: Clock;
@@ -220,6 +223,15 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
   const legacyTransformController = new LegacyTransformController(
     dataweaveClient,
     upstreamHealth,
+  );
+
+  // ── Email notifications ────────────────────────────────────────────────────
+  configureEmail(
+    overrides.mailer !== undefined
+      ? overrides.mailer && { mailer: overrides.mailer, identity, store, appUrl: config.email.appUrl }
+      : config.email.resendApiKey
+        ? { mailer: new ResendMailer(config.email.resendApiKey, config.email.from, fetchImpl), identity, store, appUrl: config.email.appUrl }
+        : null,
   );
 
   // ── Payments ───────────────────────────────────────────────────────────────

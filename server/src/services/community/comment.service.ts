@@ -6,6 +6,7 @@
  * Content is stored as raw markdown, exactly as before; it is sanitised where it
  * is rendered (client renderMarkdown, audit H-1), never trusted as HTML.
  */
+import { hiddenRefs } from "../admin/hiddenContent.ts";
 import { COIN_RULES, LIMITS } from "@dwcode/shared";
 import { BadRequestError, ForbiddenError, NotFoundError, PayloadTooLargeError } from "../../errors/AppError.ts";
 import { contextLogger } from "../../lib/logger.ts";
@@ -24,9 +25,11 @@ export class CommentService {
     private readonly onCreated?: (comment: { userId: string; userName: string; content: string }, target: CommentTarget) => Promise<void>,
   ) {}
 
-  list(target: CommentTarget, limit: number | undefined) {
+  async list(target: CommentTarget, limit: number | undefined) {
     const capped = limit ? Math.min(limit, LIMITS.pagination.maxLimit) : DEFAULT_COMMENT_LIMIT;
-    return this.comments.listForTarget(target, capped);
+    const [rows, hidden] = await Promise.all([this.comments.listForTarget(target, capped), hiddenRefs("comment")]);
+    // Moderators hide comments; a hidden comment is left out for everyone.
+    return hidden.size === 0 ? rows : rows.filter((c) => !hidden.has(String(c._id)));
   }
 
   async create(userId: string, target: CommentTarget, rawContent: string) {

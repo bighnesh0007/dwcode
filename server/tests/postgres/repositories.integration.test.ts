@@ -17,6 +17,7 @@ import * as github from "../../src/data/repositories/githubIntegrations.ts";
 import * as notes from "../../src/data/repositories/notes.ts";
 import * as contributions from "../../src/data/repositories/contributions.ts";
 import * as learners from "../../src/data/repositories/learners.ts";
+import * as ops from "../../src/data/repositories/ops.ts";
 import * as profileDetails from "../../src/data/repositories/profileDetails.ts";
 import * as notifications from "../../src/data/repositories/notifications.ts";
 import * as settings from "../../src/data/repositories/settings.ts";
@@ -539,6 +540,44 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       const times = rows.map((r) => new Date(r.createdAt).getTime());
       expect([...times].sort((a, b) => b - a)).toEqual(times);
       expect(await submissions.acceptedByUsers([], 5)).toEqual([]);
+    });
+  });
+  describe("platform records (Phase F1)", () => {
+    it("appends and pages the audit log", async () => {
+      await ops.audit({ actorId: "adm", action: "a.one", target: "t1", detail: { x: 1 } });
+      await new Promise((r) => setTimeout(r, 5));
+      await ops.audit({ actorId: "adm", action: "a.two", target: "t2", detail: {} });
+      const page = await ops.auditLog(10);
+      expect(page.slice(0, 2).map((e) => e.action)).toEqual(["a.two", "a.one"]);
+      const older = await ops.auditLog(10, page[0]?.createdAt);
+      expect(older.map((e) => e.action)).toContain("a.one");
+      expect(older.map((e) => e.action)).not.toContain("a.two");
+    });
+
+    it("moderates with an optional end, and lists only active entries", async () => {
+      const now = new Date();
+      await ops.moderate("user", "sus_1", { reason: "r", actorId: "adm", until: new Date(now.getTime() + 60_000) });
+      await ops.moderate("user", "sus_2", { reason: "r", actorId: "adm", until: new Date(now.getTime() - 60_000) });
+      await ops.moderate("blog", "post_1", { reason: "", actorId: "adm", until: null });
+      expect((await ops.moderated("user", now)).map((m) => m.ref)).toEqual(["sus_1"]);
+      expect((await ops.moderated("blog", now)).map((m) => m.ref)).toEqual(["post_1"]);
+      expect(await ops.unmoderate("blog", "post_1")).toBe(true);
+      expect(await ops.unmoderate("blog", "post_1")).toBe(false);
+    });
+
+    it("counts error occurrences and page views", async () => {
+      const at = new Date();
+      const e = { fingerprint: "abcdef01", kind: "error", message: "boom", source: "/a.js", sample: {} };
+      await ops.recordError(e, at);
+      await ops.recordError(e, at);
+      expect((await ops.listErrors(false, 10)).find((x) => x.fingerprint === "abcdef01")?.count).toBe(2);
+      expect(await ops.resolveError("abcdef01")).toBe(true);
+      expect((await ops.listErrors(true, 10)).map((x) => x.fingerprint)).toContain("abcdef01");
+      await ops.recordPageView("2026-11-22", "/x");
+      await ops.recordPageView("2026-11-22", "/x");
+      expect(await ops.pageViewsSince("2026-11-22")).toContainEqual({ day: "2026-11-22", path: "/x", count: 2 });
+      expect((await ops.userCounts(new Date(0))).total).toBeGreaterThan(0);
+      expect(Array.isArray(await ops.submissionsByDay(new Date(0)))).toBe(true);
     });
   });
 });
