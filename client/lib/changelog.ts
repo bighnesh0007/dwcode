@@ -31,6 +31,26 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "competition-phase-c-001",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "feature",
+        title: "Live contest standings, contest rating, teams and countries",
+        description:
+            "Contests now have live ICPC-style standings with penalty time, a contest rating with tiers, reminders before a contest starts, results afterwards and coins for the top three. Form a team, set your country, and climb the team and country leaderboards.",
+        tags: ["contests", "rating", "teams", "leaderboard"],
+    },
+    {
+        id: "practice-phase-b-001",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "feature",
+        title: "Interview mode, Debugging Arena, hints one at a time and code-size ranking",
+        description:
+            "Take a timed interview with a scorecard, fix broken scripts in the Debugging Arena, reveal hints one at a time, learn the concepts behind each problem, see how short your solution is against everyone else's, and ask the AI tutor to explain a compiler error.",
+        tags: ["interview", "debugging", "hints", "ai"],
+    },
+    {
         id: "engagement-phase-a-001",
         date: "2026-11-22",
         status: "shipped",

@@ -17,6 +17,7 @@ import * as github from "../../src/data/repositories/githubIntegrations.ts";
 import * as notes from "../../src/data/repositories/notes.ts";
 import * as notifications from "../../src/data/repositories/notifications.ts";
 import * as settings from "../../src/data/repositories/settings.ts";
+import * as teams from "../../src/data/repositories/teams.ts";
 import * as problems from "../../src/data/repositories/problems.ts";
 import * as profiles from "../../src/data/repositories/profiles.ts";
 import * as reports from "../../src/data/repositories/reports.ts";
@@ -450,6 +451,45 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       expect(await settings.get("announcement")).toEqual({ message: "hi", level: "info" });
       await settings.set("announcement", null, "admin");
       expect(await settings.get("announcement")).toBeNull();
+    });
+  });
+  describe("competition data (Phase C)", () => {
+    it("claims a key once", async () => {
+      expect(await settings.claim("contest-final:x", { at: 1 }, "system")).toBe(true);
+      expect(await settings.claim("contest-final:x", { at: 2 }, "system")).toBe(false);
+    });
+
+    it("returns submissions to given problems inside a window", async () => {
+      const rows = await submissions.inWindowForProblems(["odd-or-even"], new Date(0), new Date(Date.now() + 1000), 100);
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((r) => r.problemSlug === "odd-or-even")).toBe(true);
+      const later = Date.now() + 3_600_000;
+      expect(await submissions.inWindowForProblems(["odd-or-even"], new Date(later), new Date(later + 1000), 100)).toEqual([]);
+      expect(await submissions.inWindowForProblems([], new Date(0), new Date(), 100)).toEqual([]);
+    });
+
+    it("keeps a user in at most one team and bounds team size", async () => {
+      const team = await teams.create({ slug: "pg-team", name: "PG Team", ownerId: "t1", inviteCode: "PGCODE01", listed: true });
+      expect(team).not.toBe("duplicate");
+      expect(await teams.create({ slug: "pg-team", name: "Again", ownerId: "t9", inviteCode: "PGCODE02", listed: true })).toBe("duplicate");
+      expect(await teams.addMember("pg-team", "t2", 2)).toBe("joined");
+      expect(await teams.addMember("pg-team", "t3", 2)).toBe("full");
+      expect(await teams.create({ slug: "other", name: "Other", ownerId: "t2", inviteCode: "PGCODE03", listed: true })).toBe("duplicate");
+      expect((await teams.findForMember("t2"))?.slug).toBe("pg-team");
+      expect((await teams.memberships()).filter((m) => m.slug === "pg-team")).toHaveLength(2);
+      await teams.removeMember("pg-team", "t2");
+      expect(await teams.findForMember("t2")).toBeNull();
+      await teams.deleteBySlug("pg-team");
+      expect(await teams.findBySlug("pg-team")).toBeNull();
+    });
+
+    it("stores a country only once chosen", async () => {
+      expect(await profiles.findByUserId("u1")).not.toHaveProperty("country");
+      await profiles.setCountry("u1", "IN");
+      expect(await profiles.findByUserId("u1")).toMatchObject({ country: "IN" });
+      expect((await profiles.countriesByUserId()).get("u1")).toBe("IN");
+      await profiles.setCountry("u1", null);
+      expect(await profiles.findByUserId("u1")).not.toHaveProperty("country");
     });
   });
 });

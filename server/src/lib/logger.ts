@@ -87,6 +87,7 @@ export type BusinessEvent =
   | "contest.left"
   | "contest.weekly_scheduled"
   | "contest.weekly_skipped"
+  | "contest.finalized"
   | "ai.problem_generated"
   | "ai.insight_generated"
   | "github.connected"

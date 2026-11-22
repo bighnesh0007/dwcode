@@ -86,3 +86,16 @@ export async function listAllSummaries() {
   await connect();
   return UserProfile.find().select("userId username createdAt").lean();
 }
+
+/** Set (or clear, with null) the user's country. */
+export async function setCountry(userId: string, country: string | null) {
+  await connect();
+  await UserProfile.updateOne({ userId }, country ? { $set: { country } } : { $unset: { country: 1 } });
+}
+
+/** userId → country for every profile that has chosen one. */
+export async function countriesByUserId(): Promise<Map<string, string>> {
+  await connect();
+  const rows = await UserProfile.find({ country: { $exists: true, $ne: null } }).select("userId country").lean();
+  return new Map(rows.map((r) => [r.userId, r.country ?? ""]));
+}

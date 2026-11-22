@@ -4,6 +4,7 @@
  * container.ts and routes/v1/index.ts never need to change per domain.
  */
 import type { Router } from "express";
+import type { ProblemGenerator } from "../services/problem/problemGenerator.ts";
 import type { Clock, FetchLike, IdentityProvider, KeyValueStore, TokenVerifier } from "../types/ports.ts";
 
 export interface DomainDeps {
@@ -12,6 +13,8 @@ export interface DomainDeps {
   store: KeyValueStore;
   fetchImpl: FetchLike;
   clock: Clock;
+  /** Tests only: replaces Gemini behind "explain my error". */
+  explainModel?: ProblemGenerator | undefined;
 }
 
 export interface DomainModule {

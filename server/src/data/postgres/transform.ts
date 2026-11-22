@@ -148,6 +148,7 @@ export function toProfile(d: Doc): Mapped<{
         userId,
         username: str(d.username),
         bio: str(d.bio),
+        country: strOrNull(d.country),
         createdAt: date(d.createdAt),
         updatedAt: date(d.updatedAt),
       },

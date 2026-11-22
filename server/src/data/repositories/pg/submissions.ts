@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, lte, ne, sql } from "drizzle-orm";
 import { problems, submissions } from "../../postgres/schema.ts";
 import type { ActivityStats, LeaderboardRow, NewSubmission, SubmissionUserStats } from "../mongo/submissions.ts";
 import { countOf, db, hex, isHexId, oid, returnedRow } from "./db.ts";
@@ -95,6 +95,21 @@ export async function hasAcceptedForSlug(userId: string, problemSlug: string): P
     .where(and(eq(submissions.userId, userId), eq(problems.slug, problemSlug), eq(submissions.status, "Accepted")))
     .limit(1);
   return rows.length > 0;
+}
+
+export async function acceptedForProblem(problemSlug: string, limit: number) {
+  return db().select({ userId: submissions.userId, code: submissions.code, createdAt: submissions.createdAt })
+    .from(submissions).innerJoin(problems, eq(problems.id, submissions.problemId))
+    .where(and(eq(problems.slug, problemSlug), eq(submissions.status, "Accepted")))
+    .orderBy(submissions.createdAt).limit(limit);
+}
+
+export async function inWindowForProblems(problemSlugs: string[], start: Date, end: Date, limit: number) {
+  if (problemSlugs.length === 0) return [];
+  return db().select({ userId: submissions.userId, problemSlug: problems.slug, status: submissions.status, createdAt: submissions.createdAt })
+    .from(submissions).innerJoin(problems, eq(problems.id, submissions.problemId))
+    .where(and(inArray(problems.slug, problemSlugs), gte(submissions.createdAt, start), lte(submissions.createdAt, end)))
+    .orderBy(submissions.createdAt).limit(limit);
 }
 
 export async function slugsByOutcome(userId: string) {

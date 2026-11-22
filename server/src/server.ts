@@ -54,6 +54,7 @@ async function main(): Promise<void> {
   // The weekly contest scheduler needs Mongo; without it there is nothing to do.
   if (config.weeklyContest.enabled && isDatabaseConnected()) {
     container.weeklyContest.startScheduler();
+    container.contestEvents.startScheduler();
   }
 
   let shuttingDown = false;
@@ -64,6 +65,7 @@ async function main(): Promise<void> {
 
     container.upstreamHealth.stopHeartbeat();
     container.weeklyContest.stopScheduler();
+    container.contestEvents.stopScheduler();
     // Let in-flight grading jobs finish (BullMQ waits for active jobs), then
     // release Redis. Unfinished queued jobs stay in Redis for the next instance.
     void Promise.allSettled(container.queues.map((q) => q.close())).then(() => container.redis?.quit());

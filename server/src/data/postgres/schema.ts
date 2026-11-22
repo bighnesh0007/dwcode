@@ -165,6 +165,8 @@ export const profiles = pgTable("profiles", {
   userId: text("user_id").primaryKey(),
   username: text("username").notNull().unique(),
   bio: text("bio").notNull().default(""),
+  /** ISO 3166-1 alpha-2; null until chosen (Mongo has no field until set). */
+  country: text("country"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -408,4 +410,23 @@ export const appSettings = pgTable("app_settings", {
   value: jsonb("value").$type<unknown>(),
   updatedBy: text("updated_by").notNull().default(""),
   updatedAt: updatedAt(),
+});
+
+// ── Teams (SFCode parity, Phase C) ──────────────────────────────────────────
+
+export const teams = pgTable("teams", {
+  id: id(),
+  slug: text("slug").notNull().unique(),
+  name: text("name").notNull(),
+  ownerId: text("owner_id").notNull(),
+  inviteCode: text("invite_code").notNull().unique(),
+  listed: boolean("listed").notNull().default(true),
+  createdAt: createdAt(),
+});
+
+/** One row per member; `user_id` is unique, so a user is in at most one team. */
+export const teamMembers = pgTable("team_members", {
+  teamId: text("team_id").notNull().references(() => teams.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().unique(),
+  joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 });

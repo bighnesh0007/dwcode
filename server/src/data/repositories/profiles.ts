@@ -25,3 +25,5 @@ export const unfollow = write("profiles.unfollow", m.unfollow, p.unfollow);
 export const usernamesByUserId = read("profiles.usernamesByUserId", m.usernamesByUserId, p.usernamesByUserId);
 export const listAllSummaries = read("profiles.listAllSummaries", m.listAllSummaries,
   pgImpl<typeof m.listAllSummaries>(p.listAllSummaries), { ignoreId: true });
+export const setCountry = write("profiles.setCountry", m.setCountry, p.setCountry);
+export const countriesByUserId = read("profiles.countriesByUserId", m.countriesByUserId, p.countriesByUserId);

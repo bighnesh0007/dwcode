@@ -158,6 +158,29 @@ export async function hasAcceptedForSlug(userId: string, problemSlug: string): P
   return Boolean(await Submission.exists({ userId, problemSlug, status: "Accepted" }));
 }
 
+/** Every Accepted solution of one problem (user, code, time) — for the code-size ranking. */
+export async function acceptedForProblem(problemSlug: string, limit: number) {
+  await connect();
+  const rows = await Submission.find({ problemSlug, status: "Accepted" })
+    .select("userId code createdAt")
+    .sort({ createdAt: 1 })
+    .limit(limit)
+    .lean();
+  return rows.map((r) => ({ userId: r.userId, code: r.code, createdAt: r.createdAt }));
+}
+
+/** Submissions to the given problems inside [start, end] — for contest standings. */
+export async function inWindowForProblems(problemSlugs: string[], start: Date, end: Date, limit: number) {
+  if (problemSlugs.length === 0) return [];
+  await connect();
+  const rows = await Submission.find({ problemSlug: { $in: problemSlugs }, createdAt: { $gte: start, $lte: end } })
+    .select("userId problemSlug status createdAt")
+    .sort({ createdAt: 1 })
+    .limit(limit)
+    .lean();
+  return rows.map((r) => ({ userId: r.userId, problemSlug: r.problemSlug, status: r.status ?? "Attempted", createdAt: r.createdAt }));
+}
+
 /** Distinct problem slugs the user has solved, and has attempted without an Accepted run. */
 export async function slugsByOutcome(userId: string) {
   await connect();

@@ -10,15 +10,22 @@ const withEdges = {
   userId: profiles.userId,
   username: profiles.username,
   bio: profiles.bio,
+  country: profiles.country,
   createdAt: profiles.createdAt,
   updatedAt: profiles.updatedAt,
   followers: sql<string[]>`array(select ${follows.followerId} from ${follows} where ${follows.followedId} = ${profiles.userId} order by ${follows.createdAt})`,
   following: sql<string[]>`array(select ${follows.followedId} from ${follows} where ${follows.followerId} = ${profiles.userId} order by ${follows.createdAt})`,
 };
 
+/** Mongo has no `country` field until one is chosen; read the same here. */
+function shape<T extends { country: string | null }>(row: T) {
+  const { country, ...rest } = row;
+  return country === null ? rest : { ...rest, country };
+}
+
 async function one(where: ReturnType<typeof eq>) {
   const rows = await db().select(withEdges).from(profiles).where(where).limit(1);
-  return rows[0] ?? null;
+  return rows[0] ? shape(rows[0]) : null;
 }
 
 export const findByUserId = (userId: string) => one(eq(profiles.userId, userId));
@@ -96,4 +103,16 @@ export async function usernamesByUserId(userIds: string[]): Promise<Map<string, 
 export async function listAllSummaries() {
   return db().select({ userId: profiles.userId, username: profiles.username, createdAt: profiles.createdAt })
     .from(profiles);
+}
+
+/** Set (or clear, with null) the user's country. */
+export async function setCountry(userId: string, country: string | null) {
+  await db().update(profiles).set({ country, updatedAt: new Date() }).where(eq(profiles.userId, userId));
+}
+
+/** userId → country for every profile that has chosen one. */
+export async function countriesByUserId(): Promise<Map<string, string>> {
+  const rows = await db().select({ userId: profiles.userId, country: profiles.country }).from(profiles)
+    .where(sql`${profiles.country} is not null`);
+  return new Map(rows.map((r) => [r.userId, r.country ?? ""]));
 }
