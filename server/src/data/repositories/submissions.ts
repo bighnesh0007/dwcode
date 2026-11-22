@@ -18,6 +18,7 @@ export const create = write("submissions.create", m.create, pgImpl<typeof m.crea
 export const hasOtherAccepted = read("submissions.hasOtherAccepted", m.hasOtherAccepted, p.hasOtherAccepted);
 export const hasAcceptedForSlug = read("submissions.hasAcceptedForSlug", m.hasAcceptedForSlug, p.hasAcceptedForSlug);
 export const acceptedForProblem = read("submissions.acceptedForProblem", m.acceptedForProblem, p.acceptedForProblem);
+export const acceptedByUsers = read("submissions.acceptedByUsers", m.acceptedByUsers, p.acceptedByUsers);
 export const inWindowForProblems = read("submissions.inWindowForProblems", m.inWindowForProblems, p.inWindowForProblems);
 export const slugsByOutcome = read("submissions.slugsByOutcome", m.slugsByOutcome, p.slugsByOutcome,
   { unordered: ["accepted", "notAccepted"] });

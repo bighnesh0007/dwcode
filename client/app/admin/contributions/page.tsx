@@ -6,12 +6,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/apiClient";
 import { getErrorMessage } from "@/lib/errors";
-import { contributionTitle, type ApplicationPayload, type Contribution, type ProblemPayload, type QuestionPayload } from "@/lib/contribute";
+import { contributionTitle, type ApplicationPayload, type Contribution, type JobPayload, type ProblemPayload, type QuestionPayload } from "@/lib/contribute";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
-const KINDS = ["all", "problem", "question", "application"] as const;
+const KINDS = ["all", "problem", "question", "application", "job"] as const;
 
 function Details({ c }: { c: Contribution }) {
   if (c.kind === "problem") {
@@ -36,6 +36,10 @@ function Details({ c }: { c: Contribution }) {
         <p className="text-muted-foreground">{q.explanation}</p>
       </div>
     );
+  }
+  if (c.kind === "job") {
+    const j = c.payload as JobPayload;
+    return <div className="text-sm space-y-1"><p className="text-muted-foreground">{j.company} · {j.location}{j.remote ? " · Remote" : ""}</p><p className="whitespace-pre-wrap">{j.description}</p><p className="break-all text-xs">{j.url}</p></div>;
   }
   const a = c.payload as ApplicationPayload;
   return <div className="text-sm space-y-1"><p className="whitespace-pre-wrap">{a.experience}</p>{a.link && <a className="underline break-all" href={a.link} target="_blank" rel="noopener noreferrer nofollow">{a.link}</a>}</div>;

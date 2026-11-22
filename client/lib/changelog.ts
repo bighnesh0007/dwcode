@@ -31,6 +31,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "community-phase-e-002",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "feature",
+        title: "Profile about and skill radar, store slots and rarities, feed, mentors and jobs",
+        description:
+            "Add a headline, an about section and links to your profile, and see your strengths on a skill radar by topic. The store now has avatar frames, profile badges, banners and editor themes in four rarities: buy once, then equip one per slot. Follow people to see what they solve and write in your feed, find or become a mentor, and browse or post DataWeave and MuleSoft jobs.",
+        tags: ["profile", "store", "feed", "mentors", "jobs"],
+    },
+    {
         id: "contribute-phase-e-001",
         date: "2026-11-22",
         status: "shipped",

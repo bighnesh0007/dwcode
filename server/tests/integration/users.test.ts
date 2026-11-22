@@ -8,7 +8,7 @@ import mongoose from "mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import request from "supertest";
 import type { Application } from "express";
-import { DIFFICULTY_TIERS, scoreWeightFor } from "@dwcode/shared";
+import { DIFFICULTY_TIERS, scoreWeightFor, COSMETICS } from "@dwcode/shared";
 import { buildTestApp } from "../helpers/buildTestApp.ts";
 import { Problem } from "../../src/models/Problem.ts";
 import { Submission } from "../../src/models/Submission.ts";
@@ -18,6 +18,9 @@ import { StorePurchase } from "../../src/models/StorePurchase.ts";
 import { UnauthenticatedError } from "../../src/errors/AppError.ts";
 import { THEME_SKINS } from "../../src/services/users/storeCatalog.ts";
 import type { TokenVerifier } from "../../src/types/ports.ts";
+
+/** Free items everyone owns: the default skin and each cosmetic slot's free option. */
+const FREE_ITEMS = ["default", ...COSMETICS.filter((c) => c.cost === 0 && c.id !== "default").map((c) => c.id)];
 
 let mongo: MongoMemoryServer;
 
@@ -94,7 +97,7 @@ describe("auth", () => {
     const a = app();
     const store = await request(a).get("/api/v1/store");
     expect(store.status).toBe(200);
-    expect(store.body.data).toMatchObject({ signedIn: false, balance: 0, owned: ["default"] });
+    expect(store.body.data).toMatchObject({ signedIn: false, balance: 0, owned: FREE_ITEMS });
     expect((await request(a).get("/api/v1/leaderboard")).status).toBe(200);
   });
 });
@@ -250,7 +253,7 @@ describe("store", () => {
     const again = await request(a).post("/api/v1/store").set(as("user-a")).send({ itemId: paid.id });
     expect(again.body.data).toMatchObject({ alreadyOwned: true, balance: 5 });
     const cat = await request(a).get("/api/v1/store").set(as("user-a"));
-    expect(cat.body.data.owned).toEqual(["default", paid.id]);
+    expect(cat.body.data.owned).toEqual([...FREE_ITEMS, paid.id]);
   });
 
   it("402 when short, with price and balance; nothing charged", async () => {

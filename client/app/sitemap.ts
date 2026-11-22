@@ -28,6 +28,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       '/roadmap/integration',
       '/roadmap/interviews',
       '/certification',
+      '/contribute',
+      '/mentors',
+      '/jobs',
       '/sign-in',
       '/sign-up'
     ].map((route) => ({

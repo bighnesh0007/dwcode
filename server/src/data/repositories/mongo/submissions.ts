@@ -229,3 +229,15 @@ export async function statsByUser() {
     },
   ]);
 }
+
+/** Recent Accepted submissions by any of these users, newest first (the activity feed). */
+export async function acceptedByUsers(userIds: string[], limit: number) {
+  if (userIds.length === 0) return [];
+  await connect();
+  const rows = await Submission.find({ userId: { $in: userIds }, status: "Accepted" })
+    .select("userId problemSlug createdAt")
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .lean();
+  return rows.map((r) => ({ userId: r.userId, problemSlug: r.problemSlug, createdAt: r.createdAt }));
+}

@@ -22,6 +22,7 @@ import type { ContributionDoc, ContributionRepository } from "../../repositories
 import type { NewProblem } from "../../repositories/problemCatalog.repository.ts";
 import {
   applicationSchema,
+  jobSchema,
   problemDraftSchema,
   questionDraftSchema,
   type ProblemDraft,
@@ -51,7 +52,7 @@ export interface DraftCheck {
   cases: CaseResult[];
 }
 
-const SCHEMAS = { problem: problemDraftSchema, question: questionDraftSchema, application: applicationSchema } as const;
+const SCHEMAS = { problem: problemDraftSchema, question: questionDraftSchema, application: applicationSchema, job: jobSchema } as const;
 
 function parsePayload(kind: string, payload: unknown) {
   const schema = SCHEMAS[kind as ContributionKind];
@@ -220,11 +221,13 @@ export class ContributionService {
     } else if (doc.kind === "question") {
       publishedRef = `community-${String(doc._id)}`;
       link = "/certification";
+    } else if (doc.kind === "job") {
+      link = "/jobs";
     }
 
     const approved = await this.contributions.transition(id, ["submitted"], { status: "approved", reviewNote: note, reviewedBy: adminId, publishedRef });
     if (!approved) throw new ConflictError("Someone else reviewed this contribution first.");
-    const reward = doc.kind === "application" ? 0 : CONTRIBUTION_REWARD[doc.kind as "problem" | "question"];
+    const reward = CONTRIBUTION_REWARD[doc.kind as ContributionKind];
     if (reward) await this.coins.award(doc.authorId, reward, "contribution_approved", `Contribution approved: ${titleOf(doc)}`);
     await this.notifier.notify(doc.authorId, {
       kind: "contribution",
@@ -243,6 +246,16 @@ export class ContributionService {
     if (!rejected) throw new ConflictError("Only submitted contributions can be rejected.");
     await this.notifier.notify(doc.authorId, { kind: "contribution", title: `Changes requested on your ${doc.kind}`, body: note, link: `/contribute/${id}` });
     return view(rejected);
+  }
+
+  /** Approved job posts still inside their listing window, newest first. */
+  async jobs(listingDays: number) {
+    const since = this.now().getTime() - listingDays * 86_400_000;
+    const docs = await this.contributions.listByStatus("approved", "job", 500);
+    return docs
+      .filter((d) => new Date(d.updatedAt).getTime() >= since)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+      .map((d) => ({ id: String(d._id), ...(d.payload as object), postedAt: d.updatedAt }));
   }
 
   /** Approved community questions, for the certification bank. */

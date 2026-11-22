@@ -180,3 +180,11 @@ export async function statsByUser(): Promise<SubmissionUserStats[]> {
 }
 
 export { isHexId };
+
+export async function acceptedByUsers(userIds: string[], limit: number) {
+  if (userIds.length === 0) return [];
+  return db().select({ userId: submissions.userId, problemSlug: problems.slug, createdAt: submissions.createdAt })
+    .from(submissions).innerJoin(problems, eq(problems.id, submissions.problemId))
+    .where(and(inArray(submissions.userId, userIds), eq(submissions.status, "Accepted")))
+    .orderBy(desc(submissions.createdAt)).limit(limit);
+}

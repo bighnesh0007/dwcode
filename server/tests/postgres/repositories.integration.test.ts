@@ -17,6 +17,7 @@ import * as github from "../../src/data/repositories/githubIntegrations.ts";
 import * as notes from "../../src/data/repositories/notes.ts";
 import * as contributions from "../../src/data/repositories/contributions.ts";
 import * as learners from "../../src/data/repositories/learners.ts";
+import * as profileDetails from "../../src/data/repositories/profileDetails.ts";
 import * as notifications from "../../src/data/repositories/notifications.ts";
 import * as settings from "../../src/data/repositories/settings.ts";
 import * as teams from "../../src/data/repositories/teams.ts";
@@ -519,6 +520,25 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       expect(await contributions.removeDraft(id, "author_1")).toBe(true);
       expect(await contributions.findById(id)).toBeNull();
       expect(await contributions.findById("not-an-id")).toBeNull();
+    });
+  });
+  describe("profile details and the feed query (Phase E2)", () => {
+    it("upserts partial details and lists active mentors", async () => {
+      expect(await profileDetails.get("pd_1")).toBeNull();
+      await profileDetails.upsert("pd_1", { headline: "Hi", links: { github: "https://github.com/x" } });
+      const second = await profileDetails.upsert("pd_1", { equipped: { frame: "frame-gold" }, mentorActive: true, mentorTopics: ["XML"] });
+      expect(second).toMatchObject({ userId: "pd_1", headline: "Hi", equipped: { frame: "frame-gold" }, mentorActive: true, mentorTopics: ["XML"] });
+      expect((await profileDetails.listMentors(10)).map((m) => m.userId)).toContain("pd_1");
+      expect((await profileDetails.getMany(["pd_1", "nobody"])).map((m) => m.userId)).toEqual(["pd_1"]);
+    });
+
+    it("lists accepted solves by a set of users, newest first", async () => {
+      const rows = await submissions.acceptedByUsers(["u1"], 50);
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.every((r) => r.userId === "u1")).toBe(true);
+      const times = rows.map((r) => new Date(r.createdAt).getTime());
+      expect([...times].sort((a, b) => b - a)).toEqual(times);
+      expect(await submissions.acceptedByUsers([], 5)).toEqual([]);
     });
   });
 });

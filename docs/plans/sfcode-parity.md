@@ -165,6 +165,21 @@ exact code and inputs it ran, and approval re-runs it. The admin review
 queue lives at `/admin/contributions`. Approved questions join the
 certification bank. One `contributions` table holds all three kinds
 (migration 0005).
+
+E2 shipped:
+- Profiles have a headline, an about section and links, plus a skill radar
+  of solved problems per category.
+- The store has frame, badge, banner and editor slots, each item with one
+  of four rarities. Accent colours are the existing skins. Learners buy an
+  item once and equip one per slot.
+- `/feed` shows solves and posts by the people you follow.
+- `/mentors` lists people who opted in. Learners can ask, up to five
+  requests a day.
+- `/jobs` lists job posts after admin approval; posts reuse the
+  contributions queue as kind `job`.
+- The profile extras live in `profile_details` (migration 0006).
+
+Phase E ✅
 - Contribute: drafts, an automatic check that runs the solution through the compiler and generates `expectedOutput` (never hand-written, per CLAUDE.md), submit, admin review queue, contributor applications
 - Certification-question contributions
 - Profiles: about section, skill radar by DataWeave topic, achievements, activity feed

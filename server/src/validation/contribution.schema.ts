@@ -49,10 +49,25 @@ export const applicationSchema = z
   .strict();
 export type ApplicationDraft = z.infer<typeof applicationSchema>;
 
+/** A job posting for the jobs board; listed once an admin approves it. */
+export const jobSchema = z
+  .object({
+    title: z.string().trim().min(4).max(120),
+    company: z.string().trim().min(2).max(80),
+    location: z.string().trim().min(2).max(80),
+    remote: z.boolean(),
+    url: z.url().max(300),
+    description: z.string().trim().min(30).max(4000),
+    tags: z.array(z.string().trim().min(1).max(30)).max(8).default([]),
+  })
+  .strict();
+export type JobDraft = z.infer<typeof jobSchema>;
+
 export const createContributionSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("problem"), payload: problemDraftSchema }).strict(),
   z.object({ kind: z.literal("question"), payload: questionDraftSchema }).strict(),
   z.object({ kind: z.literal("application"), payload: applicationSchema }).strict(),
+  z.object({ kind: z.literal("job"), payload: jobSchema }).strict(),
 ]);
 export type CreateContributionInput = z.infer<typeof createContributionSchema>;
 
@@ -66,5 +81,5 @@ export const reviewSchema = z.object({ note: z.string().trim().max(1000).default
 export type ReviewInput = z.infer<typeof reviewSchema>;
 
 export const queueQuerySchema = z
-  .object({ kind: z.enum(["problem", "question", "application"]).optional() })
+  .object({ kind: z.enum(["problem", "question", "application", "job"]).optional() })
   .strict();

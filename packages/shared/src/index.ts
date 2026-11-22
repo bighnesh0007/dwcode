@@ -27,3 +27,4 @@ export * from "./practice.js";
 export * from "./competition.js";
 export * from "./learning.js";
 export * from "./contribute.js";
+export * from "./cosmetics.js";
