@@ -39,6 +39,7 @@ import {
   ClerkTokenVerifier,
   DisabledTokenVerifier,
 } from "./services/identity/clerkTokenVerifier.ts";
+import { buildEngagementService } from "./composition/engagement.ts";
 import { RazorpayClient } from "./services/payment/razorpay.client.ts";
 import { SponsorshipService } from "./services/payment/sponsorship.service.ts";
 import {
@@ -181,6 +182,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
       resultTtlMs: 24 * 60 * 60_000,
       retryIf: () => true,
     });
+    const engagement = buildEngagementService(clock);
     const submissionService = new SubmissionService(
       problems,
       submissions,
@@ -190,6 +192,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
       async (job) => {
         await publishQueue.enqueue(job);
       },
+      (userId, slug, submissionId) => engagement.rewardAccepted(userId, slug, submissionId),
     );
     const gradingQueue = makeQueue<SubmitCommand, SubmitOutcome>("grading", (cmd) => submissionService.submit(cmd), {
       concurrency: config.grading.concurrency,

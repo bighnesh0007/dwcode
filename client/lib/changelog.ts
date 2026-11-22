@@ -31,6 +31,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "engagement-phase-a-001",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "feature",
+        title: "Daily challenge, achievements, streak freezes and notifications",
+        description:
+            "One problem a day for everyone, worth bonus coins on its day. Achievements and your streak live on your profile, a streak freeze from the store keeps a streak alive through a missed day, and a notification bell tells you about new followers, comments on your posts and what you've unlocked.",
+        tags: ["daily", "achievements", "streaks", "notifications"],
+    },
+    {
         id: "leaderboard-profiles-001",
         date: "2026-07-26",
         status: "shipped",

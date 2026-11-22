@@ -10,6 +10,7 @@ import { AppError, BadRequestError, NotFoundError } from "../../errors/AppError.
 import { ErrorCode } from "../../errors/codes.ts";
 import type { CoinsRepository } from "../../repositories/coins.repository.ts";
 import type { StorePurchaseRepository } from "../../repositories/storePurchase.repository.ts";
+import { STREAK_FREEZES, findStreakFreeze } from "@dwcode/shared";
 import { THEME_SKINS, findSkin } from "./storeCatalog.ts";
 
 const FREE_IDS = THEME_SKINS.filter((s) => s.cost === 0).map((s) => s.id);
@@ -34,13 +35,14 @@ export class StoreService {
   ) {}
 
   async catalogue(userId: string | undefined) {
-    if (!userId) return { items: THEME_SKINS, owned: FREE_IDS, balance: 0, signedIn: false };
+    if (!userId) return { items: THEME_SKINS, freezes: STREAK_FREEZES, owned: FREE_IDS, balance: 0, signedIn: false };
     const [bought, balance] = await Promise.all([this.purchases.ownedItemIds(userId), this.coins.balance(userId)]);
-    return { items: THEME_SKINS, owned: [...new Set([...FREE_IDS, ...bought])], balance, signedIn: true };
+    return { items: THEME_SKINS, freezes: STREAK_FREEZES, owned: [...new Set([...FREE_IDS, ...bought])], balance, signedIn: true };
   }
 
   async purchase(userId: string, itemId: string) {
-    const item = findSkin(itemId);
+    // Skins and streak freezes share the purchase path: priced here, bought once.
+    const item = findSkin(itemId) ?? findStreakFreeze(itemId);
     if (!item) throw new NotFoundError("Unknown item.");
     if (item.cost === 0) throw new BadRequestError("That item is already free.");
 

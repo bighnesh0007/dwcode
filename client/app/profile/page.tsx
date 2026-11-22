@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ProgressPanel } from "@/components/ProgressPanel";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -523,6 +524,8 @@ export default function ProfilePage() {
                     color="text-yellow-500"
                 />
             </div>
+
+            <ProgressPanel />
 
             {/* ── Solved breakdown + Activity heatmap ── */}
             <div className="grid gap-6 md:grid-cols-2">

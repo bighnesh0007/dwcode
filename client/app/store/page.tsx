@@ -8,15 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
     Check, Coins, Eye, Loader2, Lock, Palette, ShoppingBag, Sparkles,
+    Snowflake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSkin } from "@/components/SkinProvider";
 import { DEFAULT_SKIN, type ThemeSkin } from "@/lib/themes";
 import { getErrorMessage } from "@/lib/errors";
 import { apiRequest } from "@/lib/apiClient";
+import type { StreakFreezeItem } from "@dwcode/shared";
 
 interface StoreResponse {
     items: ThemeSkin[];
+    freezes?: StreakFreezeItem[];
     owned: string[];
     balance: number;
     signedIn: boolean;
@@ -80,6 +83,19 @@ export default function StorePage() {
             await load();
             // Buying is an explicit choice of theme, so equip it right away.
             applySkin(item.id);
+        } catch (e) {
+            setError(getErrorMessage(e, "Purchase failed."));
+        } finally {
+            setBusyId(null);
+        }
+    };
+
+    const buyFreeze = async (item: StreakFreezeItem) => {
+        setBusyId(item.id);
+        setError(null);
+        try {
+            await apiRequest("/api/v1/store", { method: "POST", body: { itemId: item.id } });
+            await load();
         } catch (e) {
             setError(getErrorMessage(e, "Purchase failed."));
         } finally {
@@ -253,6 +269,55 @@ export default function StorePage() {
                         </div>
                     </section>
                 ))
+            )}
+
+            {(data?.freezes?.length ?? 0) > 0 && (
+                <section className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <Snowflake className="h-4 w-4 text-cyan-500" />
+                        <h2 className="text-lg font-semibold">Streak freezes</h2>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        Each freeze you own bridges one missed day, so a day off doesn&apos;t reset your streak.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {data?.freezes?.map((item) => {
+                            const isOwned = owned.has(item.id);
+                            const affordable = balance >= item.cost;
+                            const busy = busyId === item.id;
+                            return (
+                                <Card key={item.id} className={isOwned ? "border-cyan-500/40" : ""}>
+                                    <CardContent className="space-y-3 p-4">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div>
+                                                <h3 className="font-semibold">{item.name}</h3>
+                                                <p className="text-sm text-muted-foreground">{item.description}</p>
+                                            </div>
+                                            <span className="flex items-center gap-1 text-sm font-semibold text-yellow-500">
+                                                <Coins className="h-3.5 w-3.5" />
+                                                {item.cost}
+                                            </span>
+                                        </div>
+                                        {isOwned ? (
+                                            <p className="text-sm font-medium text-cyan-500">Owned</p>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                className="w-full gap-1 text-xs"
+                                                onClick={() => void buyFreeze(item)}
+                                                disabled={busy || !isSignedIn || !affordable}
+                                                title={!isSignedIn ? "Sign in to buy" : !affordable ? `Needs ${item.cost - balance} more coins` : `Buy for ${item.cost} coins`}
+                                            >
+                                                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : !affordable || !isSignedIn ? <Lock className="h-3 w-3" /> : <Coins className="h-3 w-3" />}
+                                                {busy ? "Buying…" : "Buy"}
+                                            </Button>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            );
+                        })}
+                    </div>
+                </section>
             )}
 
             <p className="border-t pt-6 text-xs text-muted-foreground">

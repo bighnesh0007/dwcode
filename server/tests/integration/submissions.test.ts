@@ -116,11 +116,17 @@ describe("POST /api/v1/submissions", () => {
     const saved = await Submission.findOne({ userId: "user_a" }).lean();
     expect(saved).toMatchObject({ status: "Accepted", problemSlug: "echo", userName: "Ada", userImageUrl: "https://img" });
 
+    // "echo" is the only problem, so it is also today's daily challenge: the
+    // first Accepted solve today pays the daily bonus as well, exactly once.
     const bonus = coinRewardFor("Medium");
-    expect((await UserCoins.findOne({ userId: "user_a" }).lean())?.balance).toBe(COIN_RULES.firstSolve + bonus);
+    const daily = COIN_RULES.dailyChallenge;
+    expect(job.result.rewards).toMatchObject({ dailyBonus: daily });
+    expect(job.result.rewards.unlocked.map((u: { id: string }) => u.id)).toContain("first-solve");
+    expect((await UserCoins.findOne({ userId: "user_a" }).lean())?.balance).toBe(COIN_RULES.firstSolve + bonus + daily);
 
-    await submitAndWait(a, "user-a", { problemId, code: IDENTITY });
-    expect((await UserCoins.findOne({ userId: "user_a" }).lean())?.balance).toBe(COIN_RULES.firstSolve + 2 * bonus);
+    const second = await submitAndWait(a, "user-a", { problemId, code: IDENTITY });
+    expect(second.job.result.rewards).toMatchObject({ dailyBonus: 0, unlocked: [] });
+    expect((await UserCoins.findOne({ userId: "user_a" }).lean())?.balance).toBe(COIN_RULES.firstSolve + 2 * bonus + daily);
   });
 
   it("records a wrong answer as Attempted and pays nothing", async () => {

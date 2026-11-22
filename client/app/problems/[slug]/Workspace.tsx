@@ -18,6 +18,8 @@ import { getErrorMessage } from "@/lib/errors";
 import { runViaApi, submitViaApi } from "@/lib/compilerApi";
 import type { BookmarkSummary, Problem, SubmissionSummary } from "@/lib/types";
 import { apiRequest } from "@/lib/apiClient";
+import { Celebration, hasRewards } from "@/components/Celebration";
+import type { AcceptedRewards } from "@dwcode/shared";
 
 export default function Workspace({ problem }: { problem: Problem }) {
   const { resolvedTheme } = useTheme();
@@ -49,6 +51,8 @@ export default function Workspace({ problem }: { problem: Problem }) {
   // Once the solution is viewed, we track it for the lifetime of this session.
   // Hiding it again does NOT reset this flag — the user already saw the answer.
   const [solutionWasViewed, setSolutionWasViewed] = useState(false);
+  const [rewards, setRewards] = useState<AcceptedRewards | null>(null);
+  const closeRewards = useCallback(() => setRewards(null), []);
   // Loaded on demand: the problem payload no longer carries the solution, so
   // it is not sitting in the page source for anyone who opens dev tools.
   const [solutionText, setSolutionText] = useState<string | null>(problem.solution ?? null);
@@ -214,6 +218,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
         return;
       }
       showVerdict(r.result.status, r.result.summary);
+      if (hasRewards(r.result.rewards)) setRewards(r.result.rewards);
       await loadSubmissions();
     } finally {
       setIsRunning(false);
@@ -227,6 +232,8 @@ export default function Workspace({ problem }: { problem: Problem }) {
       : "text-muted-foreground";
 
   return (
+    <>
+    {rewards && <Celebration rewards={rewards} onClose={closeRewards} />}
     <ResizablePanelGroup
       orientation={isMobileLayout ? "vertical" : "horizontal"}
       className="flex-1 w-full border-t"
@@ -571,5 +578,6 @@ export default function Workspace({ problem }: { problem: Problem }) {
         </ResizablePanelGroup>
       </ResizablePanel>
     </ResizablePanelGroup>
+    </>
   );
 }

@@ -113,7 +113,13 @@ Each phase is one or more PRs through the normal gate. Content features
 (roadmaps, certification, problems) are JSON in the repo so contributors can
 add to them by PR, as in SFCode.
 
-### Phase A — Engagement core (biggest retention win, least new content)
+### Phase A — Engagement core ✅ (biggest retention win, least new content)
+
+Shipped: daily challenge (`GET /api/v1/daily`, +15 coins on its day), streaks
+with store-bought freezes, achievements (`GET /api/v1/engagement/me`), solve
+celebrations, notifications (follower, blog comment, daily bonus, achievement)
+and the admin announcement banner. Ranks were already score-based in
+`@dwcode/shared`; the editable points table is deferred to Phase F's admin work.
 - Daily Challenge: deterministic pick per UTC day, bonus coins on first solve, home card
 - Streaks: current/longest computed on read, earned freezes
 - Achievements: pure functions over solves and activity (nothing to backfill)

@@ -382,3 +382,30 @@ export const playgroundSnippets = pgTable("playground_snippets", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+// ── Engagement (SFCode parity, Phase A) ─────────────────────────────────────
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: id(),
+    userId: text("user_id").notNull(),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    link: text("link").notNull().default(""),
+    read: boolean("read").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("notifications_user_created_idx").on(t.userId, t.createdAt.desc()),
+    index("notifications_user_unread_idx").on(t.userId).where(sql`${t.read} = false`),
+  ],
+);
+
+export const appSettings = pgTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").$type<unknown>(),
+  updatedBy: text("updated_by").notNull().default(""),
+  updatedAt: updatedAt(),
+});

@@ -19,6 +19,7 @@ import type { CoinsRepository } from "../../repositories/coins.repository.ts";
 import type { ProblemRepository } from "../../repositories/problem.repository.ts";
 import type { SubmissionRepository } from "../../repositories/submission.repository.ts";
 import type { IdentityProvider } from "../../types/ports.ts";
+import type { AcceptedRewards } from "../engagement/engagement.service.ts";
 import type { GradingService } from "../grading/grading.service.ts";
 import type { PublishSolutionJob } from "../github/solutionPublisher.ts";
 
@@ -38,6 +39,8 @@ export interface SubmitOutcome {
   executionTime: string;
   output: string;
   createdAt: string;
+  /** Accepted only: daily bonus paid and achievements unlocked by this solve. */
+  rewards?: AcceptedRewards;
 }
 
 export class SubmissionService {
@@ -49,6 +52,8 @@ export class SubmissionService {
     private readonly grading: GradingService,
     /** Fire-and-forget: GitHub publishing is its own retried job. */
     private readonly publishSolution: (job: PublishSolutionJob) => Promise<void>,
+    /** Daily bonus and newly unlocked achievements, after an Accepted verdict is recorded. */
+    private readonly rewardAccepted?: (userId: string, problemSlug: string, submissionId: string) => Promise<AcceptedRewards>,
   ) {}
 
   async submit(cmd: SubmitCommand): Promise<SubmitOutcome> {
@@ -77,6 +82,7 @@ export class SubmissionService {
       executionTime: grade.executionTime,
     });
 
+    let rewards: AcceptedRewards | undefined;
     if (grade.status === "Accepted") {
       // The submission is recorded; a reward failure must not undo or fail it.
       try {
@@ -86,6 +92,13 @@ export class SubmissionService {
         await this.coins.award(cmd.userId, coinRewardFor(problem.difficulty), "difficulty_bonus", `${problem.difficulty} problem solved`);
       } catch (err) {
         log.error({ err, submissionId: saved.id }, "[submissions] coin award failed");
+      }
+      if (this.rewardAccepted) {
+        try {
+          rewards = await this.rewardAccepted(cmd.userId, problem.slug, saved.id);
+        } catch (err) {
+          log.error({ err, submissionId: saved.id }, "[submissions] engagement rewards failed");
+        }
       }
       void this.publishSolution({
         userId: cmd.userId,
@@ -103,6 +116,7 @@ export class SubmissionService {
       executionTime: grade.executionTime,
       output: grade.output,
       createdAt: saved.createdAt.toISOString(),
+      ...(rewards ? { rewards } : {}),
     };
   }
 }

@@ -18,6 +18,7 @@ import { GuestProgressService } from "../services/users/guestProgress.service.ts
 import { LeaderboardService } from "../services/users/leaderboard.service.ts";
 import { ProfileService } from "../services/users/profile.service.ts";
 import { StoreService } from "../services/users/store.service.ts";
+import { buildNotificationService } from "./notifications.ts";
 import type { DomainDeps, DomainModule } from "./types.ts";
 
 export function buildUsersDomain(deps: DomainDeps): DomainModule[] {
@@ -26,7 +27,7 @@ export function buildUsersDomain(deps: DomainDeps): DomainModule[] {
   const coins = new CoinsRepository();
 
   const controller = new UsersController(
-    new ProfileService(profiles, stats, deps.identity, deps.clock),
+    new ProfileService(profiles, stats, deps.identity, deps.clock, buildNotificationService()),
     new StoreService(new StorePurchaseRepository(), coins),
     new LeaderboardService(stats, profiles),
     coins,

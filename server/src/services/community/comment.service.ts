@@ -20,6 +20,8 @@ export class CommentService {
     private readonly comments: CommentRepository,
     private readonly coins: CoinsRepository,
     private readonly identity: IdentityProvider,
+    /** After a comment is saved, e.g. to tell a blog post's author. Never fails the comment. */
+    private readonly onCreated?: (comment: { userId: string; userName: string; content: string }, target: CommentTarget) => Promise<void>,
   ) {}
 
   list(target: CommentTarget, limit: number | undefined) {
@@ -46,6 +48,13 @@ export class CommentService {
     } catch (err) {
       // Coins are non-critical: the comment is already saved.
       contextLogger().warn({ err }, "comment coin award failed");
+    }
+    if (this.onCreated) {
+      try {
+        await this.onCreated({ userId, userName: user?.displayName || "Someone", content }, target);
+      } catch (err) {
+        contextLogger().warn({ err }, "comment follow-up failed");
+      }
     }
     return comment;
   }
