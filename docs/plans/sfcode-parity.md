@@ -138,7 +138,17 @@ and the admin announcement banner. Ranks were already score-based in
 - Reminders and result notifications, countdown banner
 - Teams (create, invite code, listed/unlisted), team and country leaderboards
 
-### Phase D — Learning paths
+### Phase D — Learning paths ✅
+
+Shipped: `/welcome` onboarding (role, level, goal, hours) with a 9-question
+placement check; three roadmaps (`/roadmap`) with lessons, step quizzes and
+problems per category; a weekly plan sized to the hours chosen; and MCD Level 1
+prep (`/certification`): a 38-question original bank across 12 sections, timed
+mocks weighted by section and graded on the server from their seed, Leitner
+review (`/certification/review`) and a readiness meter. Content is JSON in
+`server/src/content/`; `npm -w dwcode-server run check:learning -- --run`
+verifies every code answer on the compiler. Learner state is one row per user
+(`learner_states`, migration 0004).
 - Roadmaps (Beginner, Integration Developer, Interview prep) as a DAG of steps → problems, lessons, diagrams, quizzes
 - Welcome placement quiz (three tiers) and onboarding gate (role, level, goal, hours/week)
 - Weekly plan sized to the hours chosen

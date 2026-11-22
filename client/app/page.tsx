@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { DailyCard } from "@/components/DailyCard";
+import { LearningPrompt } from "@/components/LearningPrompt";
 import { auth } from "@clerk/nextjs/server";
 import { GuestMigration } from "@/components/GuestMigration";
 import { buttonVariants } from "@/components/ui/button";
@@ -117,6 +118,7 @@ export default async function Home() {
         </div>
       </div>
 
+      <LearningPrompt />
       <DailyCard />
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

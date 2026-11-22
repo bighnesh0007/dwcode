@@ -15,6 +15,7 @@ import * as comments from "../../src/data/repositories/comments.ts";
 import * as contests from "../../src/data/repositories/contests.ts";
 import * as github from "../../src/data/repositories/githubIntegrations.ts";
 import * as notes from "../../src/data/repositories/notes.ts";
+import * as learners from "../../src/data/repositories/learners.ts";
 import * as notifications from "../../src/data/repositories/notifications.ts";
 import * as settings from "../../src/data/repositories/settings.ts";
 import * as teams from "../../src/data/repositories/teams.ts";
@@ -490,6 +491,15 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       expect((await profiles.countriesByUserId()).get("u1")).toBe("IN");
       await profiles.setCountry("u1", null);
       expect(await profiles.findByUserId("u1")).not.toHaveProperty("country");
+    });
+  });
+  describe("learner state (Phase D)", () => {
+    it("creates, replaces and reads one state per learner", async () => {
+      expect(await learners.get("learner_1")).toBeNull();
+      await learners.put("learner_1", { onboarding: null, quizzesPassed: ["beginner/b-first"], review: {} });
+      await learners.put("learner_1", { onboarding: null, quizzesPassed: [], review: { q1: { box: 0, due: "2026-01-01T00:00:00.000Z" } } });
+      expect(await learners.get("learner_1")).toEqual({ onboarding: null, quizzesPassed: [], review: { q1: { box: 0, due: "2026-01-01T00:00:00.000Z" } } });
+      expect(await learners.get("learner_2")).toBeNull();
     });
   });
 });

@@ -31,6 +31,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "learning-phase-d-001",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "feature",
+        title: "Roadmaps, placement check, weekly plan and MuleSoft certification prep",
+        description:
+            "Answer four questions (or take a 9-question placement check) and get a roadmap with short lessons, quizzes and problems, plus a weekly plan sized to your time. Preparing for MuleSoft Certified Developer – Level 1? Take timed mock exams weighted like the real one, review what you missed with spaced repetition, and watch your readiness score climb. Every practice question is original.",
+        tags: ["learning", "roadmap", "certification", "quiz"],
+    },
+    {
         id: "competition-phase-c-001",
         date: "2026-11-22",
         status: "shipped",
