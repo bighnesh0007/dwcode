@@ -10,6 +10,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { MaintenanceBanner } from "@/components/MaintenanceBanner";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Telemetry } from "@/components/Telemetry";
+import { ServiceWorker } from "@/components/ServiceWorker";
+import { JsonLd, SITE_URL } from "@/components/JsonLd";
 import { ProductTour } from "@/components/ProductTour";
 import { SkinProvider } from "@/components/SkinProvider";
 import { SkinPreviewBanner } from "@/components/SkinPreviewBanner";
@@ -52,6 +54,14 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <body className="min-h-full flex flex-col bg-background text-foreground">
+          <JsonLd data={{
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "DWCode",
+            url: SITE_URL,
+            description: "Practise DataWeave: problems, a playground, roadmaps, contests and MuleSoft certification prep.",
+            inLanguage: "en",
+          }} />
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -64,6 +74,7 @@ export default function RootLayout({
               <MaintenanceBanner />
               <AnnouncementBanner />
               <Telemetry />
+              <ServiceWorker />
               <ProductTour />
               <main className="flex-1 flex flex-col">{children}</main>
               <FooterGate>

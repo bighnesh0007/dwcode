@@ -11,6 +11,9 @@
  *   DELETE /api/v1/admin/ops/moderation/:kind/:ref   admin
  *   GET    /api/v1/admin/ops/errors?resolved=        admin
  *   POST   /api/v1/admin/ops/errors/:fingerprint/resolve admin
+ *   POST   /api/v1/admin/ops/email-test              admin   send a test email to yourself
+ *   GET    /api/v1/admin/ops/store                   admin   every item with its override
+ *   PUT    /api/v1/admin/ops/store                   admin   { overrides: { id: { cost?, disabled? } } }
  */
 import type { Request, Response } from "express";
 import { config } from "../config/index.ts";
@@ -18,8 +21,10 @@ import * as roles from "../data/repositories/roles.ts";
 import { UnauthenticatedError } from "../errors/AppError.ts";
 import { validatedBody, validatedParams, validatedQuery } from "../middleware/validate.ts";
 import type { ModerationKind, OpsService } from "../services/admin/ops.service.ts";
+import type { IdentityProvider } from "../types/ports.ts";
 import { ok } from "../utils/respond.ts";
-import type { ClientErrorBody, CspReportBody, ModerateBody } from "../validation/ops.schema.ts";
+import type { ClientErrorBody, CspReportBody, ModerateBody, StoreOverridesBody } from "../validation/ops.schema.ts";
+import { SettingsRepository } from "../repositories/notification.repository.ts";
 
 function requireUser(req: Request): string {
   const userId = req.auth?.userId;
@@ -28,7 +33,26 @@ function requireUser(req: Request): string {
 }
 
 export class OpsController {
-  constructor(private readonly ops: OpsService) {}
+  constructor(private readonly ops: OpsService, private readonly identity: IdentityProvider) {}
+
+  private readonly settings = new SettingsRepository();
+
+  storeItems = async (_req: Request, res: Response): Promise<void> => {
+    ok(res, await this.ops.storeItems(this.settings));
+  };
+
+  setStoreOverrides = async (req: Request, res: Response): Promise<void> => {
+    const { overrides } = validatedBody<StoreOverridesBody>(req);
+    const clean = Object.fromEntries(Object.entries(overrides).map(([id, o]) => [id, {
+      ...(o.cost !== undefined ? { cost: o.cost } : {}),
+      ...(o.disabled !== undefined ? { disabled: o.disabled } : {}),
+    }]));
+    ok(res, await this.ops.setStoreOverrides(requireUser(req), clean, this.settings));
+  };
+
+  emailTest = async (req: Request, res: Response): Promise<void> => {
+    ok(res, await this.ops.emailTest(requireUser(req), this.identity));
+  };
 
   clientError = async (req: Request, res: Response): Promise<void> => {
     const b = validatedBody<ClientErrorBody>(req);

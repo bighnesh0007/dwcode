@@ -2,6 +2,7 @@
  * Domain module: users — profiles, follows, coins, store, leaderboard,
  * guest-progress. Built from DomainDeps only.
  */
+import { SettingsRepository } from "../repositories/notification.repository.ts";
 import { UsersController } from "../controllers/users.controller.ts";
 import { CoinsRepository } from "../repositories/coins.repository.ts";
 import { StorePurchaseRepository } from "../repositories/storePurchase.repository.ts";
@@ -28,7 +29,7 @@ export function buildUsersDomain(deps: DomainDeps): DomainModule[] {
 
   const controller = new UsersController(
     new ProfileService(profiles, stats, deps.identity, deps.clock, buildNotificationService()),
-    new StoreService(new StorePurchaseRepository(), coins),
+    new StoreService(new StorePurchaseRepository(), coins, new SettingsRepository()),
     new LeaderboardService(stats, profiles),
     coins,
     new GuestProgressService(),

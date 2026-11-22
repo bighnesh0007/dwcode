@@ -478,6 +478,7 @@ export const profileDetails = pgTable(
     mentorActive: boolean("mentor_active").notNull().default(false),
     mentorTopics: jsonb("mentor_topics").$type<string[]>().notNull().default([]),
     mentorNote: text("mentor_note").notNull().default(""),
+    emailPrefs: jsonb("email_prefs").$type<Record<string, boolean>>().notNull().default({}),
     updatedAt: updatedAt(),
   },
   (t) => [index("profile_details_mentor_idx").on(t.mentorActive, t.updatedAt)],

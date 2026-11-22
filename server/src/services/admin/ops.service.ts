@@ -12,7 +12,9 @@ import { BadRequestError, NotFoundError } from "../../errors/AppError.ts";
 import { invalidateSuspensions } from "../../middleware/suspension.ts";
 import type { ContributionRepository } from "../../repositories/contribution.repository.ts";
 import type { OpsRepository } from "../../repositories/ops.repository.ts";
-import type { Clock } from "../../types/ports.ts";
+import type { Clock, IdentityProvider } from "../../types/ports.ts";
+import { sendTestEmail } from "../notifications/email.ts";
+import { STORE_OVERRIDES_KEY, invalidateStoreOverrides, sellableItems, type StoreOverrides } from "../users/store.service.ts";
 import { recordAudit } from "./audit.ts";
 import { invalidateHidden } from "./hiddenContent.ts";
 
@@ -132,6 +134,45 @@ export class OpsService {
     else invalidateHidden();
     await recordAudit(actorId, kind === "user" ? "user.unsuspend" : `${kind}.unhide`, ref);
     return { undone: true };
+  }
+
+  // ── Store editor ──────────────────────────────────────────────────────────
+
+  async storeItems(settings: { get(key: string): Promise<unknown> }) {
+    const raw = await settings.get(STORE_OVERRIDES_KEY);
+    const overrides = raw && typeof raw === "object" ? (raw as StoreOverrides) : {};
+    return { items: sellableItems().map((i) => ({ ...i, override: overrides[i.id] ?? null })) };
+  }
+
+  async setStoreOverrides(actorId: string, overrides: StoreOverrides, settings: { get(key: string): Promise<unknown>; set(key: string, value: unknown, by: string): Promise<void> }) {
+    const known = new Map(sellableItems().map((i) => [i.id, i]));
+    const clean: StoreOverrides = {};
+    for (const [id, o] of Object.entries(overrides)) {
+      const item = known.get(id);
+      if (!item) throw new BadRequestError(`Unknown item: ${id}`);
+      // Free items stay free: they are owned by everyone already.
+      if (item.cost === 0 && o.cost !== undefined) throw new BadRequestError(`${item.name} is free for everyone and can't be priced.`);
+      if (o.cost !== undefined || o.disabled) clean[id] = { ...(o.cost !== undefined ? { cost: o.cost } : {}), ...(o.disabled ? { disabled: true } : {}) };
+    }
+    await settings.set(STORE_OVERRIDES_KEY, clean, actorId);
+    invalidateStoreOverrides();
+    await recordAudit(actorId, "store.edit", "", { overrides: clean });
+    return this.storeItems(settings);
+  }
+
+  // ── Email test ────────────────────────────────────────────────────────────
+
+  /** Send a test email to the calling admin's own address. */
+  async emailTest(actorId: string, identity: IdentityProvider) {
+    const user = await identity.getUser(actorId);
+    if (!user?.primaryEmail) throw new BadRequestError("Your account has no email address.");
+    try {
+      await sendTestEmail(user.primaryEmail);
+    } catch (err) {
+      throw new BadRequestError(err instanceof Error ? err.message : "Sending failed.");
+    }
+    await recordAudit(actorId, "email.test", "");
+    return { sent: true, to: user.primaryEmail };
   }
 
   // ── Audit log and analytics ───────────────────────────────────────────────

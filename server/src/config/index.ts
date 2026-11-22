@@ -58,6 +58,8 @@ export const config = Object.freeze({
 
   gemini: Object.freeze({ apiKey: env.GEMINI_API_KEY }),
 
+  email: Object.freeze({ resendApiKey: env.RESEND_API_KEY, from: env.EMAIL_FROM, appUrl: env.APP_URL.replace(/\/+$/, "") }),
+
   github: Object.freeze({
     clientId: env.GITHUB_CLIENT_ID,
     clientSecret: env.GITHUB_CLIENT_SECRET,

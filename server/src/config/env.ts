@@ -100,6 +100,9 @@ const envSchema = z.object({
 
   // ── External services ──────────────────────────────────────────────────────
   GEMINI_API_KEY: z.string().min(1).optional(),
+  // Email notifications via Resend; without a key nothing is sent.
+  RESEND_API_KEY: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(3).default("DWCode <notifications@dwcode.app>"),
   GITHUB_CLIENT_ID: z.string().min(1).optional(),
   GITHUB_CLIENT_SECRET: z.string().min(1).optional(),
 
@@ -188,6 +191,7 @@ export const CAPABILITY_REQUIREMENTS = {
   database: ["MONGODB_URI"],
   auth: ["CLERK_SECRET_KEY"],
   ai: ["GEMINI_API_KEY"],
+  email: ["RESEND_API_KEY"],
   github: ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "OAUTH_STATE_SECRET"],
   tokenEncryption: ["TOKEN_ENCRYPTION_KEY"],
   // The webhook secret is required: without it we cannot verify Razorpay's callbacks,

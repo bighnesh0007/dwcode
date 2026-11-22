@@ -10,7 +10,7 @@ import { OpsService } from "../services/admin/ops.service.ts";
 import type { DomainDeps, DomainModule } from "./types.ts";
 
 export function buildOpsDomain(deps: DomainDeps): DomainModule[] {
-  const controller = new OpsController(new OpsService(new OpsRepository(), new ContributionRepository(), deps.clock));
+  const controller = new OpsController(new OpsService(new OpsRepository(), new ContributionRepository(), deps.clock), deps.identity);
   return [
     { path: "/telemetry", router: telemetryRoutes(controller) },
     { path: "/admin/ops", router: opsAdminRoutes(controller, deps.tokenVerifier) },

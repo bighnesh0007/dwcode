@@ -1,4 +1,4 @@
-import { COSMETIC_SLOTS, PROFILE_LIMITS } from "@dwcode/shared";
+import { COSMETIC_SLOTS, EMAIL_CATEGORIES, PROFILE_LIMITS } from "@dwcode/shared";
 import { z } from "zod";
 
 const LINK_KEYS = ["website", "github", "linkedin"] as const;
@@ -29,5 +29,10 @@ export type MentorBody = z.infer<typeof mentorSchema>;
 
 export const askSchema = z.object({ message: z.string().trim().min(10).max(PROFILE_LIMITS.mentorMessage) }).strict();
 export type AskBody = z.infer<typeof askSchema>;
+
+export const emailPrefsSchema = z
+  .object({ prefs: z.partialRecord(z.enum(EMAIL_CATEGORIES.map((c) => c.id) as [string, ...string[]]), z.boolean()) })
+  .strict();
+export type EmailPrefsBody = z.infer<typeof emailPrefsSchema>;
 
 export const usernameParamSchema = z.object({ username: z.string().min(1).max(60) }).strict();

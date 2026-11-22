@@ -15,6 +15,8 @@ export const ProfileDetailSchema = new mongoose.Schema({
   mentorActive: { type: Boolean, default: false, index: true },
   mentorTopics: { type: [String], default: [] },
   mentorNote: { type: String, default: "" },
+  /** Email category → on/off; missing categories use their default. */
+  emailPrefs: { type: mongoose.Schema.Types.Mixed, default: {} },
   updatedAt: { type: Date, default: Date.now },
 }, { minimize: false });
 

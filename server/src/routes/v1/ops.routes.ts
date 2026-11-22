@@ -13,6 +13,7 @@ import {
   moderateSchema,
   moderationParamsSchema,
   pageViewSchema,
+  storeOverridesSchema,
 } from "../../validation/ops.schema.ts";
 
 const small = (type: string | string[] = "application/json") => express.json({ limit: "16kb", type });
@@ -36,6 +37,9 @@ export function opsAdminRoutes(c: OpsController, verifier: TokenVerifier): Route
   router.put("/moderation", createLimiter("write"), ...admin, small(), validate({ body: moderateSchema }), c.moderate);
   router.delete("/moderation/:kind/:ref", createLimiter("write"), ...admin, validate({ params: moderationParamsSchema }), c.unmoderate);
   router.get("/errors", createLimiter("read"), ...admin, validate({ query: errorsQuerySchema }), c.errors);
+  router.post("/email-test", createLimiter("ai"), ...admin, c.emailTest);
+  router.get("/store", createLimiter("read"), ...admin, c.storeItems);
+  router.put("/store", createLimiter("write"), ...admin, small(), validate({ body: storeOverridesSchema }), c.setStoreOverrides);
   router.post("/errors/:fingerprint/resolve", createLimiter("write"), ...admin, validate({ params: fingerprintParamsSchema }), c.resolveError);
   return router;
 }

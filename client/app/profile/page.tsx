@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ProgressPanel } from "@/components/ProgressPanel";
 import { ProfileExtrasEditor } from "@/components/ProfileExtrasEditor";
+import { EmailPrefs } from "@/components/EmailPrefs";
 import { CompetitionPanel } from "@/components/CompetitionPanel";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -529,6 +530,7 @@ export default function ProfilePage() {
             </div>
 
             <ProfileExtrasEditor />
+            <EmailPrefs />
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2"><ProgressPanel /></div>

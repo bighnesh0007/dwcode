@@ -5,6 +5,8 @@
  *   PUT  /api/v1/profile-details/me             auth    { headline, about, links }
  *   PUT  /api/v1/profile-details/equip          auth    { slot, itemId }
  *   PUT  /api/v1/profile-details/mentor         auth    { active, topics, note }
+ *   GET  /api/v1/profile-details/email          auth    email categories, on or off
+ *   PUT  /api/v1/profile-details/email          auth    { prefs: { category: boolean } }
  *   GET  /api/v1/profile-details/u/:username    public  about, equipped, skill radar, mentor
  *   GET  /api/v1/feed                           auth    solves and posts by people you follow
  *   GET  /api/v1/mentors                        public
@@ -18,7 +20,7 @@ import { validatedBody, validatedParams } from "../middleware/validate.ts";
 import type { ContributionService } from "../services/contribute/contribution.service.ts";
 import type { ProfileExtrasService } from "../services/users/profileExtras.service.ts";
 import { ok } from "../utils/respond.ts";
-import type { AboutBody, AskBody, EquipBody, MentorBody } from "../validation/profileExtras.schema.ts";
+import type { AboutBody, AskBody, EmailPrefsBody, EquipBody, MentorBody } from "../validation/profileExtras.schema.ts";
 
 function requireUser(req: Request): string {
   const userId = req.auth?.userId;
@@ -50,6 +52,16 @@ export class Community2Controller {
   setMentor = async (req: Request, res: Response): Promise<void> => {
     const { active, topics, note } = validatedBody<MentorBody>(req);
     ok(res, await this.extras.setMentor(requireUser(req), { active, topics, note }));
+  };
+
+  emailPrefs = async (req: Request, res: Response): Promise<void> => {
+    ok(res, await this.extras.emailPrefs(requireUser(req)));
+  };
+
+  setEmailPrefs = async (req: Request, res: Response): Promise<void> => {
+    const { prefs } = validatedBody<EmailPrefsBody>(req);
+    const clean = Object.fromEntries(Object.entries(prefs).filter((e): e is [string, boolean] => typeof e[1] === "boolean"));
+    ok(res, await this.extras.setEmailPrefs(requireUser(req), clean));
   };
 
   publicView = async (req: Request, res: Response): Promise<void> => {

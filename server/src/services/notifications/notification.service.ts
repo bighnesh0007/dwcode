@@ -4,6 +4,7 @@
  * that cannot be written is logged and dropped.
  */
 import { contextLogger } from "../../lib/logger.ts";
+import { deliverEmail } from "./email.ts";
 import type { NewNotification, NotificationRepository } from "../../repositories/notification.repository.ts";
 
 const PAGE = 30;
@@ -36,7 +37,10 @@ export class NotificationService implements Notifier {
       await this.notifications.create(userId, { ...n, link: safeLink(n.link) });
     } catch (err) {
       contextLogger().warn({ err, kind: n.kind }, "[notifications] could not record a notification");
+      return;
     }
+    // Email in the background: the flow that notified never waits on a mail server.
+    void deliverEmail(userId, { ...n, link: safeLink(n.link) });
   }
 
   async list(userId: string): Promise<{ items: NotificationView[]; unread: number }> {

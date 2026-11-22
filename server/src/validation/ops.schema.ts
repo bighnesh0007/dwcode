@@ -40,3 +40,13 @@ export const moderationParamsSchema = z.object({ kind: moderationKind, ref: z.st
 export const fingerprintParamsSchema = z.object({ fingerprint: z.string().regex(/^[0-9a-f]{8}$/) }).strict();
 export const errorsQuerySchema = z.object({ resolved: z.enum(["true", "false"]).default("false") }).strict();
 export const auditQuerySchema = z.object({ before: z.iso.datetime().optional() }).strict();
+
+export const storeOverridesSchema = z
+  .object({
+    overrides: z.record(
+      z.string().min(1).max(60),
+      z.object({ cost: z.number().int().min(1).max(100_000).optional(), disabled: z.boolean().optional() }).strict(),
+    ),
+  })
+  .strict();
+export type StoreOverridesBody = z.infer<typeof storeOverridesSchema>;

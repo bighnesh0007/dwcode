@@ -7,8 +7,10 @@
  *  - Feed: recent solves and blog posts by the people you follow.
  *  - Mentors: opt in with topics; others can ask, a few times a day.
  */
+import { emailConfigured } from "../notifications/email.ts";
 import { hiddenRefs } from "../admin/hiddenContent.ts";
 import {
+  EMAIL_CATEGORIES,
   MENTOR_ASKS_PER_DAY,
   equippedItems,
   findCosmetic,
@@ -97,6 +99,21 @@ export class ProfileExtrasService {
     const saved = await this.details.upsert(userId, { equipped: { ...current, [slot]: item.id } });
     const equipped = detailOf(saved).equipped as Equipped;
     return { equipped, equippedItems: equippedItems(equipped) };
+  }
+
+  /** Email preferences: every category, with the default filled in where unset. */
+  async emailPrefs(userId: string) {
+    const saved = ((await this.details.get(userId))?.emailPrefs ?? {}) as Record<string, boolean>;
+    return {
+      configured: emailConfigured(),
+      categories: EMAIL_CATEGORIES.map((c) => ({ id: c.id, label: c.label, enabled: saved[c.id] ?? c.default })),
+    };
+  }
+
+  async setEmailPrefs(userId: string, prefs: Record<string, boolean>) {
+    const known = new Set<string>(EMAIL_CATEGORIES.map((c) => c.id));
+    await this.details.upsert(userId, { emailPrefs: Object.fromEntries(Object.entries(prefs).filter(([k]) => known.has(k))) });
+    return this.emailPrefs(userId);
   }
 
   async setMentor(userId: string, input: MentorInput) {
