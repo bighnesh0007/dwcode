@@ -43,6 +43,8 @@ import {
 const MOCK_HISTORY = 20;
 /** Problems suggested per roadmap step. */
 const STEP_PROBLEMS = 5;
+/** How long the approved community questions are cached. */
+const BANK_TTL_MS = 60_000;
 
 export interface MockResult {
   at: string;
@@ -113,7 +115,27 @@ export class LearningService {
     private readonly catalog: ProblemCatalogRepository,
     private readonly submissions: SubmissionRepository,
     private readonly clock: Clock,
+    /** Approved community questions (Phase E), added to the bank. */
+    private readonly community: () => Promise<CertQuestion[]> = () => Promise.resolve([]),
   ) {}
+
+  private bankCache: { at: number; questions: readonly CertQuestion[] } | null = null;
+
+  /** The question bank: the shipped questions plus approved community ones. */
+  private async bank(): Promise<readonly CertQuestion[]> {
+    const now = this.clock.nowMs();
+    if (this.bankCache && now - this.bankCache.at < BANK_TTL_MS) return this.bankCache.questions;
+    let extra: CertQuestion[] = [];
+    try {
+      const sections = new Set(EXAM.sections.map((s) => s.id));
+      extra = (await this.community()).filter((q) => sections.has(q.section));
+    } catch {
+      extra = []; // the shipped bank still works
+    }
+    const questions = [...CERT_QUESTIONS, ...extra];
+    this.bankCache = { at: now, questions };
+    return questions;
+  }
 
   private async load(userId: string): Promise<LearnerState> {
     return normalise(await this.learners.get(userId));
@@ -259,29 +281,36 @@ export class LearningService {
 
   // ── Certification prep ────────────────────────────────────────────────────
 
-  exam() {
+  async exam() {
+    const bank = await this.bank();
     const counts: Record<string, number> = {};
-    for (const q of CERT_QUESTIONS) counts[q.section] = (counts[q.section] ?? 0) + 1;
-    return { ...EXAM, sections: EXAM.sections.map((s) => ({ ...s, questions: counts[s.id] ?? 0 })), bank: CERT_QUESTIONS.length };
+    for (const q of bank) counts[q.section] = (counts[q.section] ?? 0) + 1;
+    return {
+      ...EXAM,
+      sections: EXAM.sections.map((s) => ({ ...s, questions: counts[s.id] ?? 0 })),
+      bank: bank.length,
+      community: bank.length - CERT_QUESTIONS.length,
+    };
   }
 
-  private mockQuestions(seed: number): CertQuestion[] {
-    return sampleMock(CERT_QUESTIONS, EXAM.sections, Math.min(EXAM.mockQuestions, CERT_QUESTIONS.length), seed);
+  private async mockQuestions(seed: number): Promise<CertQuestion[]> {
+    const bank = await this.bank();
+    return sampleMock(bank, EXAM.sections, Math.min(EXAM.mockQuestions, bank.length), seed);
   }
 
   /** A new mock: the seed re-derives the same questions when it is graded, so nothing is stored. */
-  startMock() {
+  async startMock() {
     const seed = randomInt(1, 2 ** 31 - 1);
     return {
       seed,
       minutes: EXAM.mockMinutes,
       passPercent: EXAM.passPercent,
-      questions: this.mockQuestions(seed).map((q) => ({ ...publicQuestion(q), section: q.section })),
+      questions: (await this.mockQuestions(seed)).map((q) => ({ ...publicQuestion(q), section: q.section })),
     };
   }
 
   async gradeMock(userId: string, seed: number, answers: Answers) {
-    const questions = this.mockQuestions(seed);
+    const questions = await this.mockQuestions(seed);
     const results = grade(questions, answers);
     const now = this.now();
     const bySection: MockResult["bySection"] = {};
@@ -318,7 +347,7 @@ export class LearningService {
   async reviewQueue(userId: string) {
     const s = await this.load(userId);
     const due = new Set(dueForReview(s.review, this.now()));
-    const questions = CERT_QUESTIONS.filter((q) => due.has(q.id));
+    const questions = (await this.bank()).filter((q) => due.has(q.id));
     return {
       due: questions.map((q) => ({ ...publicQuestion(q), section: q.section, box: s.review[q.id]?.box ?? 0 })),
       open: Object.keys(s.review).length,
@@ -326,7 +355,7 @@ export class LearningService {
   }
 
   async answerReview(userId: string, questionId: string, chosen: number) {
-    const q = CERT_QUESTIONS.find((x) => x.id === questionId);
+    const q = (await this.bank()).find((x) => x.id === questionId);
     if (!q) throw new NotFoundError("Question not found.");
     const s = await this.load(userId);
     if (!s.review[q.id]) throw new BadRequestError("That question is not in your review queue.");

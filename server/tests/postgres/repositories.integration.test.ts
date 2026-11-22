@@ -15,6 +15,7 @@ import * as comments from "../../src/data/repositories/comments.ts";
 import * as contests from "../../src/data/repositories/contests.ts";
 import * as github from "../../src/data/repositories/githubIntegrations.ts";
 import * as notes from "../../src/data/repositories/notes.ts";
+import * as contributions from "../../src/data/repositories/contributions.ts";
 import * as learners from "../../src/data/repositories/learners.ts";
 import * as notifications from "../../src/data/repositories/notifications.ts";
 import * as settings from "../../src/data/repositories/settings.ts";
@@ -500,6 +501,24 @@ describe.skipIf(!PG_TEST_URL)("repositories on PostgreSQL (#23 phase 3)", () => 
       await learners.put("learner_1", { onboarding: null, quizzesPassed: [], review: { q1: { box: 0, due: "2026-01-01T00:00:00.000Z" } } });
       expect(await learners.get("learner_1")).toEqual({ onboarding: null, quizzesPassed: [], review: { q1: { box: 0, due: "2026-01-01T00:00:00.000Z" } } });
       expect(await learners.get("learner_2")).toBeNull();
+    });
+  });
+  describe("contributions (Phase E)", () => {
+    it("creates, transitions atomically, queues and deletes drafts", async () => {
+      const c = await contributions.create({ kind: "problem", authorId: "author_1", status: "draft", payload: { title: "T" } });
+      const id = String(c._id);
+      expect(await contributions.countByAuthor("author_1", "problem", ["draft", "submitted"])).toBe(1);
+      expect(await contributions.transition(id, ["submitted"], { status: "approved" })).toBeNull();
+      const submitted = await contributions.transition(id, ["draft"], { status: "submitted", check: { ok: true } });
+      expect(submitted).toMatchObject({ status: "submitted", check: { ok: true } });
+      expect((await contributions.listByStatus("submitted", "problem", 10)).map((x) => String(x._id))).toEqual([id]);
+      expect(await contributions.listByStatus("submitted", "question", 10)).toEqual([]);
+      expect(await contributions.removeDraft(id, "author_1")).toBe(false); // not a draft
+      await contributions.transition(id, ["submitted"], { status: "draft" });
+      expect(await contributions.removeDraft(id, "someone_else")).toBe(false);
+      expect(await contributions.removeDraft(id, "author_1")).toBe(true);
+      expect(await contributions.findById(id)).toBeNull();
+      expect(await contributions.findById("not-an-id")).toBeNull();
     });
   });
 });

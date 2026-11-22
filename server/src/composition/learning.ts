@@ -8,11 +8,13 @@ import { ProblemCatalogRepository } from "../repositories/problemCatalog.reposit
 import { SubmissionRepository } from "../repositories/submission.repository.ts";
 import { certificationRoutes, learningRoutes } from "../routes/v1/learning.routes.ts";
 import { LearningService } from "../services/learning/learning.service.ts";
+import { buildContributionService } from "./contribute.ts";
 import type { DomainDeps, DomainModule } from "./types.ts";
 
 export function buildLearningDomain(deps: DomainDeps): DomainModule[] {
+  const contributions = buildContributionService(deps);
   const controller = new LearningController(
-    new LearningService(new LearnerRepository(), new ProblemCatalogRepository(), new SubmissionRepository(), deps.clock),
+    new LearningService(new LearnerRepository(), new ProblemCatalogRepository(), new SubmissionRepository(), deps.clock, () => contributions.approvedQuestions()),
   );
   const v = deps.tokenVerifier;
   return [

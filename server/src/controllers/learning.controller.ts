@@ -66,13 +66,13 @@ export class LearningController {
     ok(res, await this.learning.gradeQuiz(requireUser(req), id, stepId, validatedBody<AnswersInput>(req).answers));
   };
 
-  exam = (_req: Request, res: Response): void => {
-    ok(res, this.learning.exam());
+  exam = async (_req: Request, res: Response): Promise<void> => {
+    ok(res, await this.learning.exam());
   };
 
-  startMock = (req: Request, res: Response): void => {
+  startMock = async (req: Request, res: Response): Promise<void> => {
     requireUser(req);
-    ok(res, this.learning.startMock());
+    ok(res, await this.learning.startMock());
   };
 
   gradeMock = async (req: Request, res: Response): Promise<void> => {

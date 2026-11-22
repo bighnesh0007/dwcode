@@ -439,3 +439,27 @@ export const learnerStates = pgTable("learner_states", {
   state: jsonb("state").$type<unknown>().notNull(),
   updatedAt: updatedAt(),
 });
+
+// ── Contributions (SFCode parity, Phase E) ──────────────────────────────────
+
+/** Problem drafts, certification questions and contributor applications, reviewed by admins. */
+export const contributions = pgTable(
+  "contributions",
+  {
+    id: id(),
+    kind: text("kind").notNull(),
+    authorId: text("author_id").notNull(),
+    status: text("status").notNull(),
+    payload: jsonb("payload").$type<unknown>().notNull(),
+    check: jsonb("check").$type<unknown>(),
+    reviewNote: text("review_note").notNull().default(""),
+    reviewedBy: text("reviewed_by").notNull().default(""),
+    publishedRef: text("published_ref").notNull().default(""),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("contributions_author_idx").on(t.authorId, t.createdAt),
+    index("contributions_status_idx").on(t.status, t.kind, t.createdAt),
+  ],
+);

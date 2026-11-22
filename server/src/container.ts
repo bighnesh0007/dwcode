@@ -266,7 +266,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
     compilerController,
     ...(submissionController ? { submissionController } : {}),
     queues,
-    domains: buildDomains({ tokenVerifier, identity, store, fetchImpl, clock, explainModel: overrides.explainModel }),
+    domains: buildDomains({ tokenVerifier, identity, store, fetchImpl, clock, compiler: compilerService, explainModel: overrides.explainModel }),
   };
 }
 

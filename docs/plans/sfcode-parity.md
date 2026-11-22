@@ -156,6 +156,15 @@ verifies every code answer on the compiler. Learner state is one row per user
   - Questions must be original, not copied from MuleSoft exams
 
 ### Phase E — Community and contribution
+
+E1 shipped: `/contribute` for problem drafts, certification questions and
+contributor applications. A draft has case inputs only. The automatic check
+runs the solution on each input through the compiler service, and those
+outputs become the published `expectedOutput`s. A check is bound to the
+exact code and inputs it ran, and approval re-runs it. The admin review
+queue lives at `/admin/contributions`. Approved questions join the
+certification bank. One `contributions` table holds all three kinds
+(migration 0005).
 - Contribute: drafts, an automatic check that runs the solution through the compiler and generates `expectedOutput` (never hand-written, per CLAUDE.md), submit, admin review queue, contributor applications
 - Certification-question contributions
 - Profiles: about section, skill radar by DataWeave topic, achievements, activity feed
