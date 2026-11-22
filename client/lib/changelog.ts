@@ -31,6 +31,16 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
     // ── Shipped ──────────────────────────────────────────────────────────────
     {
+        id: "navbar-responsive-001",
+        date: "2026-11-22",
+        status: "shipped",
+        category: "improvement",
+        title: "A tidier, responsive navigation bar",
+        description:
+            "The top bar now shows the five main sections, with everything else under More, so links no longer crowd or overlap the search box. Below laptop width it switches to a menu with every page grouped by section.",
+        tags: ["ui", "navigation", "mobile"],
+    },
+    {
         id: "platform-phase-f-002",
         date: "2026-11-22",
         status: "shipped",
