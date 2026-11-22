@@ -40,6 +40,9 @@ import {
   DisabledTokenVerifier,
 } from "./services/identity/clerkTokenVerifier.ts";
 import { buildEngagementService } from "./composition/engagement.ts";
+import { buildCompetitionService } from "./composition/competition.ts";
+import type { CompetitionService } from "./services/competition/competition.service.ts";
+import type { ProblemGenerator } from "./services/problem/problemGenerator.ts";
 import { RazorpayClient } from "./services/payment/razorpay.client.ts";
 import { SponsorshipService } from "./services/payment/sponsorship.service.ts";
 import {
@@ -61,6 +64,8 @@ export interface ContainerOverrides {
   identityProvider?: IdentityProvider;
   /** Use an in-process queue even when REDIS_URL is set. */
   inlineQueues?: boolean;
+  /** Replaces Gemini behind "explain my error". */
+  explainModel?: ProblemGenerator;
 }
 
 export interface Container {
@@ -77,6 +82,8 @@ export interface Container {
   upstreamHealth: UpstreamHealthService;
   sponsorshipService: SponsorshipService;
   weeklyContest: WeeklyContestService;
+  /** Contest reminders, results and prizes (runs beside the weekly scheduler). */
+  contestEvents: CompetitionService;
   // controllers
   legacyTransformController: LegacyTransformController;
   sponsorshipController: SponsorshipController;
@@ -253,12 +260,13 @@ export function buildContainer(overrides: ContainerOverrides = {}): Container {
     upstreamHealth,
     sponsorshipService,
     weeklyContest,
+    contestEvents: buildCompetitionService(clock),
     legacyTransformController,
     sponsorshipController,
     compilerController,
     ...(submissionController ? { submissionController } : {}),
     queues,
-    domains: buildDomains({ tokenVerifier, identity, store, fetchImpl, clock }),
+    domains: buildDomains({ tokenVerifier, identity, store, fetchImpl, clock, explainModel: overrides.explainModel }),
   };
 }
 

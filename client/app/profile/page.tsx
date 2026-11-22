@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ProgressPanel } from "@/components/ProgressPanel";
+import { CompetitionPanel } from "@/components/CompetitionPanel";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import RankAvatar from "@/components/RankAvatar";
 interface ProfileData {
     username?: string;
     bio?: string;
+    country?: string | null;
     followers: number;
     following: number;
     githubConnected?: boolean;
@@ -525,7 +527,10 @@ export default function ProfilePage() {
                 />
             </div>
 
-            <ProgressPanel />
+            <div className="grid gap-6 lg:grid-cols-3">
+                <div className="lg:col-span-2"><ProgressPanel /></div>
+                <CompetitionPanel initialCountry={data.country ?? null} />
+            </div>
 
             {/* ── Solved breakdown + Activity heatmap ── */}
             <div className="grid gap-6 md:grid-cols-2">

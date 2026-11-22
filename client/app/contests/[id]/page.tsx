@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useUser, SignInButton } from "@clerk/nextjs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { ContestSummary } from "@/lib/types";
 import { apiRequest } from "@/lib/apiClient";
+import { ContestStandings } from "@/components/ContestStandings";
 import { difficultyClassName } from "@dwcode/shared";
 
 function getTimeLeft(endTime: string, status: string, now: number) {
@@ -260,61 +260,7 @@ export default function ContestDetailPage() {
                     </CardContent>
                 </Card>
 
-                {/* Leaderboard */}
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Trophy className="w-4 h-4 text-primary" />
-                            Standings ({contest.participants?.length ?? 0})
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {(contest.participants || []).length === 0 ? (
-                            <p className="text-sm text-muted-foreground italic">No participants yet.</p>
-                        ) : (
-                            <div className="space-y-2">
-                                {[...(contest.participants || [])]
-                                    .sort((a, b) => b.score - a.score)
-                                    .map((p, i) => (
-                                        <div key={p.userId} className={cn(
-                                            "flex items-center justify-between gap-2 p-2 rounded-md",
-                                            i === 0 ? "bg-yellow-500/10 border border-yellow-500/20" :
-                                                i === 1 ? "bg-slate-500/10 border border-slate-500/20" :
-                                                    i === 2 ? "bg-amber-700/10 border border-amber-700/20" :
-                                                        "bg-muted/20"
-                                        )}>
-                                            <div className="flex items-center gap-2.5">
-                                                <span className={cn(
-                                                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                                                    i === 0 ? "bg-yellow-400 text-yellow-900" :
-                                                        i === 1 ? "bg-slate-400 text-slate-900" :
-                                                            i === 2 ? "bg-amber-700 text-white" :
-                                                                "bg-muted text-muted-foreground"
-                                                )}>
-                                                    {i + 1}
-                                                </span>
-                                                {p.userImageUrl ? (
-                                                    <Image unoptimized src={p.userImageUrl} width={24} height={24} className="w-6 h-6 rounded-full" alt={p.userName} />
-                                                ) : (
-                                                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                                                        {(p.userName || "?")[0].toUpperCase()}
-                                                    </div>
-                                                )}
-                                                <span className="text-sm font-medium">{p.userName}</span>
-                                                {p.userId === user?.id && (
-                                                    <Badge variant="outline" className="text-[10px] py-0">You</Badge>
-                                                )}
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-sm font-bold">{p.score}</p>
-                                                <p className="text-[10px] text-muted-foreground">{p.solvedProblems?.length ?? 0} solved</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+                <ContestStandings contestId={id} viewerId={user?.id ?? null} />
             </div>
         </div>
     );

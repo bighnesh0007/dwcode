@@ -19,6 +19,10 @@ import { runViaApi, submitViaApi } from "@/lib/compilerApi";
 import type { BookmarkSummary, Problem, SubmissionSummary } from "@/lib/types";
 import { apiRequest } from "@/lib/apiClient";
 import { Celebration, hasRewards } from "@/components/Celebration";
+import { ProgressiveHints } from "@/components/ProgressiveHints";
+import { LearningPanel } from "@/components/LearningPanel";
+import { CodeSizePanel } from "@/components/CodeSizePanel";
+import { ExplainError } from "@/components/ExplainError";
 import type { AcceptedRewards } from "@dwcode/shared";
 
 export default function Workspace({ problem }: { problem: Problem }) {
@@ -53,6 +57,10 @@ export default function Workspace({ problem }: { problem: Problem }) {
   const [solutionWasViewed, setSolutionWasViewed] = useState(false);
   const [rewards, setRewards] = useState<AcceptedRewards | null>(null);
   const closeRewards = useCallback(() => setRewards(null), []);
+  /** The last compiler error, for "Explain this error"; cleared on the next run. */
+  const [lastError, setLastError] = useState<string | null>(null);
+  /** Bumped after an Accepted submit so the code-size ranking refetches. */
+  const [sizeRefresh, setSizeRefresh] = useState(0);
   // Loaded on demand: the problem payload no longer carries the solution, so
   // it is not sitting in the page source for anyone who opens dev tools.
   const [solutionText, setSolutionText] = useState<string | null>(problem.solution ?? null);
@@ -146,7 +154,9 @@ export default function Workspace({ problem }: { problem: Problem }) {
     setIsRunning(true);
     setOutputStatus("idle");
     setActiveTab("output");
+    setLastError(null);
     const r = await runViaApi(code, customInput, () => getToken());
+    if (r.kind === "error") setLastError(r.message);
     setOutputStatus(r.kind === "ok" ? "success" : "error");
     setOutput(
       r.kind === "ok"
@@ -218,6 +228,8 @@ export default function Workspace({ problem }: { problem: Problem }) {
         return;
       }
       showVerdict(r.result.status, r.result.summary);
+      setLastError(r.result.status === "Error" ? r.result.summary : null);
+      if (r.result.status === "Accepted") setSizeRefresh((n) => n + 1);
       if (hasRewards(r.result.rewards)) setRewards(r.result.rewards);
       await loadSubmissions();
     } finally {
@@ -284,7 +296,21 @@ export default function Workspace({ problem }: { problem: Problem }) {
               <TabsTrigger value="comments" className="text-xs rounded-sm data-[state=active]:bg-muted">
                 Discussion
               </TabsTrigger>
+              <TabsTrigger value="learn" className="text-xs rounded-sm data-[state=active]:bg-muted">
+                Learn
+              </TabsTrigger>
+              <TabsTrigger value="size" className="text-xs rounded-sm data-[state=active]:bg-muted">
+                Code size
+              </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="learn" className="flex-1 overflow-y-auto px-5 py-4 mt-0">
+              <LearningPanel category={problem.category} tags={problem.tags} />
+            </TabsContent>
+
+            <TabsContent value="size" className="flex-1 overflow-y-auto px-5 py-4 mt-0">
+              <CodeSizePanel slug={problem.slug} code={code} refreshKey={sizeRefresh} />
+            </TabsContent>
 
             <TabsContent value="description" className="flex-1 overflow-y-auto px-5 py-4 mt-0 space-y-5">
               {/* No `prose` classes: @tailwindcss/typography is not installed, so they
@@ -334,14 +360,7 @@ export default function Workspace({ problem }: { problem: Problem }) {
                 </div>
               )}
 
-              {(problem.hints?.length ?? 0) > 0 && (
-                <div>
-                  <p className="text-sm font-semibold mb-2">Hints</p>
-                  <ul className="list-disc pl-4 space-y-1 text-xs text-muted-foreground">
-                    {problem.hints?.map((hint, i) => <li key={i}>{hint}</li>)}
-                  </ul>
-                </div>
-              )}
+              <ProgressiveHints hints={problem.hints ?? []} />
 
               {/*
                 Report. Sits after the problem content and before the solution
@@ -566,7 +585,14 @@ export default function Workspace({ problem }: { problem: Problem }) {
                 {activeTab === "output" && (
                   <div className="h-full overflow-auto p-4 font-mono text-sm">
                     {output ? (
-                      <pre className={outputClass}>{output}</pre>
+                      <>
+                        <pre className={outputClass}>{output}</pre>
+                        {lastError && !isRunning && (
+                          <div className="mt-3 font-sans">
+                            <ExplainError key={lastError} code={code} error={lastError} />
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="text-muted-foreground italic text-xs">Run your code to see output here…</p>
                     )}

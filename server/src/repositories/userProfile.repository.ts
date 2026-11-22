@@ -11,6 +11,8 @@ export interface ProfileRecord {
   followers: string[];
   following: string[];
   createdAt: Date;
+  /** ISO country code, or null when not chosen. */
+  country: string | null;
 }
 
 type LeanProfile = {
@@ -20,6 +22,7 @@ type LeanProfile = {
   followers?: string[] | null;
   following?: string[] | null;
   createdAt?: Date | null;
+  country?: string | null;
 };
 
 function toRecord(doc: LeanProfile): ProfileRecord {
@@ -30,6 +33,7 @@ function toRecord(doc: LeanProfile): ProfileRecord {
     followers: doc.followers ?? [],
     following: doc.following ?? [],
     createdAt: doc.createdAt ?? new Date(0),
+    country: doc.country ?? null,
   };
 }
 

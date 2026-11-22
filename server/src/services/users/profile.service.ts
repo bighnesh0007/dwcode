@@ -73,6 +73,7 @@ export class ProfileService {
       githubUsername,
       username: profile?.username ?? null,
       bio: profile?.bio ?? "",
+      country: profile?.country ?? null,
       followers: profile?.followers.length ?? 0,
       following: profile?.following.length ?? 0,
       problems: {

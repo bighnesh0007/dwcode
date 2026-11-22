@@ -126,13 +126,13 @@ and the admin announcement banner. Ranks were already score-based in
 - Ranks from points with an admin-editable points table; celebration on solve and rank-up
 - In-app notifications (bell, unread count); announcement banner set from admin
 
-### Phase B — Practice modes
+### Phase B — Practice modes ✅
 - Interview mode: random timed set by difficulty, scorecard, verdict; infrastructure errors don't count against the learner
 - Debugging Arena: problems that start from a broken script, tagged by bug type (selector, `null`, type coercion, `reduce`, precedence like #54)
 - Progressive hints (reveal one at a time, optional coin cost), Learning tab (concept + docs links), code-size ranking (comments and whitespace stripped)
 - "Explain my error": AI explanation, used when the rules in `lib/compilerErrors.ts` don't match
 
-### Phase C — Competition
+### Phase C — Competition ✅
 - Contest calendar: Weekly (Sun) and Biweekly (Sat), auto-created with problem picks
 - Multiplayer Elo rating (start 1500, K-bounded), rating history, tiers
 - Reminders and result notifications, countdown banner

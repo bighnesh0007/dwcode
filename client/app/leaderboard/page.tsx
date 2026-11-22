@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/apiClient";
+import { OtherBoards } from "@/components/OtherBoards";
 import { RANK_TIERS, getTier } from "@/lib/ranks";
 
 interface LeaderboardRow {
@@ -138,6 +139,8 @@ export default function LeaderboardPage() {
                     Click any player to visit their profile.
                 </p>
             </div>
+
+            <OtherBoards />
 
             {/* My rank card — page-independent thanks to `me` from the API */}
             {me && (

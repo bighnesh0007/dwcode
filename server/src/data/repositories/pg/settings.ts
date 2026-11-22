@@ -11,3 +11,10 @@ export async function set(key: string, value: unknown, updatedBy: string): Promi
   const row = { value, updatedBy, updatedAt: new Date() };
   await db().insert(appSettings).values({ key, ...row }).onConflictDoUpdate({ target: appSettings.key, set: row });
 }
+
+/** Insert only if absent: true when this call created it. */
+export async function claim(key: string, value: unknown, updatedBy: string): Promise<boolean> {
+  const rows = await db().insert(appSettings).values({ key, value, updatedBy, updatedAt: new Date() })
+    .onConflictDoNothing().returning({ key: appSettings.key });
+  return rows.length > 0;
+}
