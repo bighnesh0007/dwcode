@@ -24,9 +24,14 @@ const ERRORS_PAGE = 100;
 
 export type ModerationKind = "blog" | "comment" | "user";
 
-function fnv1aHex(text: string): string {
+/** Longest input the fingerprint reads; callers already clip, this makes the bound explicit. */
+const FINGERPRINT_MAX = 1024;
+
+function fnv1aHex(input: string): string {
+  const text = input.slice(0, FINGERPRINT_MAX);
+  const n = Math.min(text.length, FINGERPRINT_MAX);
   let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
+  for (let i = 0; i < n; i++) {
     hash ^= text.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
@@ -36,7 +41,7 @@ function fnv1aHex(text: string): string {
 /** A URL or path without its query string or fragment, clipped. */
 export function cleanPath(url: string | undefined, max = 200): string {
   if (!url) return "";
-  let path = url;
+  let path: string;
   try {
     const u = new URL(url, "https://dwcode.invalid");
     path = u.origin === "https://dwcode.invalid" ? u.pathname : `${u.origin}${u.pathname}`;
